@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python:*)",
+      "mcp__codex-cli__ask-codex",
+      "mcp__codex__codex",
+      "WebSearch",
+      "Bash(dir:*)",
+      "WebFetch(domain:schema.org)",
+      "WebFetch(domain:www.npmjs.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:developers.google.com)",
+      "Bash(git init:*)",
+      "Bash(npm create:*)",
+      "Bash(npm install:*)",
+      "Bash(npx vitest run)",
+      "Bash(timeout 8 npx vite:*)",
+      "Bash(git add:*)"
+    ]
+  }
+}
