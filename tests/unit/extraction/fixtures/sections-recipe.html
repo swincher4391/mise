@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Recipe with Sections</title>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org/",
+    "@type": ["Recipe"],
+    "name": "Chicken Stir Fry",
+    "recipeYield": "4 servings",
+    "prepTime": "PT20M",
+    "cookTime": "PT15M",
+    "image": {
+      "@type": "ImageObject",
+      "url": "https://example.com/stirfry.jpg",
+      "width": 800,
+      "height": 600
+    },
+    "recipeIngredient": [
+      "1 lb chicken breast, sliced",
+      "2 tablespoons soy sauce",
+      "1 tablespoon sesame oil",
+      "1 cup broccoli",
+      "1 bell pepper, sliced"
+    ],
+    "recipeInstructions": [
+      {
+        "@type": "HowToSection",
+        "name": "Prepare the Chicken",
+        "itemListElement": [
+          {
+            "@type": "HowToStep",
+            "text": "Slice chicken breast into thin strips."
+          },
+          {
+            "@type": "HowToStep",
+            "text": "Marinate chicken in soy sauce for 10 minutes."
+          }
+        ]
+      },
+      {
+        "@type": "HowToSection",
+        "name": "Cook the Stir Fry",
+        "itemListElement": [
+          {
+            "@type": "HowToStep",
+            "text": "Heat sesame oil in a wok over high heat."
+          },
+          {
+            "@type": "HowToStep",
+            "text": "Add chicken and stir fry for 5 minutes."
+          },
+          {
+            "@type": "HowToStep",
+            "text": "Add vegetables and cook for 3 more minutes."
+          }
+        ]
+      }
+    ]
+  }
+  </script>
+</head>
+<body></body>
+</html>
