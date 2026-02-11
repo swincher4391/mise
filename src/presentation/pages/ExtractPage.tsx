@@ -4,7 +4,11 @@ import { RecipeDisplay } from '@presentation/components/RecipeDisplay.tsx'
 import { ErrorDisplay } from '@presentation/components/ErrorDisplay.tsx'
 import { PwaStatus } from '@presentation/components/PwaStatus.tsx'
 
-export function ExtractPage() {
+interface ExtractPageProps {
+  onNavigateToLibrary: () => void
+}
+
+export function ExtractPage({ onNavigateToLibrary }: ExtractPageProps) {
   const { recipe, isLoading, error, extract } = useRecipeExtraction()
 
   return (
@@ -14,6 +18,11 @@ export function ExtractPage() {
         <h1 className="app-title">Mise</h1>
         <p className="app-tagline">Just the recipe.</p>
       </div>
+      <div className="app-nav">
+        <button className="nav-btn" onClick={onNavigateToLibrary}>
+          My Recipes
+        </button>
+      </div>
       <UrlInput onExtract={extract} isLoading={isLoading} />
       {isLoading && (
         <div className="loading">
@@ -21,7 +30,7 @@ export function ExtractPage() {
         </div>
       )}
       {error && <ErrorDisplay error={error} />}
-      {recipe && <RecipeDisplay recipe={recipe} />}
+      {recipe && <RecipeDisplay recipe={recipe} showSaveButton />}
     </main>
   )
 }

@@ -129,6 +129,35 @@ describe('normalizeRecipe', () => {
   })
 })
 
+describe('normalizeRecipe HTML entity decoding', () => {
+  it('should decode &#039; in title, ingredients, and steps', () => {
+    const jsonLd = {
+      '@type': 'Recipe',
+      name: 'Grandma&#039;s Famous Soup',
+      description: 'A hearty soup that&#039;s perfect for winter',
+      recipeIngredient: [
+        '2 cups chicken broth, don&#039;t use low sodium',
+        '1&frasl;2 cup onion, finely diced',
+      ],
+      recipeInstructions: [
+        { '@type': 'HowToStep', text: 'Don&#039;t skip this step &mdash; saut&eacute; the onions.' },
+        { '@type': 'HowToStep', text: 'Simmer for 25 minutes until it&#039;s done.' },
+      ],
+      recipeYield: '4 servings',
+    }
+    const recipe = normalizeRecipe(jsonLd, 'https://example.com/soup')
+
+    expect(recipe.title).toBe("Grandma's Famous Soup")
+    expect(recipe.description).toBe("A hearty soup that's perfect for winter")
+    expect(recipe.steps[0].text).toContain("Don't")
+    expect(recipe.steps[0].text).not.toContain('&#039;')
+    expect(recipe.steps[0].text).not.toContain('&mdash;')
+    expect(recipe.steps[1].text).toContain("it's")
+    // Ingredient text should be decoded before parsing
+    expect(recipe.ingredients[0].raw).not.toContain('&#039;')
+  })
+})
+
 describe('parseIsoDuration', () => {
   it('should parse PT1H30M to 90', () => {
     expect(parseIsoDuration('PT1H30M')).toBe(90)

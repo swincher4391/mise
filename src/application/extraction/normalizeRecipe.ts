@@ -3,8 +3,23 @@ import type { Step } from '@domain/models/Step.ts'
 import type { Nutrition } from '@domain/models/Nutrition.ts'
 import { parseIngredients } from '@application/parser/IngredientParser.ts'
 import { parseIsoDuration } from './parseIsoDuration.ts'
+import { extractPrimaryTimer } from '@application/parser/parseStepTimers.ts'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
+
+/**
+ * Decode HTML entities that survive JSON-LD extraction.
+ * Uses a detached textarea element as the browser's built-in decoder —
+ * textarea.innerHTML parses entities, textarea.value returns plain text.
+ * This is safe: the element is never attached to the DOM.
+ */
+const _textarea = typeof document !== 'undefined' ? document.createElement('textarea') : null
+
+function decodeEntities(text: string): string {
+  if (!_textarea) return text
+  _textarea.innerHTML = text
+  return _textarea.value
+}
 
 const PARSER_VERSION = '1.0.0'
 const SCHEMA_VERSION = 1
@@ -64,13 +79,13 @@ function normalizeSteps(raw: any): Step[] {
   let order = 1
 
   function addStep(text: string) {
-    const trimmed = text.trim()
+    const trimmed = decodeEntities(text.trim())
     if (!trimmed) return
     steps.push({
       id: `step_${order}`,
       order,
       text: trimmed,
-      timerSeconds: null,
+      timerSeconds: extractPrimaryTimer(trimmed),
       ingredientRefs: [],
     })
     order++
@@ -142,8 +157,8 @@ function normalizeNutrition(raw: any): Nutrition | null {
 /** Normalize a string or array of strings to a string array. */
 function toStringArray(raw: any): string[] {
   if (!raw) return []
-  if (typeof raw === 'string') return raw.split(',').map((s: string) => s.trim()).filter(Boolean)
-  if (Array.isArray(raw)) return raw.map(String).filter(Boolean)
+  if (typeof raw === 'string') return raw.split(',').map((s: string) => decodeEntities(s.trim())).filter(Boolean)
+  if (Array.isArray(raw)) return raw.map((s: any) => decodeEntities(String(s))).filter(Boolean)
   return []
 }
 
@@ -154,16 +169,19 @@ export function normalizeRecipe(jsonLd: any, sourceUrl: string): Recipe {
   const { servings, servingsText } = parseServings(jsonLd.recipeYield)
 
   const rawIngredients: string[] = Array.isArray(jsonLd.recipeIngredient)
-    ? jsonLd.recipeIngredient.map(String)
+    ? jsonLd.recipeIngredient.map((s: any) => decodeEntities(String(s)))
     : []
 
   return {
     id: generateId(),
-    title: String(jsonLd.name || 'Untitled Recipe'),
+    title: decodeEntities(String(jsonLd.name || 'Untitled Recipe')),
     sourceUrl,
     sourceDomain: extractDomain(sourceUrl),
-    author: jsonLd.author?.name || (typeof jsonLd.author === 'string' ? jsonLd.author : null),
-    description: jsonLd.description || null,
+    author: (() => {
+      const raw = jsonLd.author?.name || (typeof jsonLd.author === 'string' ? jsonLd.author : null)
+      return raw ? decodeEntities(String(raw)) : null
+    })(),
+    description: jsonLd.description ? decodeEntities(String(jsonLd.description)) : null,
     imageUrl: normalizeImage(jsonLd.image),
     servings,
     servingsText,
@@ -176,6 +194,9 @@ export function normalizeRecipe(jsonLd: any, sourceUrl: string): Recipe {
     keywords: toStringArray(jsonLd.keywords),
     cuisines: toStringArray(jsonLd.recipeCuisine),
     categories: toStringArray(jsonLd.recipeCategory),
+    tags: [],
+    notes: null,
+    favorite: false,
     extractedAt: new Date().toISOString(),
     extractionLayer: 'json-ld',
     parserVersion: PARSER_VERSION,

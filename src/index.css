@@ -361,6 +361,820 @@ body {
   color: #065f46;
 }
 
+/* Navigation */
+.app-nav {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.nav-btn {
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #2d5016;
+  background: transparent;
+  border: 2px solid #2d5016;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.nav-btn:hover {
+  background: #2d5016;
+  color: white;
+}
+
+/* Recipe Actions */
+.recipe-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.save-btn {
+  padding: 0.5rem 1.25rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: white;
+  background: #2d5016;
+  border: 2px solid #2d5016;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.save-btn:hover:not(:disabled) {
+  background: #3d6b1f;
+}
+
+.save-btn.saved {
+  background: #f0efe8;
+  color: #2d5016;
+  cursor: default;
+}
+
+.delete-btn {
+  padding: 0.5rem 1.25rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #991b1b;
+  background: transparent;
+  border: 2px solid #991b1b;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.delete-btn:hover {
+  background: #991b1b;
+  color: white;
+}
+
+/* Library Page */
+.library-empty {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: #666;
+}
+
+.library-empty p + p {
+  margin-top: 0.5rem;
+}
+
+/* Recipe Card List */
+.recipe-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.recipe-card {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  width: 100%;
+  padding: 0.75rem;
+  background: white;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.recipe-card:hover {
+  border-color: #2d5016;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.recipe-card-image {
+  width: 80px;
+  height: 80px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.recipe-card-placeholder {
+  background: #f0efe8;
+}
+
+.recipe-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.recipe-card-title {
+  font-weight: 600;
+  font-size: 1rem;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.recipe-card-meta {
+  font-size: 0.85rem;
+  color: #666;
+}
+
+/* Favorite Button */
+.favorite-btn {
+  width: 40px;
+  height: 40px;
+  font-size: 1.4rem;
+  line-height: 1;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  background: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.favorite-btn:hover {
+  border-color: #e6a817;
+}
+
+.favorite-btn.favorited {
+  color: #e6a817;
+  border-color: #e6a817;
+}
+
+/* Recipe Notes */
+.recipe-notes {
+  margin-bottom: 1.25rem;
+}
+
+.notes-textarea {
+  width: 100%;
+  padding: 0.75rem;
+  font-size: 0.95rem;
+  font-family: inherit;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  background: white;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.notes-textarea:focus {
+  border-color: #2d5016;
+}
+
+.notes-display {
+  display: block;
+  width: 100%;
+  padding: 0.75rem;
+  font-size: 0.95rem;
+  font-family: inherit;
+  text-align: left;
+  color: #666;
+  background: #f9f9f6;
+  border: 1px dashed #ddd;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  white-space: pre-wrap;
+}
+
+.notes-display:hover {
+  border-color: #2d5016;
+  background: #f0efe8;
+}
+
+.notes-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.notes-actions .save-btn,
+.notes-actions .nav-btn {
+  padding: 0.35rem 1rem;
+  font-size: 0.85rem;
+}
+
+/* Tag Manager */
+.tag-manager {
+  margin-bottom: 1rem;
+}
+
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding: 0.5rem;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  background: #f9f9f6;
+  min-height: 38px;
+  align-items: center;
+}
+
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.8rem;
+  background: #2d5016;
+  color: white;
+  border-radius: 12px;
+  white-space: nowrap;
+}
+
+.tag-remove {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 0 0.15rem;
+  line-height: 1;
+}
+
+.tag-remove:hover {
+  color: white;
+}
+
+.tag-input {
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 0.85rem;
+  font-family: inherit;
+  min-width: 80px;
+  flex: 1;
+}
+
+/* Library Filters */
+.library-filters {
+  margin-bottom: 1rem;
+}
+
+.library-search {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.95rem;
+  font-family: inherit;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  background: white;
+  outline: none;
+  transition: border-color 0.15s;
+  margin-bottom: 0.5rem;
+}
+
+.library-search:focus {
+  border-color: #2d5016;
+}
+
+.library-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.filter-chip {
+  padding: 0.3rem 0.7rem;
+  font-size: 0.8rem;
+  font-family: inherit;
+  border: 1px solid #ddd;
+  border-radius: 16px;
+  background: white;
+  color: #444;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.filter-chip:hover {
+  border-color: #2d5016;
+}
+
+.filter-chip.active {
+  background: #2d5016;
+  color: white;
+  border-color: #2d5016;
+}
+
+/* Card Enhancements */
+.card-favorite-icon {
+  color: #e6a817;
+}
+
+.recipe-card-tags {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+  margin-top: 0.15rem;
+}
+
+.card-tag {
+  font-size: 0.7rem;
+  padding: 0.1rem 0.4rem;
+  background: #f0efe8;
+  color: #555;
+  border-radius: 8px;
+}
+
+/* Manual Entry Form */
+.manual-entry-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.form-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #444;
+}
+
+.form-hint {
+  font-weight: 400;
+  color: #888;
+  font-size: 0.8rem;
+}
+
+.form-input {
+  padding: 0.6rem 0.75rem;
+  font-size: 1rem;
+  font-family: inherit;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  background: white;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.form-input:focus {
+  border-color: #2d5016;
+}
+
+.form-textarea {
+  padding: 0.6rem 0.75rem;
+  font-size: 0.95rem;
+  font-family: inherit;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  background: white;
+  outline: none;
+  resize: vertical;
+  transition: border-color 0.15s;
+}
+
+.form-textarea:focus {
+  border-color: #2d5016;
+}
+
+.form-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+/* Backup Nudge */
+.backup-nudge {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fcd34d;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  flex-wrap: wrap;
+}
+
+.nudge-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.nudge-actions .save-btn,
+.nudge-actions .nav-btn {
+  padding: 0.3rem 0.75rem;
+  font-size: 0.8rem;
+}
+
+/* Start Cooking Button */
+.cook-mode-btn {
+  display: block;
+  width: 100%;
+  padding: 0.875rem 1.5rem;
+  margin-bottom: 1.25rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  font-family: inherit;
+  color: white;
+  background: #2d5016;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s;
+  min-height: 48px;
+}
+
+.cook-mode-btn:hover {
+  background: #3d6b1f;
+}
+
+/* Cooking Mode */
+.cooking-mode {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: #1a1a1a;
+  color: #f5f5f0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.cooking-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: #222;
+  flex-shrink: 0;
+}
+
+.cooking-exit-btn {
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: #f5f5f0;
+  background: transparent;
+  border: 1px solid #555;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  min-height: 48px;
+  min-width: 48px;
+  transition: background 0.15s;
+}
+
+.cooking-exit-btn:hover {
+  background: #333;
+}
+
+.cooking-progress-wrapper {
+  flex: 1;
+  height: 4px;
+  background: #333;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.cooking-progress {
+  height: 100%;
+  background: #e6a817;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.cooking-sidebar-toggle {
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: #f5f5f0;
+  background: transparent;
+  border: 1px solid #555;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  min-height: 48px;
+  min-width: 48px;
+  transition: background 0.15s;
+}
+
+.cooking-sidebar-toggle:hover {
+  background: #333;
+}
+
+.wakelock-fallback {
+  padding: 0.5rem 1rem;
+  margin: 0.5rem 1rem 0;
+  font-size: 0.85rem;
+  color: #e6a817;
+  background: #2a2200;
+  border: 1px solid #554400;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.cooking-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 1.5rem;
+  overflow-y: auto;
+}
+
+/* Cooking Step */
+.cooking-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  max-width: 640px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.cooking-step-number {
+  font-size: 0.9rem;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.cooking-step-text {
+  font-size: 1.75rem;
+  line-height: 1.5;
+  text-align: center;
+  color: #f5f5f0;
+}
+
+.cooking-step-timers {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+  max-width: 320px;
+}
+
+.cooking-timer-btn {
+  display: block;
+  width: 100%;
+  padding: 0.875rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: white;
+  background: #2d5016;
+  border: 2px solid #3d6b1f;
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: center;
+  min-height: 48px;
+  min-width: 48px;
+  transition: background 0.15s;
+}
+
+.cooking-timer-btn:hover {
+  background: #3d6b1f;
+}
+
+.cooking-timer-btn.running {
+  background: #1a3a0a;
+  border-color: #e6a817;
+  color: #e6a817;
+}
+
+.cooking-timer-btn.paused {
+  background: #2a2200;
+  border-color: #e6a817;
+  color: #e6a817;
+  opacity: 0.8;
+}
+
+.cooking-timer-btn.finished {
+  background: #3a2a00;
+  border-color: #e6a817;
+  color: #e6a817;
+  cursor: default;
+  animation: timerPulse 1.5s ease-in-out infinite;
+}
+
+/* Navigation */
+.cooking-nav {
+  display: flex;
+  gap: 1rem;
+  width: 100%;
+  max-width: 400px;
+}
+
+.cooking-nav-btn {
+  flex: 1;
+  padding: 0.875rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: #f5f5f0;
+  background: #333;
+  border: 1px solid #555;
+  border-radius: 10px;
+  cursor: pointer;
+  min-height: 48px;
+  min-width: 48px;
+  transition: background 0.15s;
+}
+
+.cooking-nav-btn:hover:not(:disabled) {
+  background: #444;
+}
+
+.cooking-nav-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* Ingredient Sidebar */
+.cooking-sidebar {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 320px;
+  max-width: 100vw;
+  background: #222;
+  border-left: 1px solid #444;
+  z-index: 1010;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.cooking-sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid #444;
+}
+
+.cooking-sidebar-header h2 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #f5f5f0;
+}
+
+.cooking-sidebar-close {
+  width: 48px;
+  height: 48px;
+  font-size: 1.5rem;
+  color: #f5f5f0;
+  background: transparent;
+  border: 1px solid #555;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+
+.cooking-sidebar-close:hover {
+  background: #333;
+}
+
+.cooking-sidebar-list {
+  list-style: none;
+  padding: 0.5rem 0;
+}
+
+.cooking-sidebar-item {
+  padding: 0;
+}
+
+.cooking-sidebar-label {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1.4;
+  min-height: 48px;
+  transition: background 0.15s;
+}
+
+.cooking-sidebar-label:hover {
+  background: #2a2a2a;
+}
+
+.cooking-sidebar-checkbox {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  accent-color: #e6a817;
+}
+
+.cooking-sidebar-strikethrough {
+  text-decoration: line-through;
+  opacity: 0.5;
+}
+
+/* Timer Bar */
+.cooking-timer-bar {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: #222;
+  border-top: 1px solid #444;
+  overflow-x: auto;
+  flex-shrink: 0;
+}
+
+.cooking-timer-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: #333;
+  border: 1px solid #555;
+  border-radius: 8px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.cooking-timer-finished {
+  border-color: #e6a817;
+  background: #3a2a00;
+  animation: timerPulse 1.5s ease-in-out infinite;
+}
+
+.timer-chip-label {
+  font-size: 0.8rem;
+  color: #999;
+}
+
+.timer-chip-time {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #f5f5f0;
+  font-variant-numeric: tabular-nums;
+}
+
+.cooking-timer-finished .timer-chip-time {
+  color: #e6a817;
+}
+
+.timer-chip-btn {
+  padding: 0.35rem 0.65rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: #f5f5f0;
+  background: #444;
+  border: 1px solid #666;
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 36px;
+  min-width: 48px;
+  transition: background 0.15s;
+}
+
+.timer-chip-btn:hover {
+  background: #555;
+}
+
+@keyframes timerPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
 /* Mobile responsive */
 @media (max-width: 480px) {
   .extract-page {
@@ -380,6 +1194,22 @@ body {
   }
 
   .recipe-times {
+    gap: 0.5rem;
+  }
+
+  .cooking-step-text {
+    font-size: 1.5rem;
+  }
+
+  .cooking-sidebar {
+    width: 100vw;
+  }
+
+  .cooking-main {
+    padding: 1rem;
+  }
+
+  .cooking-nav {
     gap: 0.5rem;
   }
 }

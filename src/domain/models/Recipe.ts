@@ -21,6 +21,9 @@ export interface Recipe {
   keywords: string[]
   cuisines: string[]
   categories: string[]
+  tags: string[]
+  notes: string | null
+  favorite: boolean
   extractedAt: string
   extractionLayer: 'json-ld' | 'microdata' | 'manual'
   parserVersion: string
