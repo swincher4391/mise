@@ -1175,6 +1175,106 @@ body {
   50% { opacity: 0.6; }
 }
 
+/* Import Dialog */
+.import-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.import-dialog {
+  background: white;
+  border-radius: 12px;
+  max-width: 480px;
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+}
+
+.import-dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid #eee;
+}
+
+.import-dialog-header h2 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.import-dialog-header .nav-btn {
+  border: none;
+  font-size: 1.5rem;
+  padding: 0.25rem 0.5rem;
+  line-height: 1;
+}
+
+.import-dialog-body {
+  padding: 1.25rem;
+}
+
+.import-dialog-body p {
+  margin-bottom: 0.75rem;
+  color: #444;
+  font-size: 0.95rem;
+}
+
+.import-formats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.import-format {
+  display: flex;
+  gap: 0.75rem;
+  align-items: baseline;
+  padding: 0.5rem 0.75rem;
+  background: #f9f9f6;
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+.import-format strong {
+  color: #2d5016;
+  font-family: monospace;
+}
+
+.import-format span {
+  color: #666;
+}
+
+.import-preview-list {
+  list-style: disc;
+  margin-left: 1.5rem;
+  margin-bottom: 1rem;
+  font-size: 0.95rem;
+  color: #444;
+}
+
+.import-preview-list li {
+  padding: 0.15rem 0;
+}
+
+.import-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.error-text {
+  color: #991b1b;
+}
+
 /* Mobile responsive */
 @media (max-width: 480px) {
   .extract-page {

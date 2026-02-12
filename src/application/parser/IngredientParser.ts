@@ -43,6 +43,16 @@ export function parseIngredient(raw: string): Ingredient {
   // Step 2: Extract parentheticals
   const { text: withoutParens, notes: parenNotes } = parseParenthetical(normalized)
 
+  // Check if "optional" appeared in parenthetical and remove it from notes
+  let optionalFromParen = false
+  const filteredNotes = parenNotes.filter((note) => {
+    if (/^optional$/i.test(note.trim())) {
+      optionalFromParen = true
+      return false
+    }
+    return true
+  })
+
   // Step 3: Parse quantity
   const { qty, remainder: afterQty } = parseQuantity(withoutParens)
 
@@ -56,7 +66,7 @@ export function parseIngredient(raw: string): Ingredient {
   const category = lookupCategory(ingredient)
 
   // Combine notes
-  const allNotes = parenNotes.length > 0 ? parenNotes.join('; ') : null
+  const allNotes = filteredNotes.length > 0 ? filteredNotes.join('; ') : null
 
   // Step 8: Assemble
   return {
@@ -69,7 +79,7 @@ export function parseIngredient(raw: string): Ingredient {
     prep,
     notes: allNotes,
     category,
-    optional,
+    optional: optional || optionalFromParen,
   }
 }
 

@@ -2,9 +2,23 @@ import { describe, it, expect } from 'vitest'
 import { readdirSync, readFileSync } from 'fs'
 import { join } from 'path'
 import { extractJsonLd } from '@application/extraction/extractJsonLd.ts'
+import { extractMicrodata } from '@application/extraction/extractMicrodata.ts'
 import { normalizeRecipe } from '@application/extraction/normalizeRecipe.ts'
 
 const FIXTURES_DIR = join(__dirname, 'fixtures')
+
+/**
+ * Extract recipes from HTML using JSON-LD first, then microdata fallback.
+ */
+function extractRecipes(html: string): { recipes: any[]; layer: string } {
+  const jsonLd = extractJsonLd(html)
+  if (jsonLd.length > 0) return { recipes: jsonLd, layer: 'json-ld' }
+
+  const microdata = extractMicrodata(html)
+  if (microdata.length > 0) return { recipes: microdata, layer: 'microdata' }
+
+  return { recipes: [], layer: 'none' }
+}
 
 /**
  * Validation test suite: runs all HTML fixtures through the full
@@ -21,23 +35,24 @@ describe('Extraction pipeline validation', () => {
     describe(`fixture: ${file}`, () => {
       const html = readFileSync(join(FIXTURES_DIR, file), 'utf-8')
 
-      it('should extract at least one Recipe from JSON-LD', () => {
-        const recipes = extractJsonLd(html)
+      it('should extract at least one Recipe from JSON-LD or Microdata', () => {
+        const { recipes } = extractRecipes(html)
         expect(recipes.length).toBeGreaterThanOrEqual(1)
         expect(recipes[0]['@type']).toBeDefined()
       })
 
       it('should normalize to a valid Recipe object', () => {
-        const recipes = extractJsonLd(html)
+        const { recipes, layer } = extractRecipes(html)
         if (recipes.length === 0) return
 
         const recipe = normalizeRecipe(recipes[0], `https://example.com/${file}`)
+        if (layer === 'microdata') recipe.extractionLayer = 'microdata'
 
         // Required fields exist
         expect(recipe.id).toBeTruthy()
         expect(recipe.title).toBeTruthy()
         expect(recipe.title).not.toBe('Untitled Recipe')
-        expect(recipe.extractionLayer).toBe('json-ld')
+        expect(['json-ld', 'microdata']).toContain(recipe.extractionLayer)
         expect(recipe.extractedAt).toBeTruthy()
 
         // Ingredients parsed
@@ -57,7 +72,7 @@ describe('Extraction pipeline validation', () => {
       })
 
       it('should parse ingredient quantities for most ingredients', () => {
-        const recipes = extractJsonLd(html)
+        const { recipes } = extractRecipes(html)
         if (recipes.length === 0) return
 
         const recipe = normalizeRecipe(recipes[0], `https://example.com/${file}`)
@@ -69,7 +84,7 @@ describe('Extraction pipeline validation', () => {
       })
 
       it('should extract time information when available', () => {
-        const recipes = extractJsonLd(html)
+        const { recipes } = extractRecipes(html)
         if (recipes.length === 0) return
 
         const recipe = normalizeRecipe(recipes[0], `https://example.com/${file}`)

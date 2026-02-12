@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react'
 import type { Recipe } from '@domain/models/Recipe.ts'
 import { fetchViaProxy } from '@infrastructure/proxy/fetchViaProxy.ts'
 import { extractJsonLd } from '@application/extraction/extractJsonLd.ts'
+import { extractMicrodata } from '@application/extraction/extractMicrodata.ts'
 import { normalizeRecipe } from '@application/extraction/normalizeRecipe.ts'
 
 interface UseRecipeExtractionResult {
@@ -9,6 +10,7 @@ interface UseRecipeExtractionResult {
   isLoading: boolean
   error: string | null
   extract: (url: string) => Promise<void>
+  setRecipe: (recipe: Recipe | null) => void
 }
 
 export function useRecipeExtraction(): UseRecipeExtractionResult {
@@ -23,15 +25,25 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
 
     try {
       const html = await fetchViaProxy(url)
-      const recipes = extractJsonLd(html)
 
-      if (recipes.length === 0) {
-        setError('No recipe found on this page. The site may not include structured recipe data.')
+      // Layer 1: JSON-LD
+      const recipes = extractJsonLd(html)
+      if (recipes.length > 0) {
+        const normalized = normalizeRecipe(recipes[0], url)
+        setRecipe(normalized)
         return
       }
 
-      const normalized = normalizeRecipe(recipes[0], url)
-      setRecipe(normalized)
+      // Layer 2: Microdata/RDFa
+      const microdataRecipes = extractMicrodata(html)
+      if (microdataRecipes.length > 0) {
+        const normalized = normalizeRecipe(microdataRecipes[0], url)
+        normalized.extractionLayer = 'microdata'
+        setRecipe(normalized)
+        return
+      }
+
+      setError('No recipe found on this page. The site may not include structured recipe data.')
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to extract recipe'
       setError(message)
@@ -40,5 +52,5 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
     }
   }, [])
 
-  return { recipe, isLoading, error, extract }
+  return { recipe, isLoading, error, extract, setRecipe }
 }

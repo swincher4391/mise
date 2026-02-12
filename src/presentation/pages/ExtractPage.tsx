@@ -1,15 +1,26 @@
+import { useEffect } from 'react'
 import { useRecipeExtraction } from '@presentation/hooks/useRecipeExtraction.ts'
 import { UrlInput } from '@presentation/components/UrlInput.tsx'
 import { RecipeDisplay } from '@presentation/components/RecipeDisplay.tsx'
 import { ErrorDisplay } from '@presentation/components/ErrorDisplay.tsx'
 import { PwaStatus } from '@presentation/components/PwaStatus.tsx'
+import type { Recipe } from '@domain/models/Recipe.ts'
 
 interface ExtractPageProps {
   onNavigateToLibrary: () => void
+  importedRecipe?: Recipe | null
+  onImportedRecipeConsumed?: () => void
 }
 
-export function ExtractPage({ onNavigateToLibrary }: ExtractPageProps) {
-  const { recipe, isLoading, error, extract } = useRecipeExtraction()
+export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRecipeConsumed }: ExtractPageProps) {
+  const { recipe, isLoading, error, extract, setRecipe } = useRecipeExtraction()
+
+  useEffect(() => {
+    if (importedRecipe) {
+      setRecipe(importedRecipe)
+      onImportedRecipeConsumed?.()
+    }
+  }, [importedRecipe, setRecipe, onImportedRecipeConsumed])
 
   return (
     <main className="extract-page">
