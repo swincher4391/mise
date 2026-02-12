@@ -80,12 +80,19 @@ If this is not a recipe image, return: {"error": "No recipe found in image"}`
             const contentType = parsed.image.match(/^data:(image\/\w+);/)?.[1] ?? 'image/png'
             const ext = contentType.split('/')[1] ?? 'png'
 
-            const uploadForm = new FormData()
-            uploadForm.append('file', new Blob([buffer], { type: contentType }), `recipe.${ext}`)
+            const boundary = '----MiseBoundary' + Date.now()
+            const header = `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="recipe.${ext}"\r\nContent-Type: ${contentType}\r\n\r\n`
+            const footer = `\r\n--${boundary}--\r\n`
+            const uploadBody = Buffer.concat([
+              Buffer.from(header, 'utf-8'),
+              buffer,
+              Buffer.from(footer, 'utf-8'),
+            ])
 
-            const uploadRes = await fetch('https://0x0.st', {
+            const uploadRes = await fetch('https://tmpfiles.org/api/v1/upload', {
               method: 'POST',
-              body: uploadForm,
+              headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}` },
+              body: uploadBody,
             })
 
             if (!uploadRes.ok) {
@@ -97,7 +104,8 @@ If this is not a recipe image, return: {"error": "No recipe found in image"}`
               return
             }
 
-            const imageUrl = (await uploadRes.text()).trim()
+            const uploadData: any = await uploadRes.json()
+            const imageUrl: string = (uploadData?.data?.url ?? '').replace('tmpfiles.org/', 'tmpfiles.org/dl/')
 
             const response = await fetch('https://router.huggingface.co/v1/chat/completions', {
               method: 'POST',

@@ -22,24 +22,35 @@ async function uploadToTempHost(base64DataUrl: string): Promise<string> {
   const contentType = base64DataUrl.match(/^data:(image\/\w+);/)?.[1] ?? 'image/png'
   const ext = contentType.split('/')[1] ?? 'png'
 
-  const formData = new FormData()
-  formData.append('file', new Blob([buffer], { type: contentType }), `recipe.${ext}`)
+  // Build multipart body manually for Node.js compatibility
+  const boundary = '----MiseBoundary' + Date.now()
+  const header = `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="recipe.${ext}"\r\nContent-Type: ${contentType}\r\n\r\n`
+  const footer = `\r\n--${boundary}--\r\n`
 
-  const response = await fetch('https://0x0.st', {
+  const body = Buffer.concat([
+    Buffer.from(header, 'utf-8'),
+    buffer,
+    Buffer.from(footer, 'utf-8'),
+  ])
+
+  const response = await fetch('https://tmpfiles.org/api/v1/upload', {
     method: 'POST',
-    body: formData,
+    headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}` },
+    body,
   })
 
   if (!response.ok) {
     throw new Error(`Image upload failed (${response.status})`)
   }
 
-  const url = (await response.text()).trim()
-  if (!url.startsWith('http')) {
-    throw new Error('Invalid URL returned from image host')
+  const data: any = await response.json()
+  const pageUrl: string = data?.data?.url
+  if (!pageUrl) {
+    throw new Error('No URL returned from image host')
   }
 
-  return url
+  // Convert page URL to direct download URL
+  return pageUrl.replace('tmpfiles.org/', 'tmpfiles.org/dl/')
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
