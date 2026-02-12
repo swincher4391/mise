@@ -2,20 +2,19 @@ import { useState, useRef } from 'react'
 
 const MAX_DIMENSION = 1500
 const JPEG_QUALITY = 0.8
-const CONTRAST = 1.5
 
-/** Convert to high-contrast grayscale so colored text (neon green, etc.) is readable by the vision model */
+/**
+ * Convert to grayscale using the minimum RGB channel.
+ * This makes any colored ink (neon green, red, blue, etc.) appear dark against
+ * light backgrounds — much more readable by the vision model than luminance-based
+ * grayscale which can make bright colors nearly invisible.
+ */
 function preprocessPixels(ctx: CanvasRenderingContext2D, width: number, height: number) {
   const imageData = ctx.getImageData(0, 0, width, height)
   const d = imageData.data
-  // Contrast curve factor: maps contrast multiplier to pixel adjustment
-  const f = (259 * (CONTRAST * 128 + 255)) / (255 * (259 - CONTRAST * 128))
 
   for (let i = 0; i < d.length; i += 4) {
-    // Luminance-weighted grayscale
-    const gray = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]
-    // Stretch contrast around midpoint
-    const v = Math.max(0, Math.min(255, f * (gray - 128) + 128))
+    const v = Math.min(d[i], d[i + 1], d[i + 2])
     d[i] = v
     d[i + 1] = v
     d[i + 2] = v
