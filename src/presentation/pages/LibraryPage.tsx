@@ -6,14 +6,17 @@ import { shouldNudgeBackup, resetSaveCount } from '@infrastructure/backup/backup
 import { RecipeDisplay } from '@presentation/components/RecipeDisplay.tsx'
 import { RecipeCard } from '@presentation/components/RecipeCard.tsx'
 import { ManualEntryForm } from '@presentation/components/ManualEntryForm.tsx'
+import { ImportDialog } from '@presentation/components/ImportDialog.tsx'
+import type { Recipe } from '@domain/models/Recipe.ts'
 
 interface LibraryPageProps {
   selectedRecipeId: string | null
   onNavigateToExtract: () => void
+  onNavigateToGrocery: () => void
   onSelectRecipe: (id: string | null) => void
 }
 
-export function LibraryPage({ selectedRecipeId, onNavigateToExtract, onSelectRecipe }: LibraryPageProps) {
+export function LibraryPage({ selectedRecipeId, onNavigateToExtract, onNavigateToGrocery, onSelectRecipe }: LibraryPageProps) {
   const { recipes, isLoading, save, remove } = useSavedRecipes()
   const selectedRecipe = useSavedRecipe(selectedRecipeId)
 
@@ -21,6 +24,7 @@ export function LibraryPage({ selectedRecipeId, onNavigateToExtract, onSelectRec
   const [selectedTag, setSelectedTag] = useState<string | null>(null)
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false)
   const [showManualEntry, setShowManualEntry] = useState(false)
+  const [showImportDialog, setShowImportDialog] = useState(false)
   const [nudgeDismissed, setNudgeDismissed] = useState(false)
 
   const allTags = useMemo(() => {
@@ -74,6 +78,12 @@ export function LibraryPage({ selectedRecipeId, onNavigateToExtract, onSelectRec
     setShowManualEntry(false)
   }
 
+  const handleImport = async (importedRecipes: Recipe[]) => {
+    for (const recipe of importedRecipes) {
+      await save(recipe)
+    }
+  }
+
   const showNudge = !nudgeDismissed && shouldNudgeBackup() && recipes.length > 0
 
   // Detail view
@@ -116,6 +126,14 @@ export function LibraryPage({ selectedRecipeId, onNavigateToExtract, onSelectRec
         </button>
         <button className="nav-btn" onClick={() => setShowManualEntry(true)}>
           + Add Manually
+        </button>
+        {recipes.length > 0 && (
+          <button className="nav-btn grocery-nav-btn" onClick={onNavigateToGrocery}>
+            Grocery List
+          </button>
+        )}
+        <button className="nav-btn" onClick={() => setShowImportDialog(true)}>
+          Import
         </button>
         {recipes.length > 0 && (
           <button className="nav-btn" onClick={handleExportAll}>
@@ -185,6 +203,13 @@ export function LibraryPage({ selectedRecipeId, onNavigateToExtract, onSelectRec
             <RecipeCard key={recipe.id} recipe={recipe} onSelect={onSelectRecipe} />
           ))}
         </div>
+      )}
+
+      {showImportDialog && (
+        <ImportDialog
+          onImport={handleImport}
+          onClose={() => setShowImportDialog(false)}
+        />
       )}
     </main>
   )

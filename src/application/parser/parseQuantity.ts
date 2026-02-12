@@ -24,6 +24,8 @@ const UNICODE_FRACTIONS: Record<string, string> = {
 export function normalizeUnicodeFractions(text: string): string {
   let result = text
   for (const [unicode, ascii] of Object.entries(UNICODE_FRACTIONS)) {
+    // Insert space before the fraction when preceded by a digit (e.g. "1½" → "1 1/2")
+    result = result.replace(new RegExp(`(\\d)${unicode}`, 'g'), `$1 ${ascii}`)
     result = result.replace(new RegExp(unicode, 'g'), ascii)
   }
   return result
@@ -39,7 +41,7 @@ const QTY_PATTERN = /^(\d+\s+\d+\/\d+|\d+\/\d+|\d+\.\d+|\d+)/
 /**
  * Range pattern: two quantities separated by dash/to/or.
  */
-const RANGE_PATTERN = /^(\d+\s+\d+\/\d+|\d+\/\d+|\d+\.\d+|\d+)\s*[-–—]\s*(\d+\s+\d+\/\d+|\d+\/\d+|\d+\.\d+|\d+)/
+const RANGE_PATTERN = /^(\d+\s+\d+\/\d+|\d+\/\d+|\d+\.\d+|\d+)\s*(?:[-–—]|to)\s*(\d+\s+\d+\/\d+|\d+\/\d+|\d+\.\d+|\d+)/
 
 export interface QuantityResult {
   qty: number | Range | null

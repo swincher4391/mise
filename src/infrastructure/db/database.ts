@@ -1,8 +1,10 @@
 import Dexie, { type Table } from 'dexie'
 import type { SavedRecipe } from '@domain/models/SavedRecipe.ts'
+import type { GroceryList } from '@domain/models/GroceryList.ts'
 
 export class MiseDB extends Dexie {
   recipes!: Table<SavedRecipe, string>
+  groceryLists!: Table<GroceryList, string>
 
   constructor() {
     super('MiseDB')
@@ -19,6 +21,11 @@ export class MiseDB extends Dexie {
         if (recipe.notes === undefined) recipe.notes = null
         if (recipe.favorite === undefined) recipe.favorite = false
       })
+    })
+
+    this.version(3).stores({
+      recipes: 'id, sourceUrl, title, savedAt, *tags, favorite',
+      groceryLists: 'id, name, createdAt, updatedAt',
     })
   }
 }

@@ -400,5 +400,986 @@
     "ingredient": "all purpose flour",
     "prep": "sifted",
     "optional": false
+  },
+
+  {
+    "_category": "Unicode fractions",
+    "raw": "⅓ cup flour",
+    "qty": 0.333,
+    "unit": "cup",
+    "ingredient": "flour",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "1½ cups sugar",
+    "qty": 1.5,
+    "unit": "cup",
+    "ingredient": "sugar",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "⅔ cup buttermilk",
+    "qty": 0.667,
+    "unit": "cup",
+    "ingredient": "buttermilk",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "¼ teaspoon nutmeg",
+    "qty": 0.25,
+    "unit": "teaspoon",
+    "ingredient": "nutmeg",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "¾ cup packed brown sugar",
+    "qty": 0.75,
+    "unit": "cup",
+    "ingredient": "packed brown sugar",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "2½ cups bread flour",
+    "qty": 2.5,
+    "unit": "cup",
+    "ingredient": "bread flour",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "⅛ teaspoon ground cloves",
+    "qty": 0.125,
+    "unit": "teaspoon",
+    "ingredient": "ground cloves",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "½ cup unsalted butter",
+    "qty": 0.5,
+    "unit": "cup",
+    "ingredient": "unsalted butter",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "⅕ cup sesame oil",
+    "qty": 0.2,
+    "unit": "cup",
+    "ingredient": "sesame oil",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "1¼ cups warm water",
+    "qty": 1.25,
+    "unit": "cup",
+    "ingredient": "warm water",
+    "prep": null,
+    "optional": false
+  },
+
+  {
+    "_category": "Ranges",
+    "raw": "3-4 cloves garlic",
+    "qty": { "min": 3, "max": 4 },
+    "unit": "clove",
+    "ingredient": "garlic",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "2 to 3 tablespoons oil",
+    "qty": { "min": 2, "max": 3 },
+    "unit": "tablespoon",
+    "ingredient": "oil",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "1-2 teaspoons chili powder",
+    "qty": { "min": 1, "max": 2 },
+    "unit": "teaspoon",
+    "ingredient": "chili powder",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "4-5 medium potatoes",
+    "qty": { "min": 4, "max": 5 },
+    "unit": "medium",
+    "ingredient": "potatoes",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "8-10 cherry tomatoes",
+    "qty": { "min": 8, "max": 10 },
+    "unit": null,
+    "ingredient": "cherry tomatoes",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "2-3 cups shredded cheese",
+    "qty": { "min": 2, "max": 3 },
+    "unit": "cup",
+    "ingredient": "shredded cheese",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "5-6 scallions, sliced",
+    "qty": { "min": 5, "max": 6 },
+    "unit": null,
+    "ingredient": "scallions",
+    "prep": "sliced",
+    "optional": false
+  },
+  {
+    "raw": "1 to 2 cups water",
+    "qty": { "min": 1, "max": 2 },
+    "unit": "cup",
+    "ingredient": "water",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "3 to 4 sprigs thyme",
+    "qty": { "min": 3, "max": 4 },
+    "unit": "sprig",
+    "ingredient": "thyme",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "6-8 ounces pasta",
+    "qty": { "min": 6, "max": 8 },
+    "unit": "ounce",
+    "ingredient": "pasta",
+    "prep": null,
+    "optional": false
+  },
+
+  {
+    "_category": "Parentheticals",
+    "raw": "½ cup (1 stick) butter",
+    "qty": 0.5,
+    "unit": "cup",
+    "ingredient": "butter",
+    "prep": null,
+    "optional": false,
+    "notes": "1 stick"
+  },
+  {
+    "raw": "1 (28 oz) can crushed tomatoes",
+    "qty": 1,
+    "unit": "can",
+    "ingredient": "crushed tomatoes",
+    "prep": null,
+    "optional": false,
+    "notes": "28 oz"
+  },
+  {
+    "raw": "2 (6 oz) cans tomato paste",
+    "qty": 2,
+    "unit": "can",
+    "ingredient": "tomato paste",
+    "prep": null,
+    "optional": false,
+    "notes": "6 oz"
+  },
+  {
+    "raw": "1 (8 oz) package cream cheese",
+    "qty": 1,
+    "unit": "package",
+    "ingredient": "cream cheese",
+    "prep": null,
+    "optional": false,
+    "notes": "8 oz"
+  },
+  {
+    "raw": "3 (15.5 oz) cans chickpeas, drained",
+    "qty": 3,
+    "unit": "can",
+    "ingredient": "chickpeas",
+    "prep": "drained",
+    "optional": false,
+    "notes": "15.5 oz"
+  },
+  {
+    "raw": "1 (10 oz) bag frozen spinach, thawed",
+    "qty": 1,
+    "unit": "bag",
+    "ingredient": "frozen spinach",
+    "prep": "thawed",
+    "optional": false,
+    "notes": "10 oz"
+  },
+  {
+    "raw": "1 (4 oz) can green chiles",
+    "qty": 1,
+    "unit": "can",
+    "ingredient": "green chiles",
+    "prep": null,
+    "optional": false,
+    "notes": "4 oz"
+  },
+  {
+    "raw": "2 (14 oz) cans coconut milk",
+    "qty": 2,
+    "unit": "can",
+    "ingredient": "coconut milk",
+    "prep": null,
+    "optional": false,
+    "notes": "14 oz"
+  },
+  {
+    "raw": "1 cup (about 6 oz) chocolate chips",
+    "qty": 1,
+    "unit": "cup",
+    "ingredient": "chocolate chips",
+    "prep": null,
+    "optional": false,
+    "notes": "about 6 oz"
+  },
+  {
+    "raw": "½ cup (packed) brown sugar",
+    "qty": 0.5,
+    "unit": "cup",
+    "ingredient": "brown sugar",
+    "prep": null,
+    "optional": false,
+    "notes": "packed"
+  },
+
+  {
+    "_category": "Compound prep",
+    "raw": "2 cups finely diced onions",
+    "qty": 2,
+    "unit": "cup",
+    "ingredient": "onions",
+    "prep": "finely diced",
+    "optional": false
+  },
+  {
+    "raw": "1 cup thinly sliced radishes",
+    "qty": 1,
+    "unit": "cup",
+    "ingredient": "radishes",
+    "prep": "thinly sliced",
+    "optional": false
+  },
+  {
+    "raw": "1/2 cup freshly grated Pecorino",
+    "qty": 0.5,
+    "unit": "cup",
+    "ingredient": "Pecorino",
+    "prep": "freshly grated",
+    "optional": false
+  },
+  {
+    "raw": "1 lb boneless skinless chicken thighs",
+    "qty": 1,
+    "unit": "pound",
+    "ingredient": "boneless skinless chicken thighs",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "2 cups roughly chopped kale",
+    "qty": 2,
+    "unit": "cup",
+    "ingredient": "kale",
+    "prep": "roughly chopped",
+    "optional": false
+  },
+  {
+    "raw": "1 cup lightly packed fresh basil",
+    "qty": 1,
+    "unit": "cup",
+    "ingredient": "fresh basil",
+    "prep": "lightly packed",
+    "optional": false
+  },
+  {
+    "raw": "3 tablespoons finely minced shallots",
+    "qty": 3,
+    "unit": "tablespoon",
+    "ingredient": "shallots",
+    "prep": "finely minced",
+    "optional": false
+  },
+  {
+    "raw": "1/4 cup coarsely chopped pecans",
+    "qty": 0.25,
+    "unit": "cup",
+    "ingredient": "pecans",
+    "prep": "coarsely chopped",
+    "optional": false
+  },
+  {
+    "raw": "1 cup firmly packed dark brown sugar",
+    "qty": 1,
+    "unit": "cup",
+    "ingredient": "dark brown sugar",
+    "prep": "firmly packed",
+    "optional": false
+  },
+  {
+    "raw": "2 cups finely sliced leeks",
+    "qty": 2,
+    "unit": "cup",
+    "ingredient": "leeks",
+    "prep": "finely sliced",
+    "optional": false
+  },
+
+  {
+    "_category": "To taste / no quantity",
+    "raw": "fresh parsley for garnish",
+    "qty": null,
+    "unit": null,
+    "ingredient": "fresh parsley",
+    "prep": "for garnish",
+    "optional": false
+  },
+  {
+    "raw": "cooking spray",
+    "qty": null,
+    "unit": null,
+    "ingredient": "cooking spray",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "extra virgin olive oil",
+    "qty": null,
+    "unit": null,
+    "ingredient": "extra virgin olive oil",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "ice water as needed",
+    "qty": null,
+    "unit": null,
+    "ingredient": "ice water",
+    "prep": "as needed",
+    "optional": false
+  },
+  {
+    "raw": "flaky sea salt for serving",
+    "qty": null,
+    "unit": null,
+    "ingredient": "flaky sea salt",
+    "prep": "for serving",
+    "optional": false
+  },
+  {
+    "raw": "fresh dill for garnish",
+    "qty": null,
+    "unit": null,
+    "ingredient": "fresh dill",
+    "prep": "for garnish",
+    "optional": false
+  },
+  {
+    "raw": "sugar to taste",
+    "qty": null,
+    "unit": null,
+    "ingredient": "sugar",
+    "prep": "to taste",
+    "optional": false
+  },
+  {
+    "raw": "water",
+    "qty": null,
+    "unit": null,
+    "ingredient": "water",
+    "prep": null,
+    "optional": false
+  },
+
+  {
+    "_category": "Container units",
+    "raw": "1 can coconut milk",
+    "qty": 1,
+    "unit": "can",
+    "ingredient": "coconut milk",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "1 bag frozen peas",
+    "qty": 1,
+    "unit": "bag",
+    "ingredient": "frozen peas",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "1 jar marinara sauce",
+    "qty": 1,
+    "unit": "jar",
+    "ingredient": "marinara sauce",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "1 bottle hot sauce",
+    "qty": 1,
+    "unit": "bottle",
+    "ingredient": "hot sauce",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "1 box elbow macaroni",
+    "qty": 1,
+    "unit": "box",
+    "ingredient": "elbow macaroni",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "2 cans kidney beans, drained",
+    "qty": 2,
+    "unit": "can",
+    "ingredient": "kidney beans",
+    "prep": "drained",
+    "optional": false
+  },
+  {
+    "raw": "1 pkg puff pastry, thawed",
+    "qty": 1,
+    "unit": "package",
+    "ingredient": "puff pastry",
+    "prep": "thawed",
+    "optional": false
+  },
+  {
+    "raw": "2 bags mixed greens",
+    "qty": 2,
+    "unit": "bag",
+    "ingredient": "mixed greens",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "3 jars roasted red peppers, drained",
+    "qty": 3,
+    "unit": "jar",
+    "ingredient": "roasted red peppers",
+    "prep": "drained",
+    "optional": false
+  },
+  {
+    "raw": "1 box chicken stock",
+    "qty": 1,
+    "unit": "box",
+    "ingredient": "chicken stock",
+    "prep": null,
+    "optional": false
+  },
+
+  {
+    "_category": "Optional ingredients",
+    "raw": "1 cup walnuts, optional",
+    "qty": 1,
+    "unit": "cup",
+    "ingredient": "walnuts",
+    "prep": null,
+    "optional": true
+  },
+  {
+    "raw": "red pepper flakes (optional)",
+    "qty": null,
+    "unit": null,
+    "ingredient": "red pepper flakes",
+    "prep": null,
+    "optional": true
+  },
+  {
+    "raw": "1/4 cup raisins, optional",
+    "qty": 0.25,
+    "unit": "cup",
+    "ingredient": "raisins",
+    "prep": null,
+    "optional": true
+  },
+  {
+    "raw": "2 tablespoons capers (optional)",
+    "qty": 2,
+    "unit": "tablespoon",
+    "ingredient": "capers",
+    "prep": null,
+    "optional": true
+  },
+  {
+    "raw": "1 avocado, sliced, optional",
+    "qty": 1,
+    "unit": null,
+    "ingredient": "avocado",
+    "prep": "sliced",
+    "optional": true
+  },
+
+  {
+    "_category": "Weight units (g, kg, oz, lb)",
+    "raw": "200g dark chocolate",
+    "qty": 200,
+    "unit": "gram",
+    "ingredient": "dark chocolate",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "1.5 kg chicken",
+    "qty": 1.5,
+    "unit": "kilogram",
+    "ingredient": "chicken",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "500 g flour",
+    "qty": 500,
+    "unit": "gram",
+    "ingredient": "flour",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "100g butter",
+    "qty": 100,
+    "unit": "gram",
+    "ingredient": "butter",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "12 oz dried egg noodles",
+    "qty": 12,
+    "unit": "ounce",
+    "ingredient": "dried egg noodles",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "3 lbs pork shoulder",
+    "qty": 3,
+    "unit": "pound",
+    "ingredient": "pork shoulder",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "250g mascarpone",
+    "qty": 250,
+    "unit": "gram",
+    "ingredient": "mascarpone",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "750 g ground lamb",
+    "qty": 750,
+    "unit": "gram",
+    "ingredient": "ground lamb",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "2 kg bone-in beef short ribs",
+    "qty": 2,
+    "unit": "kilogram",
+    "ingredient": "bone-in beef short ribs",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "16 oz ricotta cheese",
+    "qty": 16,
+    "unit": "ounce",
+    "ingredient": "ricotta cheese",
+    "prep": null,
+    "optional": false
+  },
+
+  {
+    "_category": "Metric volume (ml, L)",
+    "raw": "250 ml heavy cream",
+    "qty": 250,
+    "unit": "milliliter",
+    "ingredient": "heavy cream",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "200ml milk",
+    "qty": 200,
+    "unit": "milliliter",
+    "ingredient": "milk",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "500 ml chicken stock",
+    "qty": 500,
+    "unit": "milliliter",
+    "ingredient": "chicken stock",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "100 ml white wine",
+    "qty": 100,
+    "unit": "milliliter",
+    "ingredient": "white wine",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "1 liter vegetable stock",
+    "qty": 1,
+    "unit": "liter",
+    "ingredient": "vegetable stock",
+    "prep": null,
+    "optional": false
+  },
+
+  {
+    "_category": "International ingredients",
+    "raw": "2 Thai bird chiles",
+    "qty": 2,
+    "unit": null,
+    "ingredient": "Thai bird chiles",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "1 tbsp gochujang",
+    "qty": 1,
+    "unit": "tablespoon",
+    "ingredient": "gochujang",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "2 tablespoons fish sauce",
+    "qty": 2,
+    "unit": "tablespoon",
+    "ingredient": "fish sauce",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "1 tsp cumin seeds",
+    "qty": 1,
+    "unit": "teaspoon",
+    "ingredient": "cumin seeds",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "3 tablespoons miso paste",
+    "qty": 3,
+    "unit": "tablespoon",
+    "ingredient": "miso paste",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "1 tbsp tahini",
+    "qty": 1,
+    "unit": "tablespoon",
+    "ingredient": "tahini",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "2 tsp garam masala",
+    "qty": 2,
+    "unit": "teaspoon",
+    "ingredient": "garam masala",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "1/4 cup tamarind paste",
+    "qty": 0.25,
+    "unit": "cup",
+    "ingredient": "tamarind paste",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "1 tbsp sambal oelek",
+    "qty": 1,
+    "unit": "tablespoon",
+    "ingredient": "sambal oelek",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "2 teaspoons Chinese five-spice powder",
+    "qty": 2,
+    "unit": "teaspoon",
+    "ingredient": "Chinese five-spice powder",
+    "prep": null,
+    "optional": false
+  },
+
+  {
+    "_category": "Comma-separated notes",
+    "raw": "2 eggs, beaten",
+    "qty": 2,
+    "unit": null,
+    "ingredient": "eggs",
+    "prep": "beaten",
+    "optional": false
+  },
+  {
+    "raw": "1 onion, finely chopped",
+    "qty": 1,
+    "unit": null,
+    "ingredient": "onion",
+    "prep": "finely chopped",
+    "optional": false
+  },
+  {
+    "raw": "4 carrots, peeled",
+    "qty": 4,
+    "unit": null,
+    "ingredient": "carrots",
+    "prep": "peeled",
+    "optional": false
+  },
+  {
+    "raw": "1 cucumber, thinly sliced",
+    "qty": 1,
+    "unit": null,
+    "ingredient": "cucumber",
+    "prep": "thinly sliced",
+    "optional": false
+  },
+  {
+    "raw": "3 cloves garlic, crushed",
+    "qty": 3,
+    "unit": "clove",
+    "ingredient": "garlic",
+    "prep": "crushed",
+    "optional": false
+  },
+  {
+    "raw": "1 lemon, juiced",
+    "qty": 1,
+    "unit": null,
+    "ingredient": "lemon, juiced",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "2 bell peppers, diced",
+    "qty": 2,
+    "unit": null,
+    "ingredient": "bell peppers",
+    "prep": "diced",
+    "optional": false
+  },
+  {
+    "raw": "1 zucchini, grated",
+    "qty": 1,
+    "unit": null,
+    "ingredient": "zucchini",
+    "prep": "grated",
+    "optional": false
+  },
+  {
+    "raw": "6 mushrooms, quartered",
+    "qty": 6,
+    "unit": null,
+    "ingredient": "mushrooms",
+    "prep": "quartered",
+    "optional": false
+  },
+  {
+    "raw": "4 chicken thighs, trimmed",
+    "qty": 4,
+    "unit": null,
+    "ingredient": "chicken thighs",
+    "prep": "trimmed",
+    "optional": false
+  },
+
+  {
+    "_category": "Multi-word units",
+    "raw": "2 medium russet potatoes",
+    "qty": 2,
+    "unit": "medium",
+    "ingredient": "russet potatoes",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "1 large head cauliflower",
+    "qty": 1,
+    "unit": "large",
+    "ingredient": "head cauliflower",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "3 small shallots",
+    "qty": 3,
+    "unit": "small",
+    "ingredient": "shallots",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "4 large tomatoes",
+    "qty": 4,
+    "unit": "large",
+    "ingredient": "tomatoes",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "2 whole star anise",
+    "qty": 2,
+    "unit": "whole",
+    "ingredient": "star anise",
+    "prep": null,
+    "optional": false
+  },
+
+  {
+    "_category": "Edge cases",
+    "raw": "zest of 1 lemon",
+    "qty": null,
+    "unit": null,
+    "ingredient": "zest of 1 lemon",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "juice of 2 limes",
+    "qty": null,
+    "unit": null,
+    "ingredient": "juice of 2 limes",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "1 dash Worcestershire sauce",
+    "qty": 1,
+    "unit": "dash",
+    "ingredient": "Worcestershire sauce",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "2 drops vanilla extract",
+    "qty": 2,
+    "unit": "drop",
+    "ingredient": "vanilla extract",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "1/2 cup plus 2 tablespoons flour",
+    "qty": 0.5,
+    "unit": "cup",
+    "ingredient": "plus 2 tablespoons flour",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "2 sticks butter, chilled",
+    "qty": 2,
+    "unit": "stick",
+    "ingredient": "butter",
+    "prep": "chilled",
+    "optional": false
+  },
+  {
+    "raw": "1 quart chicken broth",
+    "qty": 1,
+    "unit": "quart",
+    "ingredient": "chicken broth",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "2 pints fresh strawberries",
+    "qty": 2,
+    "unit": "pint",
+    "ingredient": "fresh strawberries",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "1 gallon water",
+    "qty": 1,
+    "unit": "gallon",
+    "ingredient": "water",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "3 pieces ginger, sliced",
+    "qty": 3,
+    "unit": "piece",
+    "ingredient": "ginger",
+    "prep": "sliced",
+    "optional": false
+  },
+  {
+    "raw": "1/2 tsp each salt and pepper",
+    "qty": 0.5,
+    "unit": "teaspoon",
+    "ingredient": "each salt and pepper",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "3.5 oz dark chocolate",
+    "qty": 3.5,
+    "unit": "ounce",
+    "ingredient": "dark chocolate",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "1 cup (240ml) whole milk",
+    "qty": 1,
+    "unit": "cup",
+    "ingredient": "whole milk",
+    "prep": null,
+    "optional": false,
+    "notes": "240ml"
+  },
+  {
+    "raw": "2 tablespoons rice vinegar",
+    "qty": 2,
+    "unit": "tablespoon",
+    "ingredient": "rice vinegar",
+    "prep": null,
+    "optional": false
+  },
+  {
+    "raw": "nonstick cooking spray",
+    "qty": null,
+    "unit": null,
+    "ingredient": "nonstick cooking spray",
+    "prep": null,
+    "optional": false
   }
 ]

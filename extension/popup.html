@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      width: 320px;
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 14px;
+      color: #1a1a1a;
+      background: #fafaf5;
+      padding: 16px;
+    }
+    h1 {
+      font-size: 18px;
+      font-weight: 700;
+      color: #2d5016;
+      margin-bottom: 4px;
+    }
+    .tagline {
+      color: #666;
+      font-size: 12px;
+      margin-bottom: 16px;
+    }
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 10px 16px;
+      font-size: 14px;
+      font-weight: 600;
+      font-family: inherit;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-primary {
+      background: #2d5016;
+      color: white;
+    }
+    .btn-primary:hover { background: #3d6b1f; }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-secondary {
+      background: transparent;
+      color: #2d5016;
+      border: 2px solid #2d5016;
+      margin-top: 8px;
+    }
+    .btn-secondary:hover { background: #2d5016; color: white; }
+    .status {
+      text-align: center;
+      padding: 12px;
+      color: #666;
+    }
+    .recipe-title {
+      font-weight: 600;
+      font-size: 15px;
+      margin: 12px 0 4px;
+    }
+    .recipe-source {
+      color: #666;
+      font-size: 12px;
+      margin-bottom: 12px;
+    }
+    .error {
+      color: #991b1b;
+      background: #fef2f2;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-top: 12px;
+    }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <h1>Mise</h1>
+  <p class="tagline">Just the recipe.</p>
+
+  <div id="extract-view">
+    <button id="extract-btn" class="btn btn-primary">Extract Recipe</button>
+  </div>
+
+  <div id="loading-view" class="hidden">
+    <div class="status">Extracting recipe...</div>
+  </div>
+
+  <div id="result-view" class="hidden">
+    <div id="recipe-title" class="recipe-title"></div>
+    <div id="recipe-source" class="recipe-source"></div>
+    <button id="open-btn" class="btn btn-primary">Open in Mise</button>
+    <button id="save-btn" class="btn btn-secondary">Save to Mise</button>
+  </div>
+
+  <div id="error-view" class="hidden">
+    <div class="error" id="error-msg"></div>
+    <button id="retry-btn" class="btn btn-secondary" style="margin-top: 12px">Try Again</button>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
