@@ -12,10 +12,11 @@ import type { Recipe } from '@domain/models/Recipe.ts'
 interface LibraryPageProps {
   selectedRecipeId: string | null
   onNavigateToExtract: () => void
+  onNavigateToGrocery: () => void
   onSelectRecipe: (id: string | null) => void
 }
 
-export function LibraryPage({ selectedRecipeId, onNavigateToExtract, onSelectRecipe }: LibraryPageProps) {
+export function LibraryPage({ selectedRecipeId, onNavigateToExtract, onNavigateToGrocery, onSelectRecipe }: LibraryPageProps) {
   const { recipes, isLoading, save, remove } = useSavedRecipes()
   const selectedRecipe = useSavedRecipe(selectedRecipeId)
 
@@ -126,6 +127,11 @@ export function LibraryPage({ selectedRecipeId, onNavigateToExtract, onSelectRec
         <button className="nav-btn" onClick={() => setShowManualEntry(true)}>
           + Add Manually
         </button>
+        {recipes.length > 0 && (
+          <button className="nav-btn grocery-nav-btn" onClick={onNavigateToGrocery}>
+            Grocery List
+          </button>
+        )}
         <button className="nav-btn" onClick={() => setShowImportDialog(true)}>
           Import
         </button>
