@@ -74,6 +74,31 @@ function imageExtractPlugin(): Plugin {
 If this is not a recipe image, return: {"error": "No recipe found in image"}`
 
           try {
+            // Upload base64 to temp host — HF Hyperbolic requires a URL, not inline base64
+            const base64Data = parsed.image.replace(/^data:image\/\w+;base64,/, '')
+            const buffer = Buffer.from(base64Data, 'base64')
+            const contentType = parsed.image.match(/^data:(image\/\w+);/)?.[1] ?? 'image/png'
+            const ext = contentType.split('/')[1] ?? 'png'
+
+            const uploadForm = new FormData()
+            uploadForm.append('file', new Blob([buffer], { type: contentType }), `recipe.${ext}`)
+
+            const uploadRes = await fetch('https://0x0.st', {
+              method: 'POST',
+              body: uploadForm,
+            })
+
+            if (!uploadRes.ok) {
+              res.writeHead(502, {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*',
+              })
+              res.end(JSON.stringify({ error: `Image upload failed (${uploadRes.status})` }))
+              return
+            }
+
+            const imageUrl = (await uploadRes.text()).trim()
+
             const response = await fetch('https://router.huggingface.co/v1/chat/completions', {
               method: 'POST',
               headers: {
@@ -81,14 +106,13 @@ If this is not a recipe image, return: {"error": "No recipe found in image"}`
                 'Content-Type': 'application/json',
               },
               body: JSON.stringify({
-                model: 'Qwen/Qwen2.5-VL-7B-Instruct',
-                provider: 'hyperbolic',
+                model: 'Qwen/Qwen2.5-VL-7B-Instruct:hyperbolic',
                 messages: [
                   {
                     role: 'user',
                     content: [
                       { type: 'text', text: prompt },
-                      { type: 'image_url', image_url: { url: parsed.image } },
+                      { type: 'image_url', image_url: { url: imageUrl } },
                     ],
                   },
                 ],

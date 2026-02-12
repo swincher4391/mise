@@ -63,7 +63,6 @@ export function UrlInput({ onExtract, onImageSelected, isLoading }: UrlInputProp
         ref={fileInputRef}
         type="file"
         accept="image/*"
-        capture="environment"
         onChange={handleFileChange}
         style={{ display: 'none' }}
       />

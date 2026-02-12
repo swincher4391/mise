@@ -13,6 +13,35 @@ const EXTRACTION_PROMPT = `Extract the recipe from this image. Return ONLY valid
 }
 If this is not a recipe image, return: {"error": "No recipe found in image"}`
 
+async function uploadToTempHost(base64DataUrl: string): Promise<string> {
+  // Strip the data URL prefix to get raw base64
+  const base64Data = base64DataUrl.replace(/^data:image\/\w+;base64,/, '')
+  const buffer = Buffer.from(base64Data, 'base64')
+
+  // Detect content type from the data URL
+  const contentType = base64DataUrl.match(/^data:(image\/\w+);/)?.[1] ?? 'image/png'
+  const ext = contentType.split('/')[1] ?? 'png'
+
+  const formData = new FormData()
+  formData.append('file', new Blob([buffer], { type: contentType }), `recipe.${ext}`)
+
+  const response = await fetch('https://0x0.st', {
+    method: 'POST',
+    body: formData,
+  })
+
+  if (!response.ok) {
+    throw new Error(`Image upload failed (${response.status})`)
+  }
+
+  const url = (await response.text()).trim()
+  if (!url.startsWith('http')) {
+    throw new Error('Invalid URL returned from image host')
+  }
+
+  return url
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -44,6 +73,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
+    // Upload base64 to temp host — HF Hyperbolic requires a URL, not inline base64
+    const imageUrl = await uploadToTempHost(image)
+
     const response = await fetch('https://router.huggingface.co/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -51,14 +83,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'Qwen/Qwen2.5-VL-7B-Instruct',
-        provider: 'hyperbolic',
+        model: 'Qwen/Qwen2.5-VL-7B-Instruct:hyperbolic',
         messages: [
           {
             role: 'user',
             content: [
               { type: 'text', text: EXTRACTION_PROMPT },
-              { type: 'image_url', image_url: { url: image } },
+              { type: 'image_url', image_url: { url: imageUrl } },
             ],
           },
         ],
