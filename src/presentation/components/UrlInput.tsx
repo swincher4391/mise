@@ -1,5 +1,37 @@
 import { useState, useRef } from 'react'
 
+const MAX_DIMENSION = 1500
+const JPEG_QUALITY = 0.8
+
+function compressImage(dataUrl: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => {
+      let { width, height } = img
+
+      // Only resize if the image exceeds the max dimension
+      if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
+        const scale = MAX_DIMENSION / Math.max(width, height)
+        width = Math.round(width * scale)
+        height = Math.round(height * scale)
+      }
+
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+      const ctx = canvas.getContext('2d')
+      if (!ctx) {
+        reject(new Error('Could not create canvas context'))
+        return
+      }
+      ctx.drawImage(img, 0, 0, width, height)
+      resolve(canvas.toDataURL('image/jpeg', JPEG_QUALITY))
+    }
+    img.onerror = () => reject(new Error('Failed to load image'))
+    img.src = dataUrl
+  })
+}
+
 interface UrlInputProps {
   onExtract: (url: string) => void
   onImageSelected: (imageBase64: string) => void
@@ -21,7 +53,7 @@ export function UrlInput({ onExtract, onImageSelected, isLoading }: UrlInputProp
     fileInputRef.current?.click()
   }
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
@@ -29,9 +61,15 @@ export function UrlInput({ onExtract, onImageSelected, isLoading }: UrlInputProp
     e.target.value = ''
 
     const reader = new FileReader()
-    reader.onload = () => {
-      const base64 = reader.result as string
-      onImageSelected(base64)
+    reader.onload = async () => {
+      const raw = reader.result as string
+      try {
+        const compressed = await compressImage(raw)
+        onImageSelected(compressed)
+      } catch {
+        // If compression fails, send the original
+        onImageSelected(raw)
+      }
     }
     reader.readAsDataURL(file)
   }
