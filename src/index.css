@@ -89,6 +89,51 @@ body {
   cursor: not-allowed;
 }
 
+.url-input .image-btn {
+  padding: 0.75rem 1.25rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #2d5016;
+  background: transparent;
+  border: 2px solid #2d5016;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+
+.url-input .image-btn:hover:not(:disabled) {
+  background: #2d5016;
+  color: white;
+}
+
+.url-input .image-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* OCR Review */
+.ocr-review {
+  margin-bottom: 1.5rem;
+  padding: 1.25rem;
+  background: #f9f9f6;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+}
+
+.ocr-review h2 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #2d5016;
+  margin-bottom: 0.5rem;
+}
+
+.ocr-hint {
+  font-size: 0.9rem;
+  color: #666;
+  margin-bottom: 0.75rem;
+}
+
 /* Loading */
 .loading {
   text-align: center;
@@ -1285,7 +1330,8 @@ body {
     flex-direction: column;
   }
 
-  .url-input button {
+  .url-input button,
+  .url-input .image-btn {
     width: 100%;
   }
 
