@@ -233,9 +233,10 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        navigateFallbackDenylist: [/^\/api\//],
         runtimeCaching: [
           {
-            urlPattern: /^https:\/\/.*\.(jpg|jpeg|png|webp|gif)$/i,
+            urlPattern: /^https:\/\/(?!.*\/api\/).*\.(jpg|jpeg|png|webp|gif)$/i,
             handler: 'CacheFirst',
             options: {
               cacheName: 'recipe-images',
