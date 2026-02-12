@@ -2,6 +2,27 @@ import { useState, useRef } from 'react'
 
 const MAX_DIMENSION = 1500
 const JPEG_QUALITY = 0.8
+const CONTRAST = 1.5
+
+/** Convert to high-contrast grayscale so colored text (neon green, etc.) is readable by the vision model */
+function preprocessPixels(ctx: CanvasRenderingContext2D, width: number, height: number) {
+  const imageData = ctx.getImageData(0, 0, width, height)
+  const d = imageData.data
+  // Contrast curve factor: maps contrast multiplier to pixel adjustment
+  const f = (259 * (CONTRAST * 128 + 255)) / (255 * (259 - CONTRAST * 128))
+
+  for (let i = 0; i < d.length; i += 4) {
+    // Luminance-weighted grayscale
+    const gray = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]
+    // Stretch contrast around midpoint
+    const v = Math.max(0, Math.min(255, f * (gray - 128) + 128))
+    d[i] = v
+    d[i + 1] = v
+    d[i + 2] = v
+  }
+
+  ctx.putImageData(imageData, 0, 0)
+}
 
 function compressImage(dataUrl: string): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -25,6 +46,7 @@ function compressImage(dataUrl: string): Promise<string> {
         return
       }
       ctx.drawImage(img, 0, 0, width, height)
+      preprocessPixels(ctx, width, height)
       resolve(canvas.toDataURL('image/jpeg', JPEG_QUALITY))
     }
     img.onerror = () => reject(new Error('Failed to load image'))
