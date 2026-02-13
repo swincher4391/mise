@@ -19,6 +19,7 @@ import { GroceryListView } from '@presentation/components/grocery/GroceryListVie
 import { GroceryActions } from '@presentation/components/grocery/GroceryActions.tsx'
 import { KrogerStoreSelector } from '@presentation/components/grocery/KrogerStoreSelector.tsx'
 import { KrogerPriceView } from '@presentation/components/grocery/KrogerPriceView.tsx'
+import { KrogerLoginButton } from '@presentation/components/grocery/KrogerLoginButton.tsx'
 
 type Phase = 'select' | 'list' | 'kroger'
 
@@ -131,6 +132,11 @@ export function GroceryPage({ onNavigateToLibrary }: GroceryPageProps) {
         <button className="nav-btn" onClick={onNavigateToLibrary}>
           &larr; Library
         </button>
+        <KrogerLoginButton
+          isConnected={kroger.isConnected}
+          onConnect={kroger.connectKroger}
+          onDisconnect={kroger.disconnectKroger}
+        />
       </div>
 
       {phase === 'select' && (
