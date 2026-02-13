@@ -23,10 +23,11 @@ export function UpgradePrompt({ feature, onUpgrade, onRestore, onClose }: Upgrad
     const found = await onRestore(trimmed)
     setRestoring(false)
 
-    if (!found) {
+    if (found) {
+      onClose()
+    } else {
       setRestoreError('No purchase found for this email.')
     }
-    // If found, the parent will close this prompt via isPaid change
   }
 
   return (
