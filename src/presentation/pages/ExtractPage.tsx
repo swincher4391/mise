@@ -15,9 +15,10 @@ interface ExtractPageProps {
   importedRecipe?: Recipe | null
   onImportedRecipeConsumed?: () => void
   purchase: PurchaseState
+  onRecipeExtracted?: () => void
 }
 
-export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRecipeConsumed, purchase }: ExtractPageProps) {
+export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRecipeConsumed, purchase, onRecipeExtracted }: ExtractPageProps) {
   const { recipe, isLoading, error, ocrText, extract, extractFromImage, setRecipe, clearOcrText } = useRecipeExtraction()
   const [editableOcrText, setEditableOcrText] = useState('')
   const [showUpgrade, setShowUpgrade] = useState(false)
@@ -32,15 +33,14 @@ export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRec
   }, [importedRecipe, setRecipe, onImportedRecipeConsumed])
 
   useEffect(() => {
+    if (recipe) onRecipeExtracted?.()
+  }, [recipe, onRecipeExtracted])
+
+  useEffect(() => {
     if (ocrText) {
       setEditableOcrText(ocrText)
     }
   }, [ocrText])
-
-  const handlePhotoGated = () => {
-    setUpgradeFeature('Photo import uses AI to extract recipes from photos of cookbooks, recipe cards, and handwritten notes.')
-    setShowUpgrade(true)
-  }
 
   const handleBatchGated = () => {
     if (!purchase.isPaid) {
@@ -137,7 +137,6 @@ export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRec
         onExtract={extract}
         onImageSelected={extractFromImage}
         isLoading={isLoading}
-        onPhotoGated={!purchase.isPaid ? handlePhotoGated : undefined}
       />
       {isLoading && (
         <div className="loading">
@@ -168,6 +167,18 @@ export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRec
           </div>
         </div>
       )}
+      {!recipe && !isLoading && !error && !ocrText && (
+        <div className="try-it-section">
+          <p className="try-it-hint">First time? See it in action:</p>
+          <button
+            className="try-it-btn"
+            onClick={() => extract('https://www.allrecipes.com/recipe/26317/chicken-pot-pie-ix/')}
+          >
+            Try with an example recipe
+          </button>
+        </div>
+      )}
+
       {recipe && <RecipeDisplay recipe={recipe} showSaveButton purchase={purchase} />}
 
       {showUpgrade && (

@@ -5,10 +5,9 @@ interface UrlInputProps {
   onExtract: (url: string) => void
   onImageSelected: (imageBase64: string) => void
   isLoading: boolean
-  onPhotoGated?: () => void
 }
 
-export function UrlInput({ onExtract, onImageSelected, isLoading, onPhotoGated }: UrlInputProps) {
+export function UrlInput({ onExtract, onImageSelected, isLoading }: UrlInputProps) {
   const [url, setUrl] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -20,10 +19,6 @@ export function UrlInput({ onExtract, onImageSelected, isLoading, onPhotoGated }
   }
 
   const handleImageClick = () => {
-    if (onPhotoGated) {
-      onPhotoGated()
-      return
-    }
     fileInputRef.current?.click()
   }
 
@@ -64,12 +59,12 @@ export function UrlInput({ onExtract, onImageSelected, isLoading, onPhotoGated }
       </button>
       <button
         type="button"
-        className={`image-btn${onPhotoGated ? ' gated' : ''}`}
+        className="image-btn"
         onClick={handleImageClick}
         disabled={isLoading}
         title="Extract from photo"
       >
-        Photo{onPhotoGated ? ' \u{1F512}' : ''}
+        Photo
       </button>
       <input
         ref={fileInputRef}

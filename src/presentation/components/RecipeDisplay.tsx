@@ -40,7 +40,14 @@ export function RecipeDisplay({ recipe, showSaveButton, onDelete, purchase }: Re
     [recipe.ingredients, recipe.servings, currentServings],
   )
 
+  const isPhotoExtract = recipe.extractionLayer === 'image'
+
   const handleSave = async () => {
+    // Gate photo-extracted recipes behind paid tier
+    if (purchase && !purchase.isPaid && isPhotoExtract) {
+      setShowUpgrade(true)
+      return
+    }
     // Enforce free tier recipe limit
     if (purchase && !purchase.isPaid && recipes.length >= FREE_RECIPE_LIMIT) {
       setShowUpgrade(true)
@@ -165,7 +172,11 @@ export function RecipeDisplay({ recipe, showSaveButton, onDelete, purchase }: Re
 
       {showUpgrade && purchase && (
         <UpgradePrompt
-          feature={`You've saved ${FREE_RECIPE_LIMIT} recipes — the free tier limit. Upgrade to save unlimited recipes.`}
+          feature={
+            isPhotoExtract
+              ? 'Saving photo-imported recipes is a premium feature. Upgrade to keep this recipe and import unlimited photos.'
+              : `You've saved ${FREE_RECIPE_LIMIT} recipes — the free tier limit. Upgrade to save unlimited recipes.`
+          }
           onUpgrade={purchase.upgrade}
           onRestore={purchase.restore}
           onClose={() => setShowUpgrade(false)}

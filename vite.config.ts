@@ -453,6 +453,26 @@ function stripePlugin(): Plugin {
   }
 }
 
+function isBlockedUrl(raw: string): boolean {
+  let parsed: URL
+  try {
+    parsed = new URL(raw)
+  } catch {
+    return true
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return true
+  const hostname = parsed.hostname.toLowerCase()
+  if (hostname === 'localhost' || hostname === '[::1]') return true
+  const ipPatterns = [
+    /^127\./, /^10\./, /^172\.(1[6-9]|2\d|3[01])\./,
+    /^192\.168\./, /^169\.254\./, /^0\./,
+    /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./,
+  ]
+  if (ipPatterns.some((p) => p.test(hostname))) return true
+  if (['metadata.google.internal', 'metadata.google', 'instance-data'].includes(hostname)) return true
+  return false
+}
+
 function corsProxyPlugin(): Plugin {
   return {
     name: 'cors-proxy',
@@ -463,6 +483,12 @@ function corsProxyPlugin(): Plugin {
         if (!targetUrl) {
           res.writeHead(400, { 'Content-Type': 'application/json' })
           res.end(JSON.stringify({ error: 'Missing ?url= parameter' }))
+          return
+        }
+
+        if (isBlockedUrl(targetUrl)) {
+          res.writeHead(403, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'URL not allowed' }))
           return
         }
 
