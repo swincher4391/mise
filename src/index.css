@@ -1642,6 +1642,278 @@ body {
   border-color: #2d5016;
 }
 
+/* ── Kroger Integration ── */
+
+.kroger-section-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.kroger-section-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #2d5016;
+}
+
+/* Store Selector */
+
+.kroger-zip-form {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.kroger-zip-input {
+  flex: 1;
+  max-width: 160px;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 0.95rem;
+}
+
+.kroger-zip-input:focus {
+  outline: none;
+  border-color: #2d5016;
+}
+
+.kroger-store-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.kroger-store-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.kroger-store-item:hover {
+  border-color: #2d5016;
+  background: #f0f7ec;
+}
+
+.kroger-store-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.kroger-store-address {
+  font-size: 0.8rem;
+  color: #666;
+}
+
+/* Price View */
+
+.kroger-store-info {
+  margin: 0 0 1rem;
+  font-size: 0.9rem;
+  color: #555;
+}
+
+.kroger-loading {
+  color: #888;
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+
+.kroger-product-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.kroger-product-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.kroger-product-row:last-child {
+  border-bottom: none;
+}
+
+.kroger-product-row.selected {
+  background: #f8fdf5;
+}
+
+.kroger-product-checkbox {
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+
+.kroger-product-checkbox input[type="checkbox"] {
+  accent-color: #2d5016;
+  width: 18px;
+  height: 18px;
+}
+
+.kroger-product-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.kroger-grocery-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 0.25rem;
+}
+
+.kroger-product-detail {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.kroger-product-img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.kroger-product-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.kroger-product-name {
+  font-size: 0.8rem;
+  color: #555;
+  line-height: 1.3;
+}
+
+.kroger-product-brand {
+  font-size: 0.7rem;
+  color: #888;
+}
+
+.kroger-product-size {
+  font-size: 0.7rem;
+  color: #888;
+}
+
+.kroger-product-loading,
+.kroger-product-notfound {
+  font-size: 0.8rem;
+  color: #999;
+  font-style: italic;
+}
+
+.kroger-product-error {
+  font-size: 0.8rem;
+  color: #991b1b;
+}
+
+.kroger-product-price {
+  flex-shrink: 0;
+  text-align: right;
+  min-width: 60px;
+}
+
+.kroger-price-regular {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.kroger-price-promo {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #991b1b;
+}
+
+.kroger-price-regular.strikethrough {
+  text-decoration: line-through;
+  font-weight: 400;
+  font-size: 0.75rem;
+  color: #999;
+  display: block;
+}
+
+/* Cart Footer */
+
+.kroger-cart-footer {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 2px solid #2d5016;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.kroger-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 1rem;
+}
+
+.kroger-total strong {
+  font-size: 1.2rem;
+  color: #2d5016;
+}
+
+.kroger-add-cart-btn {
+  width: 100%;
+  padding: 0.75rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.kroger-error {
+  color: #991b1b;
+  font-size: 0.85rem;
+  margin: 0.25rem 0;
+}
+
+.kroger-success {
+  color: #2d5016;
+  font-size: 0.85rem;
+  margin: 0.25rem 0;
+}
+
+/* Kroger Login */
+
+.kroger-login-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.kroger-connected-badge {
+  font-size: 0.8rem;
+  color: #2d5016;
+  font-weight: 500;
+}
+
+.kroger-disconnect-btn {
+  font-size: 0.8rem;
+  padding: 0.25rem 0.5rem;
+}
+
+.kroger-connect-btn {
+  width: 100%;
+  padding: 0.6rem;
+  font-size: 0.9rem;
+}
+
 /* Grocery Mobile */
 
 @media (max-width: 480px) {
@@ -1651,5 +1923,10 @@ body {
 
   .recipe-selector-meta {
     display: none;
+  }
+
+  .kroger-product-img {
+    width: 32px;
+    height: 32px;
   }
 }
