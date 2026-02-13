@@ -9,11 +9,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'OPTIONS') return res.status(204).end()
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
 
-  const secretKey = process.env.STRIPE_SECRET_KEY
-  if (!secretKey) {
-    return res.status(500).json({ error: 'Stripe not configured on server' })
-  }
-
   const sessionId = req.query.sessionId as string | undefined
   const email = req.query.email as string | undefined
 
@@ -25,6 +20,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const comped = (process.env.COMPED_EMAILS ?? '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean)
   if (email && comped.includes(email.toLowerCase())) {
     return res.status(200).json({ paid: true, email })
+  }
+
+  const secretKey = process.env.STRIPE_SECRET_KEY
+  if (!secretKey) {
+    return res.status(500).json({ error: 'Stripe not configured on server' })
   }
 
   try {
