@@ -4,6 +4,7 @@ import type { Nutrition } from '@domain/models/Nutrition.ts'
 import { parseIngredients } from '@application/parser/IngredientParser.ts'
 import { parseIsoDuration } from './parseIsoDuration.ts'
 import { extractPrimaryTimer } from '@application/parser/parseStepTimers.ts'
+import { autoTagRecipe } from './autoTag.ts'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -54,18 +55,25 @@ function parseServings(raw: any): { servings: number | null; servingsText: strin
   return { servings, servingsText }
 }
 
-/** Normalize image to a single URL string. Handles: string, array, ImageObject. */
+/** Normalize image to a single URL string. Handles: string, array, ImageObject, contentUrl. */
 function normalizeImage(raw: any): string | null {
   if (!raw) return null
   if (typeof raw === 'string') return raw
   if (Array.isArray(raw)) {
     const first = raw[0]
     if (typeof first === 'string') return first
-    if (first && typeof first === 'object') return first.url || null
+    if (first && typeof first === 'object') return first.url || first.contentUrl || null
     return null
   }
-  if (typeof raw === 'object' && raw.url) return raw.url
+  if (typeof raw === 'object') return raw.url || raw.contentUrl || null
   return null
+}
+
+/** Extract og:image URL from HTML as a fallback when JSON-LD image is missing. */
+function extractOgImage(html: string): string | null {
+  const match = html.match(/<meta[^>]*property\s*=\s*["']og:image["'][^>]*content\s*=\s*["']([^"']+)["'][^>]*>/i)
+    || html.match(/<meta[^>]*content\s*=\s*["']([^"']+)["'][^>]*property\s*=\s*["']og:image["'][^>]*>/i)
+  return match?.[1] || null
 }
 
 /**
@@ -165,7 +173,7 @@ function toStringArray(raw: any): string[] {
 /**
  * Map a raw JSON-LD Recipe object to the domain Recipe interface.
  */
-export function normalizeRecipe(jsonLd: any, sourceUrl: string): Recipe {
+export function normalizeRecipe(jsonLd: any, sourceUrl: string, html?: string): Recipe {
   const { servings, servingsText } = parseServings(jsonLd.recipeYield)
 
   const rawIngredients: string[] = Array.isArray(jsonLd.recipeIngredient)
@@ -182,7 +190,7 @@ export function normalizeRecipe(jsonLd: any, sourceUrl: string): Recipe {
       return raw ? decodeEntities(String(raw)) : null
     })(),
     description: jsonLd.description ? decodeEntities(String(jsonLd.description)) : null,
-    imageUrl: normalizeImage(jsonLd.image),
+    imageUrl: normalizeImage(jsonLd.image) || (html ? extractOgImage(html) : null),
     servings,
     servingsText,
     prepTimeMinutes: parseIsoDuration(jsonLd.prepTime),
@@ -194,7 +202,11 @@ export function normalizeRecipe(jsonLd: any, sourceUrl: string): Recipe {
     keywords: toStringArray(jsonLd.keywords),
     cuisines: toStringArray(jsonLd.recipeCuisine),
     categories: toStringArray(jsonLd.recipeCategory),
-    tags: [],
+    tags: autoTagRecipe(
+      toStringArray(jsonLd.recipeCategory),
+      toStringArray(jsonLd.keywords),
+      String(jsonLd.name || ''),
+    ),
     notes: null,
     favorite: false,
     extractedAt: new Date().toISOString(),

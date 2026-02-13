@@ -33,10 +33,16 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
     try {
       const html = await fetchViaProxy(url)
 
+      // Detect bot protection block pages
+      if (html.includes('Access to this page has been denied') || html.includes('Please verify you are a human')) {
+        setError('This site blocked automated access. Try taking a screenshot and using Photo import instead.')
+        return
+      }
+
       // Layer 1: JSON-LD
       const recipes = extractJsonLd(html)
       if (recipes.length > 0) {
-        const normalized = normalizeRecipe(recipes[0], url)
+        const normalized = normalizeRecipe(recipes[0], url, html)
         setRecipe(normalized)
         return
       }
@@ -44,7 +50,7 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
       // Layer 2: Microdata/RDFa
       const microdataRecipes = extractMicrodata(html)
       if (microdataRecipes.length > 0) {
-        const normalized = normalizeRecipe(microdataRecipes[0], url)
+        const normalized = normalizeRecipe(microdataRecipes[0], url, html)
         normalized.extractionLayer = 'microdata'
         setRecipe(normalized)
         return
