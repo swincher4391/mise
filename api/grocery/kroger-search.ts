@@ -1,5 +1,29 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { getClientToken } from './kroger-auth'
+
+const TOKEN_URL = 'https://api.kroger.com/v1/connect/oauth2/token'
+let cachedToken: string | null = null
+let cachedExpiry = 0
+
+async function getClientToken(): Promise<string> {
+  if (cachedToken && Date.now() < cachedExpiry - 60_000) return cachedToken
+  const clientId = process.env.KROGER_CLIENT_ID
+  const clientSecret = process.env.KROGER_CLIENT_SECRET
+  if (!clientId || !clientSecret) throw new Error('KROGER_CLIENT_ID and KROGER_CLIENT_SECRET must be set')
+  const basic = Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
+  const response = await fetch(TOKEN_URL, {
+    method: 'POST',
+    headers: { Authorization: `Basic ${basic}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: 'grant_type=client_credentials&scope=product.compact',
+  })
+  if (!response.ok) {
+    const text = await response.text()
+    throw new Error(`Kroger auth failed (${response.status}): ${text.slice(0, 200)}`)
+  }
+  const data: any = await response.json()
+  cachedToken = data.access_token
+  cachedExpiry = Date.now() + data.expires_in * 1000
+  return data.access_token
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*')
