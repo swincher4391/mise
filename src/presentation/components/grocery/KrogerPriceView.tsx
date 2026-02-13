@@ -8,6 +8,7 @@ interface ProductMatch {
   groceryItem: GroceryItem
   products: KrogerProduct[]
   viewIndex: number
+  quantity: number
   loading: boolean
   error: string | null
   selected: boolean
@@ -45,6 +46,7 @@ export function KrogerPriceView({
       groceryItem: item,
       products: [],
       viewIndex: 0,
+      quantity: 1,
       loading: true,
       error: null,
       selected: false,
@@ -82,11 +84,21 @@ export function KrogerPriceView({
     )
   }, [])
 
+  const setQuantity = useCallback((idx: number, delta: number) => {
+    setMatches((prev) =>
+      prev.map((m, i) => {
+        if (i !== idx) return m
+        const next = Math.max(1, m.quantity + delta)
+        return { ...m, quantity: next }
+      })
+    )
+  }, [])
+
   const selectedItems = matches.filter((m) => m.selected && m.products.length > 0)
   const total = selectedItems.reduce((sum, m) => {
     const product = m.products[m.viewIndex]
     const price = product.promoPrice ?? product.price ?? 0
-    return sum + price
+    return sum + price * m.quantity
   }, 0)
 
   const handleAddToCart = async () => {
@@ -100,7 +112,7 @@ export function KrogerPriceView({
     try {
       await addToCart(
         token,
-        selectedItems.map((m) => ({ upc: m.products[m.viewIndex].upc, quantity: 1 }))
+        selectedItems.map((m) => ({ upc: m.products[m.viewIndex].upc, quantity: m.quantity }))
       )
       setCartStatus('success')
       window.open('https://www.kroger.com/cart', '_blank')
@@ -205,6 +217,20 @@ export function KrogerPriceView({
                 ) : product?.price ? (
                   <span className="kroger-price-regular">${product.price.toFixed(2)}</span>
                 ) : null}
+                {product && (
+                  <div className="kroger-quantity">
+                    <button
+                      className="kroger-qty-btn"
+                      onClick={() => setQuantity(idx, -1)}
+                      disabled={match.quantity <= 1}
+                    >&minus;</button>
+                    <span className="kroger-qty-value">{match.quantity}</span>
+                    <button
+                      className="kroger-qty-btn"
+                      onClick={() => setQuantity(idx, 1)}
+                    >+</button>
+                  </div>
+                )}
               </div>
             </div>
           )

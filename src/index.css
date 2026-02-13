@@ -1862,6 +1862,47 @@ body {
   min-width: 60px;
 }
 
+.kroger-quantity {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.25rem;
+  margin-top: 0.3rem;
+}
+
+.kroger-qty-btn {
+  background: none;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  width: 22px;
+  height: 22px;
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+  color: #555;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.kroger-qty-btn:hover:not(:disabled) {
+  background: #f0f0f0;
+  border-color: #999;
+}
+
+.kroger-qty-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.kroger-qty-value {
+  font-size: 0.8rem;
+  font-weight: 600;
+  min-width: 18px;
+  text-align: center;
+}
+
 .kroger-price-regular {
   font-size: 0.9rem;
   font-weight: 600;
