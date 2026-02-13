@@ -287,7 +287,11 @@ function krogerPlugin(): Plugin {
         res.end()
       })
 
-      // OAuth2 callback
+      // OAuth2 callback (also handle /kroger-callback rewrite like vercel.json)
+      server.middlewares.use('/kroger-callback', (req, _res, next) => {
+        req.url = '/api/grocery/kroger-callback' + (req.url!.includes('?') ? req.url!.substring(req.url!.indexOf('?')) : '')
+        next()
+      })
       server.middlewares.use('/api/grocery/kroger-callback', async (req, res) => {
         const url = new URL(req.url!, `http://${req.headers.host}`)
         const code = url.searchParams.get('code')

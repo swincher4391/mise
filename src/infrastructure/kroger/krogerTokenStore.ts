@@ -2,6 +2,12 @@ const ACCESS_KEY = 'kroger_access_token'
 const REFRESH_KEY = 'kroger_refresh_token'
 const EXPIRY_KEY = 'kroger_token_expiry'
 
+/** Returns true if the current page load is a return from Kroger OAuth.
+ *  Set by the inline script in index.html before React loads. */
+export function isKrogerOAuthReturn(): boolean {
+  return !!(window as any).__krogerOAuthJustCompleted
+}
+
 export function saveKrogerTokens(accessToken: string, refreshToken: string, expiresIn: number): void {
   localStorage.setItem(ACCESS_KEY, accessToken)
   localStorage.setItem(REFRESH_KEY, refreshToken)

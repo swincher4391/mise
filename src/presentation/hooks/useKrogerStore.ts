@@ -1,6 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import {
-  saveKrogerTokens,
   getKrogerAccessToken,
   clearKrogerTokens,
   hasKrogerTokens,
@@ -25,22 +24,8 @@ export function useKrogerStore() {
     return getKrogerAccessToken() !== null
   })
 
-  // Check for OAuth2 callback tokens in URL hash on mount
-  useEffect(() => {
-    const hash = window.location.hash
-    if (hash.includes('kroger_access_token')) {
-      const params = new URLSearchParams(hash.slice(1))
-      const accessToken = params.get('kroger_access_token')
-      const refreshToken = params.get('kroger_refresh_token') ?? ''
-      const expiresIn = Number(params.get('kroger_expires_in') || '1800')
-      if (accessToken) {
-        saveKrogerTokens(accessToken, refreshToken, expiresIn)
-        setIsConnected(true)
-        // Clean up the hash
-        window.history.replaceState(null, '', window.location.pathname + window.location.search)
-      }
-    }
-  }, [])
+  // Token parsing from URL hash is handled synchronously in krogerTokenStore.ts
+  // on module load, before React renders. No useEffect needed here.
 
   const selectStore = useCallback((store: SelectedStore) => {
     localStorage.setItem(STORE_KEY, JSON.stringify(store))
