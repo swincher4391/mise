@@ -404,7 +404,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-        navigateFallbackDenylist: [/^\/api\//],
+        navigateFallbackDenylist: [/^\/api\//, /^\/kroger-callback/],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/(?!.*\/api\/).*\.(jpg|jpeg|png|webp|gif)$/i,
