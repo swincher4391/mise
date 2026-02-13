@@ -174,6 +174,172 @@ If this is not a recipe image, return: {"error": "No recipe found in image"}`
   }
 }
 
+function krogerPlugin(): Plugin {
+  // Kroger API token cache (module-level, shared across requests)
+  let cachedToken: string | null = null
+  let cachedExpiry = 0
+
+  async function getClientToken(clientId: string, clientSecret: string): Promise<string> {
+    if (cachedToken && Date.now() < cachedExpiry - 60_000) return cachedToken
+    const basic = Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
+    const response = await fetch('https://api.kroger.com/v1/connect/oauth2/token', {
+      method: 'POST',
+      headers: {
+        Authorization: `Basic ${basic}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: 'grant_type=client_credentials&scope=product.compact',
+    })
+    if (!response.ok) throw new Error(`Kroger auth failed (${response.status})`)
+    const data: any = await response.json()
+    cachedToken = data.access_token
+    cachedExpiry = Date.now() + data.expires_in * 1000
+    return data.access_token
+  }
+
+  function jsonResponse(res: any, status: number, body: any) {
+    res.writeHead(status, {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+    })
+    res.end(JSON.stringify(body))
+  }
+
+  function readBody(req: any): Promise<string> {
+    return new Promise((resolve) => {
+      let body = ''
+      req.on('data', (chunk: Buffer) => { body += chunk.toString() })
+      req.on('end', () => resolve(body))
+    })
+  }
+
+  return {
+    name: 'kroger-proxy',
+    configureServer(server) {
+      const env = loadEnv('development', process.cwd(), '')
+      const clientId = env.KROGER_CLIENT_ID
+      const clientSecret = env.KROGER_CLIENT_SECRET
+      const redirectUri = env.KROGER_REDIRECT_URI
+
+      // Locations endpoint
+      server.middlewares.use('/api/grocery/kroger-locations', async (req, res) => {
+        if (req.method === 'OPTIONS') {
+          res.writeHead(204, { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' })
+          return res.end()
+        }
+        const url = new URL(req.url!, `http://${req.headers.host}`)
+        const zipCode = url.searchParams.get('zipCode')
+        if (!zipCode || !/^\d{5}$/.test(zipCode)) return jsonResponse(res, 400, { error: 'Valid 5-digit zipCode is required' })
+        try {
+          const token = await getClientToken(clientId, clientSecret)
+          const apiUrl = `https://api.kroger.com/v1/locations?filter.zipCode.near=${zipCode}&filter.limit=5&filter.chain=KROGER`
+          const response = await fetch(apiUrl, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } })
+          if (!response.ok) return jsonResponse(res, 502, { error: `Kroger API error (${response.status})` })
+          const data: any = await response.json()
+          const locations = (data.data ?? []).map((loc: any) => ({
+            locationId: loc.locationId, name: loc.name,
+            address: { line1: loc.address?.addressLine1, city: loc.address?.city, state: loc.address?.state, zipCode: loc.address?.zipCode },
+          }))
+          jsonResponse(res, 200, { locations })
+        } catch (err: any) {
+          jsonResponse(res, 502, { error: err.message })
+        }
+      })
+
+      // Product search endpoint
+      server.middlewares.use('/api/grocery/kroger-search', async (req, res) => {
+        if (req.method === 'OPTIONS') {
+          res.writeHead(204, { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' })
+          return res.end()
+        }
+        const url = new URL(req.url!, `http://${req.headers.host}`)
+        const term = url.searchParams.get('term')
+        const locationId = url.searchParams.get('locationId')
+        if (!term) return jsonResponse(res, 400, { error: 'term is required' })
+        if (!locationId) return jsonResponse(res, 400, { error: 'locationId is required' })
+        try {
+          const token = await getClientToken(clientId, clientSecret)
+          const apiUrl = `https://api.kroger.com/v1/products?filter.term=${encodeURIComponent(term)}&filter.locationId=${encodeURIComponent(locationId)}&filter.limit=5`
+          const response = await fetch(apiUrl, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } })
+          if (!response.ok) return jsonResponse(res, 502, { error: `Kroger API error (${response.status})` })
+          const data: any = await response.json()
+          const products = (data.data ?? []).map((p: any) => {
+            const price = p.items?.[0]?.price
+            const image = p.images?.find((i: any) => i.perspective === 'front')
+            const imageUrl = image?.sizes?.find((s: any) => s.size === 'medium')?.url ?? image?.sizes?.[0]?.url ?? null
+            return {
+              productId: p.productId, upc: p.upc, name: p.description, brand: p.brand, imageUrl,
+              price: price?.regular ?? null, promoPrice: price?.promo && price.promo > 0 ? price.promo : null,
+              size: p.items?.[0]?.size ?? null, inStock: p.items?.[0]?.fulfillment?.inStore ?? false,
+            }
+          })
+          jsonResponse(res, 200, { products })
+        } catch (err: any) {
+          jsonResponse(res, 502, { error: err.message })
+        }
+      })
+
+      // OAuth2 authorize redirect
+      server.middlewares.use('/api/grocery/kroger-authorize', (_req, res) => {
+        if (!clientId || !redirectUri) return jsonResponse(res, 500, { error: 'Kroger OAuth2 not configured' })
+        const authorizeUrl = `https://api.kroger.com/v1/connect/oauth2/authorize?scope=${encodeURIComponent('cart.basic:write profile.compact')}&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code`
+        res.writeHead(302, { Location: authorizeUrl })
+        res.end()
+      })
+
+      // OAuth2 callback
+      server.middlewares.use('/api/grocery/kroger-callback', async (req, res) => {
+        const url = new URL(req.url!, `http://${req.headers.host}`)
+        const code = url.searchParams.get('code')
+        if (!code) return jsonResponse(res, 400, { error: 'Missing authorization code' })
+        try {
+          const basic = Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
+          const tokenRes = await fetch('https://api.kroger.com/v1/connect/oauth2/token', {
+            method: 'POST',
+            headers: { Authorization: `Basic ${basic}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `grant_type=authorization_code&code=${encodeURIComponent(code)}&redirect_uri=${encodeURIComponent(redirectUri)}`,
+          })
+          if (!tokenRes.ok) throw new Error(`Token exchange failed (${tokenRes.status})`)
+          const tokens: any = await tokenRes.json()
+          const hash = `#kroger_access_token=${tokens.access_token}&kroger_refresh_token=${tokens.refresh_token ?? ''}&kroger_expires_in=${tokens.expires_in}`
+          res.writeHead(302, { Location: `/${hash}` })
+          res.end()
+        } catch (err: any) {
+          res.writeHead(302, { Location: `/?kroger_error=${encodeURIComponent(err.message)}` })
+          res.end()
+        }
+      })
+
+      // Cart add endpoint
+      server.middlewares.use('/api/grocery/kroger-cart', async (req, res) => {
+        if (req.method === 'OPTIONS') {
+          res.writeHead(204, { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'PUT, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' })
+          return res.end()
+        }
+        if (req.method !== 'PUT') return jsonResponse(res, 405, { error: 'Method not allowed' })
+        try {
+          const body = JSON.parse(await readBody(req))
+          if (!body.accessToken) return jsonResponse(res, 400, { error: 'accessToken is required' })
+          if (!Array.isArray(body.items) || body.items.length === 0) return jsonResponse(res, 400, { error: 'items array is required' })
+          const response = await fetch('https://api.kroger.com/v1/cart/add', {
+            method: 'PUT',
+            headers: { Authorization: `Bearer ${body.accessToken}`, 'Content-Type': 'application/json', Accept: 'application/json' },
+            body: JSON.stringify({ items: body.items.map((i: any) => ({ upc: i.upc, quantity: i.quantity })) }),
+          })
+          if (!response.ok) {
+            const text = await response.text()
+            return jsonResponse(res, response.status, { error: `Kroger cart error: ${text.slice(0, 200)}` })
+          }
+          res.writeHead(204, { 'Access-Control-Allow-Origin': '*' })
+          res.end()
+        } catch (err: any) {
+          jsonResponse(res, 502, { error: err.message })
+        }
+      })
+    },
+  }
+}
+
 function corsProxyPlugin(): Plugin {
   return {
     name: 'cors-proxy',
@@ -216,6 +382,7 @@ export default defineConfig({
   plugins: [
     imageExtractPlugin(),
     corsProxyPlugin(),
+    krogerPlugin(),
     react(),
     VitePWA({
       registerType: 'autoUpdate',

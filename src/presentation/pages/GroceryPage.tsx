@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react'
 import { useSavedRecipes } from '@presentation/hooks/useSavedRecipes.ts'
 import { useGroceryList } from '@presentation/hooks/useGroceryList.ts'
+import { useKrogerStore } from '@presentation/hooks/useKrogerStore.ts'
 import { aggregateIngredients } from '@application/grocery/aggregateIngredients.ts'
 import { shareGroceryList } from '@application/grocery/shareGroceryList.ts'
 import {
@@ -16,8 +17,10 @@ import type { GroceryList } from '@domain/models/GroceryList.ts'
 import { RecipeSelector } from '@presentation/components/grocery/RecipeSelector.tsx'
 import { GroceryListView } from '@presentation/components/grocery/GroceryListView.tsx'
 import { GroceryActions } from '@presentation/components/grocery/GroceryActions.tsx'
+import { KrogerStoreSelector } from '@presentation/components/grocery/KrogerStoreSelector.tsx'
+import { KrogerPriceView } from '@presentation/components/grocery/KrogerPriceView.tsx'
 
-type Phase = 'select' | 'list'
+type Phase = 'select' | 'list' | 'kroger'
 
 interface GroceryPageProps {
   onNavigateToLibrary: () => void
@@ -26,6 +29,7 @@ interface GroceryPageProps {
 export function GroceryPage({ onNavigateToLibrary }: GroceryPageProps) {
   const { recipes } = useSavedRecipes()
   const { list: existingList } = useGroceryList()
+  const kroger = useKrogerStore()
 
   // Resume existing list if available
   const [phase, setPhase] = useState<Phase>(existingList ? 'list' : 'select')
@@ -109,6 +113,14 @@ export function GroceryPage({ onNavigateToLibrary }: GroceryPageProps) {
     setActiveListId(null)
   }, [])
 
+  const handlePriceCheck = useCallback(() => {
+    setPhase('kroger')
+  }, [])
+
+  const handleBackToList = useCallback(() => {
+    setPhase('list')
+  }, [])
+
   return (
     <main className="extract-page">
       <div className="page-header">
@@ -131,6 +143,7 @@ export function GroceryPage({ onNavigateToLibrary }: GroceryPageProps) {
             onBack={handleBack}
             onShare={handleShare}
             onClearChecked={handleClearChecked}
+            onPriceCheck={handlePriceCheck}
             shareStatus={shareStatus}
           />
           <GroceryListView
@@ -142,6 +155,26 @@ export function GroceryPage({ onNavigateToLibrary }: GroceryPageProps) {
             onRemoveManualItem={handleRemoveManualItem}
           />
         </>
+      )}
+
+      {phase === 'kroger' && currentList && !kroger.selectedStore && (
+        <KrogerStoreSelector
+          onSelectStore={kroger.selectStore}
+          onBack={handleBackToList}
+        />
+      )}
+
+      {phase === 'kroger' && currentList && kroger.selectedStore && (
+        <KrogerPriceView
+          items={currentList.items}
+          locationId={kroger.selectedStore.locationId}
+          storeName={kroger.selectedStore.name}
+          isConnected={kroger.isConnected}
+          onConnect={kroger.connectKroger}
+          onDisconnect={kroger.disconnectKroger}
+          getAccessToken={kroger.getAccessToken}
+          onBack={handleBackToList}
+        />
       )}
     </main>
   )

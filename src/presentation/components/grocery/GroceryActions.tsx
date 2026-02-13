@@ -2,10 +2,11 @@ interface GroceryActionsProps {
   onBack: () => void
   onShare: () => void
   onClearChecked: () => void
+  onPriceCheck: () => void
   shareStatus: 'idle' | 'copied' | 'shared'
 }
 
-export function GroceryActions({ onBack, onShare, onClearChecked, shareStatus }: GroceryActionsProps) {
+export function GroceryActions({ onBack, onShare, onClearChecked, onPriceCheck, shareStatus }: GroceryActionsProps) {
   return (
     <div className="grocery-actions">
       <button className="nav-btn" onClick={onBack}>
@@ -16,6 +17,9 @@ export function GroceryActions({ onBack, onShare, onClearChecked, shareStatus }:
       </button>
       <button className="nav-btn" onClick={onClearChecked}>
         Uncheck All
+      </button>
+      <button className="nav-btn grocery-nav-btn" onClick={onPriceCheck}>
+        Price Check
       </button>
     </div>
   )
