@@ -5,7 +5,7 @@ interface PaidFeatureGateProps {
   isPaid: boolean
   feature: string
   onUpgrade: () => void
-  onRestore: (email: string) => Promise<boolean>
+  onRestore: (email: string, pin?: string) => Promise<{ paid: boolean, needsPin?: boolean }>
   children: ReactNode
 }
 

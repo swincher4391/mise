@@ -3,13 +3,15 @@ import { useState } from 'react'
 interface UpgradePromptProps {
   feature: string
   onUpgrade: () => void
-  onRestore: (email: string) => Promise<boolean>
+  onRestore: (email: string, pin?: string) => Promise<{ paid: boolean, needsPin?: boolean }>
   onClose: () => void
 }
 
 export function UpgradePrompt({ feature, onUpgrade, onRestore, onClose }: UpgradePromptProps) {
   const [showRestore, setShowRestore] = useState(false)
   const [restoreEmail, setRestoreEmail] = useState('')
+  const [restorePin, setRestorePin] = useState('')
+  const [needsPin, setNeedsPin] = useState(false)
   const [restoreError, setRestoreError] = useState<string | null>(null)
   const [restoring, setRestoring] = useState(false)
 
@@ -20,13 +22,15 @@ export function UpgradePrompt({ feature, onUpgrade, onRestore, onClose }: Upgrad
 
     setRestoring(true)
     setRestoreError(null)
-    const found = await onRestore(trimmed)
+    const result = await onRestore(trimmed, needsPin ? restorePin.trim() : undefined)
     setRestoring(false)
 
-    if (found) {
+    if (result.paid) {
       onClose()
+    } else if (result.needsPin) {
+      setNeedsPin(true)
     } else {
-      setRestoreError('No purchase found for this email.')
+      setRestoreError(needsPin ? 'Invalid code.' : 'No purchase found for this email.')
     }
   }
 
@@ -61,13 +65,23 @@ export function UpgradePrompt({ feature, onUpgrade, onRestore, onClose }: Upgrad
             <input
               type="email"
               value={restoreEmail}
-              onChange={(e) => setRestoreEmail(e.target.value)}
+              onChange={(e) => { setRestoreEmail(e.target.value); setNeedsPin(false); setRestoreError(null) }}
               placeholder="Email used at checkout"
               required
-              disabled={restoring}
+              disabled={restoring || needsPin}
             />
-            <button type="submit" disabled={restoring || !restoreEmail.trim()}>
-              {restoring ? 'Checking...' : 'Restore'}
+            {needsPin && (
+              <input
+                type="text"
+                value={restorePin}
+                onChange={(e) => setRestorePin(e.target.value)}
+                placeholder="Enter your access code"
+                autoFocus
+                disabled={restoring}
+              />
+            )}
+            <button type="submit" disabled={restoring || !restoreEmail.trim() || (needsPin && !restorePin.trim())}>
+              {restoring ? 'Checking...' : needsPin ? 'Verify' : 'Restore'}
             </button>
             {restoreError && <p className="upgrade-restore-error">{restoreError}</p>}
           </form>

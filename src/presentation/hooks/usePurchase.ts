@@ -9,7 +9,7 @@ export interface PurchaseState {
   isLoading: boolean
   email: string | null
   upgrade: () => void
-  restore: (email: string) => Promise<boolean>
+  restore: (email: string, pin?: string) => Promise<{ paid: boolean, needsPin?: boolean }>
 }
 
 export function usePurchase(): PurchaseState {
@@ -43,8 +43,8 @@ export function usePurchase(): PurchaseState {
     if (status.email && isVerificationStale()) {
       setIsLoading(true)
       verifyAndCache(status.email)
-        .then((paid) => {
-          setIsPaid(paid)
+        .then((result) => {
+          setIsPaid(result.paid)
           setEmail(status.email)
         })
         .catch(console.error)
@@ -70,15 +70,17 @@ export function usePurchase(): PurchaseState {
     }
   }, [])
 
-  const restore = useCallback(async (restoreEmail: string): Promise<boolean> => {
+  const restore = useCallback(async (restoreEmail: string, pin?: string): Promise<{ paid: boolean, needsPin?: boolean }> => {
     setIsLoading(true)
     try {
-      const paid = await verifyAndCache(restoreEmail)
-      setIsPaid(paid)
-      setEmail(restoreEmail)
-      return paid
+      const result = await verifyAndCache(restoreEmail, pin)
+      if (result.paid) {
+        setIsPaid(true)
+        setEmail(restoreEmail)
+      }
+      return result
     } catch {
-      return false
+      return { paid: false }
     } finally {
       setIsLoading(false)
     }

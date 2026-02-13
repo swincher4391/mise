@@ -16,10 +16,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'sessionId or email is required' })
   }
 
-  // Comped users — bypass Stripe entirely
-  const comped = (process.env.COMPED_EMAILS ?? '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean)
-  if (email && comped.includes(email.toLowerCase())) {
-    return res.status(200).json({ paid: true, email })
+  // Comped users — bypass Stripe entirely (format: "email:pin,email:pin")
+  const pin = req.query.pin as string | undefined
+  const compedEntries = (process.env.COMPED_EMAILS ?? '').split(',').map((e) => e.trim()).filter(Boolean)
+  if (email) {
+    for (const entry of compedEntries) {
+      const [compEmail, compPin] = entry.split(':')
+      if (compEmail.toLowerCase() === email.toLowerCase()) {
+        if (!pin) return res.status(200).json({ paid: false, needsPin: true, email })
+        if (pin === compPin) return res.status(200).json({ paid: true, email })
+        return res.status(200).json({ paid: false, email })
+      }
+    }
   }
 
   const secretKey = process.env.STRIPE_SECRET_KEY

@@ -413,10 +413,18 @@ function stripePlugin(): Plugin {
         const email = url.searchParams.get('email')
         if (!sessionId && !email) return jsonRes(res, 400, { error: 'sessionId or email is required' })
 
-        // Comped users — bypass Stripe
-        const comped = (env.COMPED_EMAILS ?? '').split(',').map((e: string) => e.trim().toLowerCase()).filter(Boolean)
-        if (email && comped.includes(email.toLowerCase())) {
-          return jsonRes(res, 200, { paid: true, email })
+        // Comped users — bypass Stripe (format: "email:pin,email:pin")
+        const pin = url.searchParams.get('pin')
+        const compedEntries = (env.COMPED_EMAILS ?? '').split(',').map((e: string) => e.trim()).filter(Boolean)
+        if (email) {
+          for (const entry of compedEntries) {
+            const [compEmail, compPin] = entry.split(':')
+            if (compEmail.toLowerCase() === email.toLowerCase()) {
+              if (!pin) return jsonRes(res, 200, { paid: false, needsPin: true, email })
+              if (pin === compPin) return jsonRes(res, 200, { paid: true, email })
+              return jsonRes(res, 200, { paid: false, email })
+            }
+          }
         }
 
         try {
