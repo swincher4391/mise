@@ -90,6 +90,7 @@ export function KrogerPriceView({
         selectedItems.map((m) => ({ upc: m.product!.upc, quantity: 1 }))
       )
       setCartStatus('success')
+      window.open('https://www.kroger.com/cart', '_blank')
     } catch (err) {
       setCartStatus('error')
       setCartError(err instanceof Error ? err.message : 'Failed to add to cart')
