@@ -6,7 +6,8 @@ import { KrogerLoginButton } from './KrogerLoginButton.tsx'
 
 interface ProductMatch {
   groceryItem: GroceryItem
-  product: KrogerProduct | null
+  products: KrogerProduct[]
+  viewIndex: number
   loading: boolean
   error: string | null
   selected: boolean
@@ -42,7 +43,8 @@ export function KrogerPriceView({
     const uncheckedItems = items.filter((i) => !i.checked)
     const initial: ProductMatch[] = uncheckedItems.map((item) => ({
       groceryItem: item,
-      product: null,
+      products: [],
+      viewIndex: 0,
       loading: true,
       error: null,
       selected: false,
@@ -52,10 +54,10 @@ export function KrogerPriceView({
     uncheckedItems.forEach((item, idx) => {
       searchProducts(item.displayName, locationId)
         .then((products) => {
-          // Pick best match (first in-stock result, or first result)
-          const best = products.find((p) => p.inStock) ?? products[0] ?? null
+          // Sort so in-stock items come first
+          const sorted = [...products].sort((a, b) => (b.inStock ? 1 : 0) - (a.inStock ? 1 : 0))
           setMatches((prev) =>
-            prev.map((m, i) => (i === idx ? { ...m, product: best, loading: false, selected: best !== null } : m))
+            prev.map((m, i) => (i === idx ? { ...m, products: sorted, loading: false, selected: sorted.length > 0 } : m))
           )
         })
         .catch((err) => {
@@ -70,9 +72,20 @@ export function KrogerPriceView({
     setMatches((prev) => prev.map((m, i) => (i === idx ? { ...m, selected: !m.selected } : m)))
   }, [])
 
-  const selectedItems = matches.filter((m) => m.selected && m.product)
+  const cycleProduct = useCallback((idx: number, direction: 1 | -1) => {
+    setMatches((prev) =>
+      prev.map((m, i) => {
+        if (i !== idx || m.products.length <= 1) return m
+        const next = (m.viewIndex + direction + m.products.length) % m.products.length
+        return { ...m, viewIndex: next }
+      })
+    )
+  }, [])
+
+  const selectedItems = matches.filter((m) => m.selected && m.products.length > 0)
   const total = selectedItems.reduce((sum, m) => {
-    const price = m.product!.promoPrice ?? m.product!.price ?? 0
+    const product = m.products[m.viewIndex]
+    const price = product.promoPrice ?? product.price ?? 0
     return sum + price
   }, 0)
 
@@ -87,7 +100,7 @@ export function KrogerPriceView({
     try {
       await addToCart(
         token,
-        selectedItems.map((m) => ({ upc: m.product!.upc, quantity: 1 }))
+        selectedItems.map((m) => ({ upc: m.products[m.viewIndex].upc, quantity: 1 }))
       )
       setCartStatus('success')
       window.open('https://www.kroger.com/cart', '_blank')
@@ -115,66 +128,87 @@ export function KrogerPriceView({
       )}
 
       <div className="kroger-product-list">
-        {matches.map((match, idx) => (
-          <div
-            key={match.groceryItem.id}
-            className={`kroger-product-row${match.selected ? ' selected' : ''}`}
-          >
-            <div className="kroger-product-checkbox">
-              {match.product && (
-                <input
-                  type="checkbox"
-                  checked={match.selected}
-                  onChange={() => toggleItem(idx)}
-                />
-              )}
-            </div>
+        {matches.map((match, idx) => {
+          const product = match.products[match.viewIndex] ?? null
+          return (
+            <div
+              key={match.groceryItem.id}
+              className={`kroger-product-row${match.selected ? ' selected' : ''}`}
+            >
+              <div className="kroger-product-checkbox">
+                {product && (
+                  <input
+                    type="checkbox"
+                    checked={match.selected}
+                    onChange={() => toggleItem(idx)}
+                  />
+                )}
+              </div>
 
-            <div className="kroger-product-info">
-              <div className="kroger-grocery-name">{formatGroceryItem(match.groceryItem)}</div>
+              <div className="kroger-product-info">
+                <div className="kroger-grocery-name">{formatGroceryItem(match.groceryItem)}</div>
 
-              {match.loading && <div className="kroger-product-loading">Searching...</div>}
+                {match.loading && <div className="kroger-product-loading">Searching...</div>}
 
-              {match.error && <div className="kroger-product-error">{match.error}</div>}
+                {match.error && <div className="kroger-product-error">{match.error}</div>}
 
-              {!match.loading && !match.error && !match.product && (
-                <div className="kroger-product-notfound">No product found</div>
-              )}
+                {!match.loading && !match.error && match.products.length === 0 && (
+                  <div className="kroger-product-notfound">No product found</div>
+                )}
 
-              {match.product && (
-                <div className="kroger-product-detail">
-                  {match.product.imageUrl && (
-                    <img
-                      className="kroger-product-img"
-                      src={match.product.imageUrl}
-                      alt={match.product.name}
-                    />
-                  )}
-                  <div className="kroger-product-meta">
-                    <span className="kroger-product-name">{match.product.name}</span>
-                    {match.product.brand && (
-                      <span className="kroger-product-brand">{match.product.brand}</span>
+                {product && (
+                  <div className="kroger-product-detail">
+                    {product.imageUrl && (
+                      <img
+                        className="kroger-product-img"
+                        src={product.imageUrl}
+                        alt={product.name}
+                      />
                     )}
-                    {match.product.size && (
-                      <span className="kroger-product-size">{match.product.size}</span>
-                    )}
+                    <div className="kroger-product-meta">
+                      <span className="kroger-product-name">{product.name}</span>
+                      {product.brand && (
+                        <span className="kroger-product-brand">{product.brand}</span>
+                      )}
+                      {product.size && (
+                        <span className="kroger-product-size">{product.size}</span>
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
+                )}
 
-            <div className="kroger-product-price">
-              {match.product?.promoPrice ? (
-                <>
-                  <span className="kroger-price-promo">${match.product.promoPrice.toFixed(2)}</span>
-                  <span className="kroger-price-regular strikethrough">${match.product.price?.toFixed(2)}</span>
-                </>
-              ) : match.product?.price ? (
-                <span className="kroger-price-regular">${match.product.price.toFixed(2)}</span>
-              ) : null}
+                {match.products.length > 1 && (
+                  <div className="kroger-product-cycle">
+                    <button
+                      className="kroger-cycle-btn"
+                      onClick={() => cycleProduct(idx, -1)}
+                      aria-label="Previous product"
+                    >&lsaquo;</button>
+                    <span className="kroger-cycle-count">
+                      {match.viewIndex + 1} / {match.products.length}
+                    </span>
+                    <button
+                      className="kroger-cycle-btn"
+                      onClick={() => cycleProduct(idx, 1)}
+                      aria-label="Next product"
+                    >&rsaquo;</button>
+                  </div>
+                )}
+              </div>
+
+              <div className="kroger-product-price">
+                {product?.promoPrice ? (
+                  <>
+                    <span className="kroger-price-promo">${product.promoPrice.toFixed(2)}</span>
+                    <span className="kroger-price-regular strikethrough">${product.price?.toFixed(2)}</span>
+                  </>
+                ) : product?.price ? (
+                  <span className="kroger-price-regular">${product.price.toFixed(2)}</span>
+                ) : null}
+              </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
 
       {/* Running total and cart actions */}
