@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useRecipeExtraction } from '@presentation/hooks/useRecipeExtraction.ts'
+import { useKrogerStore } from '@presentation/hooks/useKrogerStore.ts'
 import { UrlInput } from '@presentation/components/UrlInput.tsx'
 import { RecipeDisplay } from '@presentation/components/RecipeDisplay.tsx'
 import { ErrorDisplay } from '@presentation/components/ErrorDisplay.tsx'
 import { PwaStatus } from '@presentation/components/PwaStatus.tsx'
+import { KrogerLoginButton } from '@presentation/components/grocery/KrogerLoginButton.tsx'
 import { createManualRecipe } from '@application/extraction/createManualRecipe.ts'
 import type { Recipe } from '@domain/models/Recipe.ts'
 
@@ -15,6 +17,7 @@ interface ExtractPageProps {
 
 export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRecipeConsumed }: ExtractPageProps) {
   const { recipe, isLoading, error, ocrText, extract, extractFromImage, setRecipe, clearOcrText } = useRecipeExtraction()
+  const kroger = useKrogerStore()
   const [editableOcrText, setEditableOcrText] = useState('')
 
   useEffect(() => {
@@ -102,6 +105,11 @@ export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRec
         <button className="nav-btn" onClick={onNavigateToLibrary}>
           My Recipes
         </button>
+        <KrogerLoginButton
+          isConnected={kroger.isConnected}
+          onConnect={kroger.connectKroger}
+          onDisconnect={kroger.disconnectKroger}
+        />
       </div>
       <UrlInput onExtract={extract} onImageSelected={extractFromImage} isLoading={isLoading} />
       {isLoading && (

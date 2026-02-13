@@ -19,7 +19,6 @@ import { GroceryListView } from '@presentation/components/grocery/GroceryListVie
 import { GroceryActions } from '@presentation/components/grocery/GroceryActions.tsx'
 import { KrogerStoreSelector } from '@presentation/components/grocery/KrogerStoreSelector.tsx'
 import { KrogerPriceView } from '@presentation/components/grocery/KrogerPriceView.tsx'
-import { isKrogerOAuthReturn } from '@infrastructure/kroger/krogerTokenStore.ts'
 
 type Phase = 'select' | 'list' | 'kroger'
 
@@ -32,19 +31,15 @@ export function GroceryPage({ onNavigateToLibrary }: GroceryPageProps) {
   const { list: existingList } = useGroceryList()
   const kroger = useKrogerStore()
 
-  // Resume existing list; if returning from Kroger OAuth, jump to kroger phase
-  const [phase, setPhase] = useState<Phase>(() => {
-    if (existingList && isKrogerOAuthReturn()) return 'kroger'
-    if (existingList) return 'list'
-    return 'select'
-  })
+  // Resume existing list if available
+  const [phase, setPhase] = useState<Phase>(existingList ? 'list' : 'select')
   const [activeListId, setActiveListId] = useState<string | null>(existingList?.id ?? null)
   const [shareStatus, setShareStatus] = useState<'idle' | 'copied' | 'shared'>('idle')
 
   // Re-derive phase when existing list loads
   if (existingList && !activeListId) {
     setActiveListId(existingList.id)
-    setPhase(isKrogerOAuthReturn() ? 'kroger' : 'list')
+    setPhase('list')
   }
 
   const currentList = existingList?.id === activeListId ? existingList : null

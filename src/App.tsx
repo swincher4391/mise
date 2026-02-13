@@ -3,17 +3,12 @@ import { ExtractPage } from '@presentation/pages/ExtractPage.tsx'
 import { LibraryPage } from '@presentation/pages/LibraryPage.tsx'
 import { GroceryPage } from '@presentation/pages/GroceryPage.tsx'
 import { useExtensionImport } from '@presentation/hooks/useExtensionImport.ts'
-import { isKrogerOAuthReturn } from '@infrastructure/kroger/krogerTokenStore.ts'
 import type { Recipe } from '@domain/models/Recipe.ts'
 
 type View = 'extract' | 'library' | 'grocery'
 
 function App() {
-  const [view, setView] = useState<View>(() => {
-    // If returning from Kroger OAuth, go straight to grocery view
-    if (isKrogerOAuthReturn()) return 'grocery'
-    return 'extract'
-  })
+  const [view, setView] = useState<View>('extract')
   const [selectedRecipeId, setSelectedRecipeId] = useState<string | null>(null)
   const [importedRecipe, setImportedRecipe] = useState<Recipe | null>(null)
 
