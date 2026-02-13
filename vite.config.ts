@@ -344,6 +344,107 @@ function krogerPlugin(): Plugin {
   }
 }
 
+function stripePlugin(): Plugin {
+  return {
+    name: 'stripe-proxy',
+    configureServer(server) {
+      const env = loadEnv('development', process.cwd(), '')
+
+      function readBody(req: any): Promise<string> {
+        return new Promise((resolve) => {
+          let body = ''
+          req.on('data', (chunk: Buffer) => { body += chunk.toString() })
+          req.on('end', () => resolve(body))
+        })
+      }
+
+      function jsonRes(res: any, status: number, data: any) {
+        res.writeHead(status, {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        })
+        res.end(JSON.stringify(data))
+      }
+
+      // POST /api/create-checkout
+      server.middlewares.use('/api/create-checkout', async (req, res) => {
+        if (req.method === 'OPTIONS') {
+          res.writeHead(204, { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' })
+          return res.end()
+        }
+        if (req.method !== 'POST') return jsonRes(res, 405, { error: 'Method not allowed' })
+
+        const secretKey = env.STRIPE_SECRET_KEY
+        const priceId = env.STRIPE_PRICE_ID
+        if (!secretKey || !priceId) return jsonRes(res, 500, { error: 'Stripe not configured. Add STRIPE_SECRET_KEY and STRIPE_PRICE_ID to .env' })
+
+        try {
+          const { successUrl, cancelUrl } = JSON.parse(await readBody(req))
+          if (!successUrl || !cancelUrl) return jsonRes(res, 400, { error: 'successUrl and cancelUrl are required' })
+
+          const { default: Stripe } = await import('stripe')
+          const stripe = new Stripe(secretKey)
+          const session = await stripe.checkout.sessions.create({
+            mode: 'payment',
+            line_items: [{ price: priceId, quantity: 1 }],
+            success_url: successUrl,
+            cancel_url: cancelUrl,
+            allow_promotion_codes: true,
+          })
+          jsonRes(res, 200, { url: session.url })
+        } catch (err: any) {
+          jsonRes(res, 500, { error: err.message })
+        }
+      })
+
+      // GET /api/verify-purchase
+      server.middlewares.use('/api/verify-purchase', async (req, res) => {
+        if (req.method === 'OPTIONS') {
+          res.writeHead(204, { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' })
+          return res.end()
+        }
+        if (req.method !== 'GET') return jsonRes(res, 405, { error: 'Method not allowed' })
+
+        const secretKey = env.STRIPE_SECRET_KEY
+        if (!secretKey) return jsonRes(res, 500, { error: 'STRIPE_SECRET_KEY not configured' })
+
+        const url = new URL(req.url!, `http://${req.headers.host}`)
+        const sessionId = url.searchParams.get('sessionId')
+        const email = url.searchParams.get('email')
+        if (!sessionId && !email) return jsonRes(res, 400, { error: 'sessionId or email is required' })
+
+        // Comped users — bypass Stripe
+        const comped = (env.COMPED_EMAILS ?? '').split(',').map((e: string) => e.trim().toLowerCase()).filter(Boolean)
+        if (email && comped.includes(email.toLowerCase())) {
+          return jsonRes(res, 200, { paid: true, email })
+        }
+
+        try {
+          const { default: Stripe } = await import('stripe')
+          const stripe = new Stripe(secretKey)
+
+          if (sessionId) {
+            const session = await stripe.checkout.sessions.retrieve(sessionId)
+            const customerEmail = session.customer_details?.email ?? session.customer_email
+            const paid = session.payment_status === 'paid'
+            return jsonRes(res, 200, { paid, email: customerEmail ?? '' })
+          }
+
+          const customers = await stripe.customers.list({ email: email!, limit: 1 })
+          if (customers.data.length === 0) return jsonRes(res, 200, { paid: false, email })
+
+          const customer = customers.data[0]
+          const payments = await stripe.paymentIntents.list({ customer: customer.id, limit: 1 })
+          const hasPaid = payments.data.some((pi) => pi.status === 'succeeded')
+          jsonRes(res, 200, { paid: hasPaid, email })
+        } catch (err: any) {
+          jsonRes(res, 500, { error: err.message })
+        }
+      })
+    },
+  }
+}
+
 function corsProxyPlugin(): Plugin {
   return {
     name: 'cors-proxy',
@@ -387,6 +488,7 @@ export default defineConfig({
     imageExtractPlugin(),
     corsProxyPlugin(),
     krogerPlugin(),
+    stripePlugin(),
     react(),
     VitePWA({
       registerType: 'autoUpdate',

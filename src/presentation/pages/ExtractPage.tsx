@@ -1,24 +1,28 @@
 import { useEffect, useState } from 'react'
 import { useRecipeExtraction } from '@presentation/hooks/useRecipeExtraction.ts'
-import { useKrogerStore } from '@presentation/hooks/useKrogerStore.ts'
 import { UrlInput } from '@presentation/components/UrlInput.tsx'
 import { RecipeDisplay } from '@presentation/components/RecipeDisplay.tsx'
 import { ErrorDisplay } from '@presentation/components/ErrorDisplay.tsx'
 import { PwaStatus } from '@presentation/components/PwaStatus.tsx'
-import { KrogerLoginButton } from '@presentation/components/grocery/KrogerLoginButton.tsx'
+import { UpgradePrompt } from '@presentation/components/UpgradePrompt.tsx'
+import { BatchImportPage } from '@presentation/pages/BatchImportPage.tsx'
 import { createManualRecipe } from '@application/extraction/createManualRecipe.ts'
 import type { Recipe } from '@domain/models/Recipe.ts'
+import type { PurchaseState } from '@presentation/hooks/usePurchase.ts'
 
 interface ExtractPageProps {
   onNavigateToLibrary: () => void
   importedRecipe?: Recipe | null
   onImportedRecipeConsumed?: () => void
+  purchase: PurchaseState
 }
 
-export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRecipeConsumed }: ExtractPageProps) {
+export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRecipeConsumed, purchase }: ExtractPageProps) {
   const { recipe, isLoading, error, ocrText, extract, extractFromImage, setRecipe, clearOcrText } = useRecipeExtraction()
-  const kroger = useKrogerStore()
   const [editableOcrText, setEditableOcrText] = useState('')
+  const [showUpgrade, setShowUpgrade] = useState(false)
+  const [upgradeFeature, setUpgradeFeature] = useState('')
+  const [showBatchImport, setShowBatchImport] = useState(false)
 
   useEffect(() => {
     if (importedRecipe) {
@@ -33,6 +37,20 @@ export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRec
     }
   }, [ocrText])
 
+  const handlePhotoGated = () => {
+    setUpgradeFeature('Photo import uses AI to extract recipes from photos of cookbooks, recipe cards, and handwritten notes.')
+    setShowUpgrade(true)
+  }
+
+  const handleBatchGated = () => {
+    if (!purchase.isPaid) {
+      setUpgradeFeature('Batch photo import lets you import multiple recipe photos at once — perfect for digitizing a cookbook.')
+      setShowUpgrade(true)
+      return
+    }
+    setShowBatchImport(true)
+  }
+
   const handleOcrParse = () => {
     const lines = editableOcrText.split('\n').filter((l) => l.trim())
     if (lines.length === 0) return
@@ -43,7 +61,7 @@ export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRec
     const stepLines: string[] = []
 
     // Clean title — strip leading symbols, list markers, etc.
-    title = title.replace(/^[<®=\-\[\]0-9.]+\s*/, '').trim()
+    title = title.replace(/^[<\u00ae=\-[\]0-9.]+\s*/, '').trim()
 
     let section: 'unknown' | 'ingredients' | 'steps' = 'unknown'
 
@@ -62,12 +80,12 @@ export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRec
       }
 
       // Skip UI artifacts (buttons, category labels, etc.)
-      if (/^[®<>[\]]+/.test(line.trim()) || /^(DO category|Addo List|Plan Meal)/i.test(lower)) {
+      if (/^[\u00ae<>[\]]+/.test(line.trim()) || /^(DO category|Addo List|Plan Meal)/i.test(lower)) {
         continue
       }
 
       // Clean leading markers (-, *, numbers with dots)
-      const cleaned = line.replace(/^[\-*•]\s*/, '').replace(/^\d+\.\s*/, '').trim()
+      const cleaned = line.replace(/^[-*\u2022]\s*/, '').replace(/^\d+\.\s*/, '').trim()
       if (!cleaned) continue
 
       if (section === 'ingredients') {
@@ -76,7 +94,7 @@ export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRec
         stepLines.push(cleaned)
       } else {
         // Before any section header — try to detect by format
-        if (/^[\-*•]\s/.test(line.trim()) || /^\d+[a-z]*\s*(cup|tbsp|tsp|tablespoon|teaspoon|oz|lb|g|kg|ml)\b/i.test(cleaned)) {
+        if (/^[-*\u2022]\s/.test(line.trim()) || /^\d+[a-z]*\s*(cup|tbsp|tsp|tablespoon|teaspoon|oz|lb|g|kg|ml)\b/i.test(cleaned)) {
           ingredientLines.push(cleaned)
         } else if (/^\d+\.\s/.test(line.trim())) {
           stepLines.push(cleaned)
@@ -94,6 +112,12 @@ export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRec
     clearOcrText()
   }
 
+  if (showBatchImport) {
+    return (
+      <BatchImportPage onBack={() => setShowBatchImport(false)} />
+    )
+  }
+
   return (
     <main className="extract-page">
       <PwaStatus />
@@ -105,13 +129,16 @@ export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRec
         <button className="nav-btn" onClick={onNavigateToLibrary}>
           My Recipes
         </button>
-        <KrogerLoginButton
-          isConnected={kroger.isConnected}
-          onConnect={kroger.connectKroger}
-          onDisconnect={kroger.disconnectKroger}
-        />
+        <button className="nav-btn" onClick={handleBatchGated}>
+          Batch Import{!purchase.isPaid ? ' \u{1F512}' : ''}
+        </button>
       </div>
-      <UrlInput onExtract={extract} onImageSelected={extractFromImage} isLoading={isLoading} />
+      <UrlInput
+        onExtract={extract}
+        onImageSelected={extractFromImage}
+        isLoading={isLoading}
+        onPhotoGated={!purchase.isPaid ? handlePhotoGated : undefined}
+      />
       {isLoading && (
         <div className="loading">
           <p>Extracting recipe...</p>
@@ -141,7 +168,16 @@ export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRec
           </div>
         </div>
       )}
-      {recipe && <RecipeDisplay recipe={recipe} showSaveButton />}
+      {recipe && <RecipeDisplay recipe={recipe} showSaveButton purchase={purchase} />}
+
+      {showUpgrade && (
+        <UpgradePrompt
+          feature={upgradeFeature}
+          onUpgrade={purchase.upgrade}
+          onRestore={purchase.restore}
+          onClose={() => setShowUpgrade(false)}
+        />
+      )}
     </main>
   )
 }

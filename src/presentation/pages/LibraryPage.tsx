@@ -7,16 +7,19 @@ import { RecipeDisplay } from '@presentation/components/RecipeDisplay.tsx'
 import { RecipeCard } from '@presentation/components/RecipeCard.tsx'
 import { ManualEntryForm } from '@presentation/components/ManualEntryForm.tsx'
 import { ImportDialog } from '@presentation/components/ImportDialog.tsx'
+import { PaidFeatureGate } from '@presentation/components/PaidFeatureGate.tsx'
 import type { Recipe } from '@domain/models/Recipe.ts'
+import type { PurchaseState } from '@presentation/hooks/usePurchase.ts'
+import { MEAL_TYPES, SUB_CATEGORIES, ALL_PRESET_TAGS } from '@presentation/components/TagManager.tsx'
 
 interface LibraryPageProps {
   selectedRecipeId: string | null
   onNavigateToExtract: () => void
-  onNavigateToGrocery: () => void
   onSelectRecipe: (id: string | null) => void
+  purchase: PurchaseState
 }
 
-export function LibraryPage({ selectedRecipeId, onNavigateToExtract, onNavigateToGrocery, onSelectRecipe }: LibraryPageProps) {
+export function LibraryPage({ selectedRecipeId, onNavigateToExtract, onSelectRecipe, purchase }: LibraryPageProps) {
   const { recipes, isLoading, save, remove } = useSavedRecipes()
   const selectedRecipe = useSavedRecipe(selectedRecipeId)
 
@@ -30,7 +33,9 @@ export function LibraryPage({ selectedRecipeId, onNavigateToExtract, onNavigateT
   const allTags = useMemo(() => {
     const tagSet = new Set<string>()
     for (const r of recipes) {
-      for (const t of r.tags ?? []) tagSet.add(t)
+      for (const t of r.tags ?? []) {
+        if (!(ALL_PRESET_TAGS as readonly string[]).includes(t)) tagSet.add(t)
+      }
     }
     return Array.from(tagSet).sort()
   }, [recipes])
@@ -95,7 +100,7 @@ export function LibraryPage({ selectedRecipeId, onNavigateToExtract, onNavigateT
             &larr; Back to Library
           </button>
         </div>
-        <RecipeDisplay recipe={selectedRecipe} onDelete={handleDelete} />
+        <RecipeDisplay recipe={selectedRecipe} onDelete={handleDelete} purchase={purchase} />
       </main>
     )
   }
@@ -127,22 +132,31 @@ export function LibraryPage({ selectedRecipeId, onNavigateToExtract, onNavigateT
         <button className="nav-btn" onClick={() => setShowManualEntry(true)}>
           + Add Manually
         </button>
-        {recipes.length > 0 && (
-          <button className="nav-btn grocery-nav-btn" onClick={onNavigateToGrocery}>
-            Grocery List
+        <PaidFeatureGate
+          isPaid={purchase.isPaid}
+          feature="Import lets you bring in recipes from other apps and backups."
+          onUpgrade={purchase.upgrade}
+          onRestore={purchase.restore}
+        >
+          <button className="nav-btn" onClick={() => setShowImportDialog(true)}>
+            Import
           </button>
-        )}
-        <button className="nav-btn" onClick={() => setShowImportDialog(true)}>
-          Import
-        </button>
+        </PaidFeatureGate>
         {recipes.length > 0 && (
-          <button className="nav-btn" onClick={handleExportAll}>
-            Export All
-          </button>
+          <PaidFeatureGate
+            isPaid={purchase.isPaid}
+            feature="Export lets you back up all your recipes as a portable JSON file."
+            onUpgrade={purchase.upgrade}
+            onRestore={purchase.restore}
+          >
+            <button className="nav-btn" onClick={handleExportAll}>
+              Export All
+            </button>
+          </PaidFeatureGate>
         )}
       </div>
 
-      {showNudge && (
+      {showNudge && purchase.isPaid && (
         <div className="backup-nudge">
           <span>You&apos;ve saved several recipes since your last export. Back up your data!</span>
           <div className="nudge-actions">
@@ -168,6 +182,24 @@ export function LibraryPage({ selectedRecipeId, onNavigateToExtract, onNavigateT
             >
               {'\u2605'} Favorites
             </button>
+            {MEAL_TYPES.map((mt) => (
+              <button
+                key={mt}
+                className={`filter-chip meal-type-filter${selectedTag === mt ? ' active' : ''}`}
+                onClick={() => setSelectedTag(selectedTag === mt ? null : mt)}
+              >
+                {mt}
+              </button>
+            ))}
+            {SUB_CATEGORIES.map((sc) => (
+              <button
+                key={sc}
+                className={`filter-chip meal-type-filter${selectedTag === sc ? ' active' : ''}`}
+                onClick={() => setSelectedTag(selectedTag === sc ? null : sc)}
+              >
+                {sc}
+              </button>
+            ))}
             {allTags.map((tag) => (
               <button
                 key={tag}

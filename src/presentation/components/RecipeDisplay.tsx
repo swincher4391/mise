@@ -4,30 +4,34 @@ import type { SavedRecipe } from '@domain/models/SavedRecipe.ts'
 import { scaleIngredients } from '@application/scaler/scaleIngredients.ts'
 import { useIsRecipeSaved, useSavedRecipes } from '@presentation/hooks/useSavedRecipes.ts'
 import { downloadSingleRecipe } from '@application/export/exportRecipes.ts'
+import { UpgradePrompt } from './UpgradePrompt.tsx'
 import { RecipeHeader } from './RecipeHeader.tsx'
 import { ServingScaler } from './ServingScaler.tsx'
 import { IngredientList } from './IngredientList.tsx'
 import { StepList } from './StepList.tsx'
 import { TagManager } from './TagManager.tsx'
 import { CookingMode } from './CookingMode.tsx'
+import { FREE_RECIPE_LIMIT, type PurchaseState } from '@presentation/hooks/usePurchase.ts'
 
 interface RecipeDisplayProps {
   recipe: Recipe | SavedRecipe
   showSaveButton?: boolean
   onDelete?: () => void
+  purchase?: PurchaseState
 }
 
 function isSavedRecipe(recipe: Recipe | SavedRecipe): recipe is SavedRecipe {
   return 'savedAt' in recipe
 }
 
-export function RecipeDisplay({ recipe, showSaveButton, onDelete }: RecipeDisplayProps) {
+export function RecipeDisplay({ recipe, showSaveButton, onDelete, purchase }: RecipeDisplayProps) {
   const [currentServings, setCurrentServings] = useState(recipe.servings ?? 4)
   const isSaved = useIsRecipeSaved(recipe.sourceUrl)
-  const { save, toggleFavorite, updateNotes, updateTags } = useSavedRecipes()
+  const { recipes, save, toggleFavorite, updateNotes, updateTags } = useSavedRecipes()
   const [editingNotes, setEditingNotes] = useState(false)
   const [notesValue, setNotesValue] = useState('')
   const [cookingMode, setCookingMode] = useState(false)
+  const [showUpgrade, setShowUpgrade] = useState(false)
 
   const saved = isSavedRecipe(recipe) ? recipe : null
 
@@ -37,6 +41,11 @@ export function RecipeDisplay({ recipe, showSaveButton, onDelete }: RecipeDispla
   )
 
   const handleSave = async () => {
+    // Enforce free tier recipe limit
+    if (purchase && !purchase.isPaid && recipes.length >= FREE_RECIPE_LIMIT) {
+      setShowUpgrade(true)
+      return
+    }
     await save(recipe)
   }
 
@@ -153,6 +162,15 @@ export function RecipeDisplay({ recipe, showSaveButton, onDelete }: RecipeDispla
       )}
       <IngredientList ingredients={scaledIngredients} />
       <StepList steps={recipe.steps} />
+
+      {showUpgrade && purchase && (
+        <UpgradePrompt
+          feature={`You've saved ${FREE_RECIPE_LIMIT} recipes — the free tier limit. Upgrade to save unlimited recipes.`}
+          onUpgrade={purchase.upgrade}
+          onRestore={purchase.restore}
+          onClose={() => setShowUpgrade(false)}
+        />
+      )}
     </article>
   )
 }

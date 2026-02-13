@@ -28,3 +28,7 @@ dev-dist
 
 # OS
 Thumbs.db
+
+.vercel
+.env
+.env*.local
