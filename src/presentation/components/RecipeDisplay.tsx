@@ -11,6 +11,7 @@ import { IngredientList } from './IngredientList.tsx'
 import { StepList } from './StepList.tsx'
 import { TagManager } from './TagManager.tsx'
 import { CookingMode } from './CookingMode.tsx'
+import { RecipeEditForm } from './RecipeEditForm.tsx'
 import { FREE_RECIPE_LIMIT, type PurchaseState } from '@presentation/hooks/usePurchase.ts'
 
 interface RecipeDisplayProps {
@@ -18,13 +19,14 @@ interface RecipeDisplayProps {
   showSaveButton?: boolean
   onDelete?: () => void
   purchase?: PurchaseState
+  onSaved?: () => void
 }
 
 function isSavedRecipe(recipe: Recipe | SavedRecipe): recipe is SavedRecipe {
   return 'savedAt' in recipe
 }
 
-export function RecipeDisplay({ recipe, showSaveButton, onDelete, purchase }: RecipeDisplayProps) {
+export function RecipeDisplay({ recipe, showSaveButton, onDelete, purchase, onSaved }: RecipeDisplayProps) {
   const [currentServings, setCurrentServings] = useState(recipe.servings ?? 4)
   const isSaved = useIsRecipeSaved(recipe.sourceUrl)
   const { recipes, save, toggleFavorite, updateNotes, updateTags } = useSavedRecipes()
@@ -32,15 +34,18 @@ export function RecipeDisplay({ recipe, showSaveButton, onDelete, purchase }: Re
   const [notesValue, setNotesValue] = useState('')
   const [cookingMode, setCookingMode] = useState(false)
   const [showUpgrade, setShowUpgrade] = useState(false)
+  const [editMode, setEditMode] = useState(false)
+  const [editedRecipe, setEditedRecipe] = useState<Recipe | null>(null)
 
   const saved = isSavedRecipe(recipe) ? recipe : null
+  const effective = editedRecipe ?? recipe
 
   const scaledIngredients = useMemo(
-    () => scaleIngredients(recipe.ingredients, recipe.servings ?? currentServings, currentServings),
-    [recipe.ingredients, recipe.servings, currentServings],
+    () => scaleIngredients(effective.ingredients, effective.servings ?? currentServings, currentServings),
+    [effective.ingredients, effective.servings, currentServings],
   )
 
-  const isPhotoExtract = recipe.extractionLayer === 'image'
+  const isPhotoExtract = effective.extractionLayer === 'image'
 
   const handleSave = async () => {
     // Gate photo-extracted recipes behind paid tier
@@ -53,7 +58,13 @@ export function RecipeDisplay({ recipe, showSaveButton, onDelete, purchase }: Re
       setShowUpgrade(true)
       return
     }
-    await save(recipe)
+    await save(effective)
+    onSaved?.()
+  }
+
+  const handleApplyEdit = (edited: Recipe) => {
+    setEditedRecipe(edited)
+    setEditMode(false)
   }
 
   const handleStartEditNotes = () => {
@@ -72,12 +83,12 @@ export function RecipeDisplay({ recipe, showSaveButton, onDelete, purchase }: Re
   }
 
   const showActions = showSaveButton || onDelete || saved
-  const hasSteps = recipe.steps.length > 0
+  const hasSteps = effective.steps.length > 0
 
   if (cookingMode && hasSteps) {
     return (
       <CookingMode
-        recipe={recipe}
+        recipe={effective}
         scaledIngredients={scaledIngredients}
         onExit={() => setCookingMode(false)}
       />
@@ -86,14 +97,19 @@ export function RecipeDisplay({ recipe, showSaveButton, onDelete, purchase }: Re
 
   return (
     <article className="recipe-display">
-      <RecipeHeader recipe={recipe} />
+      <RecipeHeader recipe={effective} />
       {showActions && (
         <div className="recipe-actions">
+          {showSaveButton && !isSaved && !editMode && (
+            <button className="nav-btn" onClick={() => setEditMode(true)}>
+              Edit
+            </button>
+          )}
           {showSaveButton && (
             <button
               className={`save-btn ${isSaved ? 'saved' : ''}`}
               onClick={handleSave}
-              disabled={isSaved}
+              disabled={isSaved || editMode}
             >
               {isSaved ? 'Saved' : 'Save Recipe'}
             </button>
@@ -161,14 +177,24 @@ export function RecipeDisplay({ recipe, showSaveButton, onDelete, purchase }: Re
         </button>
       )}
 
-      {recipe.servings && (
-        <ServingScaler
-          currentServings={currentServings}
-          onChange={setCurrentServings}
+      {editMode ? (
+        <RecipeEditForm
+          recipe={effective}
+          onApply={handleApplyEdit}
+          onCancel={() => setEditMode(false)}
         />
+      ) : (
+        <>
+          {effective.servings && (
+            <ServingScaler
+              currentServings={currentServings}
+              onChange={setCurrentServings}
+            />
+          )}
+          <IngredientList ingredients={scaledIngredients} />
+          <StepList steps={effective.steps} />
+        </>
       )}
-      <IngredientList ingredients={scaledIngredients} />
-      <StepList steps={recipe.steps} />
 
       {showUpgrade && purchase && (
         <UpgradePrompt

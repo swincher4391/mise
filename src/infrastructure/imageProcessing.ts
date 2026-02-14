@@ -1,26 +1,6 @@
 const MAX_DIMENSION = 1500
 const JPEG_QUALITY = 0.8
 
-/**
- * Convert to grayscale using the minimum RGB channel.
- * This makes any colored ink (neon green, red, blue, etc.) appear dark against
- * light backgrounds — much more readable by the vision model than luminance-based
- * grayscale which can make bright colors nearly invisible.
- */
-function preprocessPixels(ctx: CanvasRenderingContext2D, width: number, height: number) {
-  const imageData = ctx.getImageData(0, 0, width, height)
-  const d = imageData.data
-
-  for (let i = 0; i < d.length; i += 4) {
-    const v = Math.min(d[i], d[i + 1], d[i + 2])
-    d[i] = v
-    d[i + 1] = v
-    d[i + 2] = v
-  }
-
-  ctx.putImageData(imageData, 0, 0)
-}
-
 export function compressImage(dataUrl: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image()
@@ -43,7 +23,6 @@ export function compressImage(dataUrl: string): Promise<string> {
         return
       }
       ctx.drawImage(img, 0, 0, width, height)
-      preprocessPixels(ctx, width, height)
       resolve(canvas.toDataURL('image/jpeg', JPEG_QUALITY))
     }
     img.onerror = () => reject(new Error('Failed to load image'))

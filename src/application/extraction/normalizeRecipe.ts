@@ -186,7 +186,8 @@ export function normalizeRecipe(jsonLd: any, sourceUrl: string, html?: string): 
     sourceUrl,
     sourceDomain: extractDomain(sourceUrl),
     author: (() => {
-      const raw = jsonLd.author?.name || (typeof jsonLd.author === 'string' ? jsonLd.author : null)
+      const a = Array.isArray(jsonLd.author) ? jsonLd.author[0] : jsonLd.author
+      const raw = a?.name || (typeof a === 'string' ? a : null)
       return raw ? decodeEntities(String(raw)) : null
     })(),
     description: jsonLd.description ? decodeEntities(String(jsonLd.description)) : null,

@@ -51,6 +51,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         'User-Agent':
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
         Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Cache-Control': 'no-cache',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Sec-Fetch-User': '?1',
+        'Upgrade-Insecure-Requests': '1',
       },
       redirect: 'follow',
     })
@@ -58,6 +66,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const html = await response.text()
     res.setHeader('Content-Type', 'text/html; charset=utf-8')
     res.setHeader('Access-Control-Allow-Origin', '*')
+    res.setHeader('X-Upstream-Status', String(response.status))
     return res.status(200).send(html)
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'

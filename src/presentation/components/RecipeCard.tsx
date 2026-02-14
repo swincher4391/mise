@@ -3,6 +3,7 @@ import type { SavedRecipe } from '@domain/models/SavedRecipe.ts'
 interface RecipeCardProps {
   recipe: SavedRecipe
   onSelect: (id: string) => void
+  onRemove: (id: string) => void
 }
 
 function formatTime(minutes: number): string {
@@ -12,9 +13,9 @@ function formatTime(minutes: number): string {
   return m > 0 ? `${h}h ${m}m` : `${h}h`
 }
 
-export function RecipeCard({ recipe, onSelect }: RecipeCardProps) {
+export function RecipeCard({ recipe, onSelect, onRemove }: RecipeCardProps) {
   return (
-    <button className="recipe-card" onClick={() => onSelect(recipe.id)}>
+    <div className="recipe-card" onClick={() => onSelect(recipe.id)}>
       {recipe.imageUrl ? (
         <img className="recipe-card-image" src={recipe.imageUrl} alt="" />
       ) : (
@@ -37,6 +38,13 @@ export function RecipeCard({ recipe, onSelect }: RecipeCardProps) {
           </span>
         )}
       </div>
-    </button>
+      <button
+        className="recipe-card-remove"
+        onClick={(e) => { e.stopPropagation(); onRemove(recipe.id) }}
+        aria-label="Remove recipe"
+      >
+        &times;
+      </button>
+    </div>
   )
 }

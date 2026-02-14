@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import type { Recipe } from '@domain/models/Recipe.ts'
 import type { SavedRecipe } from '@domain/models/SavedRecipe.ts'
 import type { ScaledIngredient } from '@application/scaler/scaleIngredients.ts'
@@ -59,22 +59,30 @@ export function CookingMode({ recipe, scaledIngredients, onExit }: CookingModePr
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Read step aloud when navigating or toggling on
+  // Read step aloud when navigating to a new step (toggle-on is handled in toggleReadAloud)
+  const prevStepRef = useRef(currentStepIndex)
   useEffect(() => {
-    if (readAloudEnabled && navigableSteps[currentStepIndex]) {
-      tts.speak(navigableSteps[currentStepIndex].text)
+    if (prevStepRef.current !== currentStepIndex) {
+      prevStepRef.current = currentStepIndex
+      if (readAloudEnabled && navigableSteps[currentStepIndex]) {
+        tts.speak(navigableSteps[currentStepIndex].text)
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentStepIndex, readAloudEnabled])
+  }, [currentStepIndex])
 
   const toggleReadAloud = useCallback(() => {
     setReadAloudEnabled((prev) => {
       if (prev) {
         tts.stop()
+      } else {
+        // Speak immediately on toggle-on (preserves user gesture for mobile)
+        const step = navigableSteps[currentStepIndex]
+        if (step) tts.speak(step.text)
       }
       return !prev
     })
-  }, [tts])
+  }, [tts, navigableSteps, currentStepIndex])
 
   const currentStep = navigableSteps[currentStepIndex]
   const hasPrev = currentStepIndex > 0

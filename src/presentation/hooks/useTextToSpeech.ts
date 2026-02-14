@@ -26,14 +26,18 @@ export function useTextToSpeech(): UseTextToSpeechResult {
       // Cancel any in-progress speech
       window.speechSynthesis.cancel()
 
-      const utterance = new SpeechSynthesisUtterance(text)
-      utterance.rate = 0.95
-      utterance.onstart = () => setIsSpeaking(true)
-      utterance.onend = () => setIsSpeaking(false)
-      utterance.onerror = () => setIsSpeaking(false)
+      // Chrome bug: cancel() + immediate speak() silently fails.
+      // A short delay lets the engine reset before queuing new speech.
+      setTimeout(() => {
+        const utterance = new SpeechSynthesisUtterance(text)
+        utterance.rate = 0.95
+        utterance.onstart = () => setIsSpeaking(true)
+        utterance.onend = () => setIsSpeaking(false)
+        utterance.onerror = () => setIsSpeaking(false)
 
-      utteranceRef.current = utterance
-      window.speechSynthesis.speak(utterance)
+        utteranceRef.current = utterance
+        window.speechSynthesis.speak(utterance)
+      }, 50)
     },
     [isSupported],
   )
