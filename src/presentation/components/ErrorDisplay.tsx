@@ -12,10 +12,10 @@ export function ErrorDisplay({ error }: ErrorDisplayProps) {
       <div className="error-suggestions">
         {isBotBlocked(error) ? (
           <>
-            <p><strong>StorySkip Chrome Extension</strong></p>
+            <p><strong>Mise Chrome Extension</strong></p>
             <p>
               The extension extracts recipes directly from your browser, bypassing
-              any site protection. Install it once and click the StorySkip icon on any
+              any site protection. Install it once and click the Mise icon on any
               recipe page.
             </p>
             <p style={{ marginTop: '0.5rem' }}>Or try <strong>Photo import</strong> — take a screenshot and we'll read it for you.</p>

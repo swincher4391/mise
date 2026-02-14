@@ -125,7 +125,7 @@ export function GroceryPage({ onNavigateToLibrary }: GroceryPageProps) {
   return (
     <main className="extract-page">
       <div className="page-header">
-        <h1 className="app-title">StorySkip</h1>
+        <h1 className="app-title">Mise</h1>
         <p className="app-tagline">Grocery List</p>
       </div>
       <div className="app-nav">

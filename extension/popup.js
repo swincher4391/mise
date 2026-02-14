@@ -1,6 +1,6 @@
 /* eslint-disable no-undef */
 
-const MISE_URL = 'https://storyskip.swinch.dev'
+const MISE_URL = 'https://mise.swinch.dev'
 
 const extractView = document.getElementById('extract-view')
 const loadingView = document.getElementById('loading-view')

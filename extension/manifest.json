@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "StorySkip - Recipe Extractor",
+  "name": "Mise - Recipe Extractor",
   "version": "1.0.0",
-  "description": "Extract recipes with one click. Sends to StorySkip PWA.",
+  "description": "Extract recipes with one click. Sends to Mise PWA.",
   "permissions": ["activeTab"],
   "action": {
     "default_popup": "popup.html",

@@ -72,7 +72,7 @@ export function ImportDialog({ onImport, onClose }: ImportDialogProps) {
         <div className="import-dialog-body">
           {state === 'idle' && (
             <>
-              <p>Import recipes from Paprika or a StorySkip export file.</p>
+              <p>Import recipes from Paprika or a Mise export file.</p>
               <div className="import-formats">
                 <div className="import-format">
                   <strong>.paprikarecipes</strong>
@@ -80,7 +80,7 @@ export function ImportDialog({ onImport, onClose }: ImportDialogProps) {
                 </div>
                 <div className="import-format">
                   <strong>.json</strong>
-                  <span>Import from StorySkip export</span>
+                  <span>Import from Mise export</span>
                 </div>
               </div>
               <input
@@ -162,13 +162,13 @@ export function ImportDialog({ onImport, onClose }: ImportDialogProps) {
 }
 
 /**
- * Parse a StorySkip JSON export file.
+ * Parse a Mise JSON export file.
  */
 async function parseJsonExport(file: File): Promise<Recipe[]> {
   const text = await file.text()
   const data = JSON.parse(text)
 
-  // Validate StorySkip export format
+  // Validate Mise export format
   if (data.version && Array.isArray(data.recipes)) {
     return data.recipes.map((r: SavedRecipe) => ({
       ...r,
@@ -182,5 +182,5 @@ async function parseJsonExport(file: File): Promise<Recipe[]> {
     return [data as Recipe]
   }
 
-  throw new Error('Unrecognized JSON format. Expected a StorySkip export file.')
+  throw new Error('Unrecognized JSON format. Expected a Mise export file.')
 }

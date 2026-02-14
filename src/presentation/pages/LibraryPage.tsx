@@ -110,7 +110,7 @@ export function LibraryPage({ selectedRecipeId, onNavigateToExtract, onSelectRec
     return (
       <main className="extract-page">
         <div className="page-header">
-          <h1 className="app-title">StorySkip</h1>
+          <h1 className="app-title">Mise</h1>
           <p className="app-tagline">Add Recipe</p>
         </div>
         <ManualEntryForm onSave={handleManualSave} onCancel={() => setShowManualEntry(false)} />
@@ -122,7 +122,7 @@ export function LibraryPage({ selectedRecipeId, onNavigateToExtract, onSelectRec
   return (
     <main className="extract-page">
       <div className="page-header">
-        <h1 className="app-title">StorySkip</h1>
+        <h1 className="app-title">Mise</h1>
         <p className="app-tagline">My Recipes</p>
       </div>
       <div className="app-nav">

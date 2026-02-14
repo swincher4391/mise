@@ -1,4 +1,4 @@
-# StorySkip
+# Mise
 
 **Just the Recipe.**
 
@@ -33,9 +33,9 @@
 
 ## 1. Executive Summary
 
-StorySkip (as in mise en place — everything in its place) is a recipe app that does one thing well: it takes a recipe URL and gives you just the recipe. No life stories. No ads. No pop-ups. No "Jump to Recipe" button because there's nothing to jump past.
+Mise (as in mise en place — everything in its place) is a recipe app that does one thing well: it takes a recipe URL and gives you just the recipe. No life stories. No ads. No pop-ups. No "Jump to Recipe" button because there's nothing to jump past.
 
-StorySkip is a Progressive Web App (PWA) that runs entirely in the browser with local storage. It works on phones, tablets, and desktops. It works offline after first load. It has zero backend infrastructure, zero telemetry, and zero ongoing server costs.
+Mise is a Progressive Web App (PWA) that runs entirely in the browser with local storage. It works on phones, tablets, and desktops. It works offline after first load. It has zero backend infrastructure, zero telemetry, and zero ongoing server costs.
 
 The core workflow is: paste a URL → get a clean recipe → save it to your library → cook from it. Over time, you build a personal recipe collection that you can search, tag, scale, and use for meal planning and grocery list generation.
 
@@ -57,7 +57,7 @@ Recipe websites are optimized for ad revenue, not for cooking. The incentive str
 
 The "Jump to Recipe" button is the industry's confession that the content above the recipe is not for the reader. It exists because Google's SEO algorithm historically rewarded longer content, so recipe bloggers pad their posts with stories, tips, and keyword-rich filler. The recipe is the product; everything else is the ad delivery mechanism.
 
-StorySkip eliminates the delivery mechanism and keeps the product.
+Mise eliminates the delivery mechanism and keeps the product.
 
 ---
 
@@ -127,7 +127,7 @@ Regardless of which layer succeeds, the output is a standardized Recipe object (
 
 ## 5. Feature 2: Recipe Library
 
-The library is the personal recipe collection. It's the reason StorySkip becomes a daily-use app rather than a one-shot extraction tool.
+The library is the personal recipe collection. It's the reason Mise becomes a daily-use app rather than a one-shot extraction tool.
 
 ### 5.1 Organization
 
@@ -138,7 +138,7 @@ The library is the personal recipe collection. It's the reason StorySkip becomes
 | Search | Full-text search across recipe titles, ingredients, tags, and notes. Instant, client-side (IndexedDB query or in-memory index). No server round-trip. |
 | Favorites | Quick-access flag. Favorites surface first in browse and meal planning. |
 | Notes | Free-text notes per recipe (e.g., "Double the garlic", "Kids prefer less spice", "Last made 2/9/2026"). Notes are personal and never overwritten by re-extraction. |
-| Source tracking | Every extracted recipe keeps its source URL. Original author is credited. StorySkip is a recipe organizer, not a recipe plagiarizer. |
+| Source tracking | Every extracted recipe keeps its source URL. Original author is credited. Mise is a recipe organizer, not a recipe plagiarizer. |
 
 ### 5.2 Manual Recipe Entry
 
@@ -147,14 +147,14 @@ Not every recipe comes from a URL. Family recipes, cookbook adaptations, and ori
 ### 5.3 Import / Export
 
 - **Import from Paprika (.paprikarecipes):** Paprika is the most popular paid recipe app. Supporting import from Paprika is the single most effective acquisition channel because it removes the switching cost.
-- **Import from generic formats:** JSON (StorySkip native format), Recipe Keeper (.zip), CookBook (.html export).
+- **Import from generic formats:** JSON (Mise native format), Recipe Keeper (.zip), CookBook (.html export).
 - **Export:** Full library export as JSON. Individual recipe export as JSON, printable HTML, or plain text. Your data is always yours. No lock-in.
 
 ---
 
 ## 6. Feature 3: Cooking Mode
 
-Cooking mode is the "in the kitchen with flour on your hands" experience. Everything else in StorySkip is browsing and planning; cooking mode is doing.
+Cooking mode is the "in the kitchen with flour on your hands" experience. Everything else in Mise is browsing and planning; cooking mode is doing.
 
 ### 6.1 Design Principles
 
@@ -204,7 +204,7 @@ Why this feature matters commercially: Grocery list generation is the feature th
 
 ## 8. Ingredient Parser (The Hard, Valuable Part)
 
-The ingredient parser is the core intellectual property of StorySkip. Everything else — extraction, library, cooking mode, meal planning, grocery lists — depends on the parser producing structured data from raw ingredient strings. If the parser is good, every downstream feature works well. If the parser is bad, everything is a hack.
+The ingredient parser is the core intellectual property of Mise. Everything else — extraction, library, cooking mode, meal planning, grocery lists — depends on the parser producing structured data from raw ingredient strings. If the parser is good, every downstream feature works well. If the parser is bad, everything is a hack.
 
 ### 8.1 What the Parser Does
 
@@ -236,7 +236,7 @@ Ingredient strings are a natural language problem on a constrained domain. The g
 
 Two-phase approach:
 
-**Phase 1 (MVP): Rule-based parser.** A pipeline of regex patterns + heuristics that handles the 90% case. Quantity extraction → unit extraction → parenthetical handling → prep/note splitting → ingredient name normalization. This is deterministic, fast, runs entirely client-side, and is testable with a large fixture set. Open-source ingredient parsers exist (NYT Cooking's ingredient-parser, Zestful API) that provide a starting point, but most are server-side Python. The StorySkip parser is JavaScript/TypeScript for client-side execution.
+**Phase 1 (MVP): Rule-based parser.** A pipeline of regex patterns + heuristics that handles the 90% case. Quantity extraction → unit extraction → parenthetical handling → prep/note splitting → ingredient name normalization. This is deterministic, fast, runs entirely client-side, and is testable with a large fixture set. Open-source ingredient parsers exist (NYT Cooking's ingredient-parser, Zestful API) that provide a starting point, but most are server-side Python. The Mise parser is JavaScript/TypeScript for client-side execution.
 
 **Phase 2 (Post-MVP): LLM-assisted fallback.** For strings the rule-based parser can't handle confidently, an optional LLM call (local or API) provides a structured parse. This is the "last 10%" solution. It's optional because it requires either a network call or a local model, and the rule-based parser should handle the vast majority of inputs. The LLM fallback is a quality improvement, not a requirement.
 
@@ -314,7 +314,7 @@ All data is stored in IndexedDB. The schema is versioned for future migrations (
 
 ## 10. Competitive Landscape
 
-| App | Price | Strengths | Weaknesses | StorySkip's Advantage |
+| App | Price | Strengths | Weaknesses | Mise's Advantage |
 | --- | --- | --- | --- | --- |
 | Paprika | $4.99 (one-time per platform) | Excellent extraction, strong library, good scaling, meal planning + grocery lists. The gold standard. | Separate purchases per platform ($15 total for iOS + Mac + Windows). Syncs via proprietary cloud. Ingredient parser is decent but not great for grocery aggregation. UI is functional but dated. | PWA = one purchase, every device. Better ingredient parser for grocery aggregation. Modern UI. Open export format. |
 | Mela | $5.99/yr or $9.99 lifetime | Beautiful UI. Good extraction. Apple-ecosystem native. | iOS/Mac only. No Android. No web. Limited meal planning. Grocery list is basic. | Cross-platform. Better grocery list generation via structured parsing. |
@@ -322,7 +322,7 @@ All data is stored in IndexedDB. The schema is versioned for future migrations (
 | Whisk (Samsung) | Free | Good grocery list integration. Samsung ecosystem. | Samsung ecosystem lock-in. Data practices unclear. Feature-heavy but shallow. | Privacy-first. No ecosystem lock-in. Deeper ingredient parsing. |
 | Copy Me That | Free + $2.99 premium | Browser extension is excellent. Simple and clean. | Free tier is limited. No meal planning. No scaling. Grocery list is basic. | Full features without paywall. Scaling. Meal planning. Grocery aggregation. |
 
-Honest assessment: Paprika is the real competitor. It's been around since 2010, has a loyal user base, and does 80% of what StorySkip does. StorySkip's differentiation is: (1) PWA cross-platform (one purchase, every device), (2) better ingredient parser driving better grocery list aggregation, (3) modern UI designed around cooking mode, and (4) open data format with easy export. The pitch to Paprika users: "You already know you want this. StorySkip does it on every device with a better grocery list."
+Honest assessment: Paprika is the real competitor. It's been around since 2010, has a loyal user base, and does 80% of what Mise does. Mise's differentiation is: (1) PWA cross-platform (one purchase, every device), (2) better ingredient parser driving better grocery list aggregation, (3) modern UI designed around cooking mode, and (4) open data format with easy export. The pitch to Paprika users: "You already know you want this. Mise does it on every device with a better grocery list."
 
 ---
 
@@ -375,7 +375,7 @@ Revenue ceiling estimate: Even at modest scale (5,000 paid users at $7.99 = $40,
 
 ## 13. Promise Boundaries
 
-| StorySkip Does | StorySkip Does NOT Do |
+| Mise Does | Mise Does NOT Do |
 | --- | --- |
 | Extract recipes from URLs using structured data (JSON-LD, microdata) that sites already publish | Guarantee extraction from every recipe website. Some sites have no structured data. Use manual entry for those. |
 | Parse ingredients into structured data (quantity, unit, ingredient, prep) | Guarantee 100% parse accuracy. The parser is good, not perfect. Users can edit. |
@@ -385,7 +385,7 @@ Revenue ceiling estimate: Even at modest scale (5,000 paid users at $7.99 = $40,
 | Scale recipe servings with unit conversion | Convert between weight and volume without density data (e.g., "1 cup flour" ≠ "120g flour" is not automatic). |
 | Support import from Paprika and other common formats | Import from every recipe app ever made. Supported formats are listed explicitly. |
 
-The overarching promise: StorySkip gives you just the recipe. Everything else is in service of that promise. If a feature doesn't make it easier to find, save, cook, or plan recipes, it doesn't belong in StorySkip.
+The overarching promise: Mise gives you just the recipe. Everything else is in service of that promise. If a feature doesn't make it easier to find, save, cook, or plan recipes, it doesn't belong in Mise.
 
 ---
 

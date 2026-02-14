@@ -1,7 +1,7 @@
 /* eslint-disable no-undef */
 
 /**
- * StorySkip Extension Content Script
+ * Mise Extension Content Script
  *
  * Runs on every page. Waits for EXTRACT_RECIPE message from popup,
  * then extracts recipe data using inlined JSON-LD and Microdata extractors.

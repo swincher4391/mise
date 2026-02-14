@@ -1,4 +1,4 @@
-# StorySkip
+# Mise
 
 **Just the Recipe.**
 
@@ -37,9 +37,9 @@
 
 ## 1. Executive Summary
 
-StorySkip (as in mise en place -- everything in its place) is a recipe app that does one thing well: it takes a recipe URL and gives you just the recipe. No life stories. No ads. No pop-ups. No "Jump to Recipe" button because there's nothing to jump past.
+Mise (as in mise en place -- everything in its place) is a recipe app that does one thing well: it takes a recipe URL and gives you just the recipe. No life stories. No ads. No pop-ups. No "Jump to Recipe" button because there's nothing to jump past.
 
-StorySkip is a Progressive Web App (PWA) hosted on Vercel. It runs on phones, tablets, and desktops. It works offline after first load. All recipe data is stored locally in the browser via IndexedDB.
+Mise is a Progressive Web App (PWA) hosted on Vercel. It runs on phones, tablets, and desktops. It works offline after first load. All recipe data is stored locally in the browser via IndexedDB.
 
 The core workflow is: paste a URL -> get a clean recipe -> save it to your library -> cook from it. The extended workflow is: plan your week -> generate a grocery list -> check prices at your local Kroger -> add to cart and shop.
 
@@ -61,7 +61,7 @@ Recipe websites are optimized for ad revenue, not for cooking. The incentive str
 | Grocery list for the week | 5 browser tabs, manual cross-referencing, and a Notes app |
 | Quick reference while cooking | A screen that goes dark every 30 seconds, hands covered in flour, scrolling past ads to find step 4 |
 
-The "Jump to Recipe" button is the industry's confession that the content above the recipe is not for the reader. StorySkip eliminates the delivery mechanism and keeps the product.
+The "Jump to Recipe" button is the industry's confession that the content above the recipe is not for the reader. Mise eliminates the delivery mechanism and keeps the product.
 
 ---
 
@@ -217,7 +217,7 @@ Full manual entry form with ingredient parser running on each line as user types
 
 ## 8. Feature 5: Kroger Integration [SHIPPED]
 
-This is the feature that transforms StorySkip from a recipe tool into a commerce platform.
+This is the feature that transforms Mise from a recipe tool into a commerce platform.
 
 ### 8.1 What It Does
 
@@ -281,7 +281,7 @@ The Kroger integration is the primary revenue driver (see Section 13). Every use
 
 *Updated to reflect current positioning.*
 
-| App | Price | StorySkip's Advantage |
+| App | Price | Mise's Advantage |
 | --- | --- | --- |
 | Paprika | $4.99/platform ($15 total) | PWA = one purchase, every device. Kroger price check + cart integration. Modern UI. |
 | JustTheRecipe | Free + $2/month subscription | No subscription. $4.99 one-time = $24/yr savings vs JTR. Meal planning + grocery list + Kroger. |
@@ -289,7 +289,7 @@ The Kroger integration is the primary revenue driver (see Section 13). Every use
 | CookBook | Free + $2.99 premium | No ads. Photo import. Kroger integration. |
 | Whisk (Samsung) | Free | No ecosystem lock-in. Privacy-first. Deeper ingredient parsing. |
 
-**Honest assessment:** Paprika is still the gold standard for recipe management. StorySkip's differentiation is now clearer: (1) PWA cross-platform, (2) Kroger price check and cart integration (no competitor has this), (3) photo import from cookbooks, (4) hands-free cook mode with read-aloud. The Kroger integration is the moat — it turns a recipe app into a shopping tool.
+**Honest assessment:** Paprika is still the gold standard for recipe management. Mise's differentiation is now clearer: (1) PWA cross-platform, (2) Kroger price check and cart integration (no competitor has this), (3) photo import from cookbooks, (4) hands-free cook mode with read-aloud. The Kroger integration is the moat — it turns a recipe app into a shopping tool.
 
 ---
 
@@ -299,9 +299,9 @@ The Kroger integration is the primary revenue driver (see Section 13). Every use
 
 | Channel | Status |
 | --- | --- |
-| PWA at storyskip.swinch.dev | Live |
+| PWA at mise.swinch.dev | Live |
 | Vercel hosting (free tier) | Live |
-| Custom domain (storyskip.swinch.dev) | Live |
+| Custom domain (mise.swinch.dev) | Live |
 | Vercel Analytics | Live |
 | Browser extension | Not shipped. Deprioritized. |
 | App stores | Not shipped. PWA is sufficient. |
@@ -335,7 +335,7 @@ The Kroger integration is the primary revenue driver (see Section 13). Every use
 The $4.99 isn't where the money is made -- the affiliate revenue is. The one-time payment serves three purposes:
 
 1. **Filters for engaged users.** Someone who pays has committed to the app and is more likely to generate weekly grocery orders.
-2. **Positions against competition.** JustTheRecipe charges $2/month ($24/year). Paprika charges $4.99 per platform. StorySkip is $4.99 total, forever, every device.
+2. **Positions against competition.** JustTheRecipe charges $2/month ($24/year). Paprika charges $4.99 per platform. Mise is $4.99 total, forever, every device.
 3. **Removes friction at the right moment.** Going higher ($9.99) loses users who would generate grocery affiliate revenue. Going lower ($2.99) undervalues the product without meaningfully reducing friction.
 
 ### 13.3 Free Tier
@@ -359,7 +359,7 @@ The free tier includes the Kroger flow intentionally. A free user who shops thro
 
 The affiliate link is a one-line change in `KrogerPriceView.tsx` line 118. Currently opens `kroger.com/cart` directly. Once FlexOffers approves, the URL becomes an affiliate redirect that sets the tracking cookie before landing the user on their cart page. Cart is already populated via the Kroger Cart API.
 
-FTC disclosure ("StorySkip may earn a commission from purchases made through these links.") is displayed above the "Add to Cart" button.
+FTC disclosure ("Mise may earn a commission from purchases made through these links.") is displayed above the "Add to Cart" button.
 
 ### 13.6 Future Revenue Opportunities
 
@@ -376,13 +376,13 @@ FTC disclosure ("StorySkip may earn a commission from purchases made through the
 - **Upsell to a subscription.** The one-time price is the price.
 - **Sponsored recipes.** No promoted content.
 
-**What changed from v1.2:** The PRD originally stated "No affiliate links in recipes. No brand partnerships." This was revised. The Kroger affiliate link is not in recipes -- it's in the shopping checkout flow, which is a feature the user explicitly initiates. The affiliate revenue aligns user and business incentives: the user gets a convenient shopping experience, and StorySkip earns a commission on purchases the user was already going to make. This is fundamentally different from injecting "buy this on Amazon" links into ingredient lists.
+**What changed from v1.2:** The PRD originally stated "No affiliate links in recipes. No brand partnerships." This was revised. The Kroger affiliate link is not in recipes -- it's in the shopping checkout flow, which is a feature the user explicitly initiates. The affiliate revenue aligns user and business incentives: the user gets a convenient shopping experience, and Mise earns a commission on purchases the user was already going to make. This is fundamentally different from injecting "buy this on Amazon" links into ingredient lists.
 
 ---
 
 ## 14. Promise Boundaries
 
-| StorySkip Does | StorySkip Does NOT Do |
+| Mise Does | Mise Does NOT Do |
 | --- | --- |
 | Extract recipes from URLs using structured data (JSON-LD, microdata) | Guarantee extraction from every website. Some sites have no structured data. |
 | Extract recipes from photos of cookbook pages via OCR | Guarantee OCR accuracy. Users can edit extracted text. |
@@ -484,7 +484,7 @@ Ranked by expected impact:
 
 ### 18.4 Payment Security
 
-- Stripe Checkout handles all payment data. No credit card information touches StorySkip's code.
+- Stripe Checkout handles all payment data. No credit card information touches Mise's code.
 - `STRIPE_SECRET_KEY` and `STRIPE_PRICE_ID` stored in Vercel environment variables.
 - No `.env` files have ever been committed to the repository (verified via full git history scan).
 

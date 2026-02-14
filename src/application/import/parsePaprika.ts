@@ -1,5 +1,5 @@
 /**
- * Parse .paprikarecipes files into StorySkip Recipe objects.
+ * Parse .paprikarecipes files into Mise Recipe objects.
  *
  * The .paprikarecipes format is a gzip-compressed archive containing
  * individual gzip-compressed JSON files, each representing one recipe.
@@ -164,7 +164,7 @@ function mapPaprikaToRecipe(raw: PaprikaRecipe): Recipe {
 }
 
 /**
- * Parse a .paprikarecipes file into StorySkip Recipe objects.
+ * Parse a .paprikarecipes file into Mise Recipe objects.
  */
 export async function parsePaprikaFile(file: File): Promise<Recipe[]> {
   const arrayBuffer = await file.arrayBuffer()

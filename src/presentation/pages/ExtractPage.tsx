@@ -122,7 +122,7 @@ export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRec
     <main className="extract-page">
       <PwaStatus />
       <div className="page-header">
-        <h1 className="app-title">StorySkip</h1>
+        <h1 className="app-title">Mise</h1>
         <p className="app-tagline">Just the recipe.</p>
       </div>
       <div className="app-nav">

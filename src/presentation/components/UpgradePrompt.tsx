@@ -39,7 +39,7 @@ export function UpgradePrompt({ feature, onUpgrade, onRestore, onClose }: Upgrad
       <div className="upgrade-prompt" onClick={(e) => e.stopPropagation()}>
         <button className="upgrade-close" onClick={onClose} aria-label="Close">&times;</button>
 
-        <h2 className="upgrade-title">Unlock StorySkip</h2>
+        <h2 className="upgrade-title">Unlock Mise</h2>
         <p className="upgrade-feature">{feature}</p>
 
         <div className="upgrade-details">

@@ -1,14 +1,14 @@
 /**
- * StorySkip Bookmarklet — "Save to StorySkip"
+ * Mise Bookmarklet — "Save to Mise"
  *
  * Extracts recipe JSON-LD or Microdata from the current page and opens
- * StorySkip with the recipe data. Works in any browser (Safari, Chrome, Firefox).
+ * Mise with the recipe data. Works in any browser (Safari, Chrome, Firefox).
  *
  * To create the bookmarklet, minify this and prefix with `javascript:`.
  * The generated bookmarklet URL is in bookmarklet-url.txt.
  */
 (function () {
-  var MISE_URL = 'https://storyskip.swinch.dev'
+  var MISE_URL = 'https://mise.swinch.dev'
 
   // --- Extract JSON-LD ---
   function findRecipes(obj) {
