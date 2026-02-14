@@ -32,3 +32,10 @@ Thumbs.db
 .vercel
 .env
 .env*.local
+
+# Test scripts
+test-*.mjs
+
+# Windows artifacts
+nul
+New Text Document.txt
