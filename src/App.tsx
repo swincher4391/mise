@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react'
+import { Analytics } from '@vercel/analytics/react'
 import { MealPlanPage } from '@presentation/pages/MealPlanPage.tsx'
 import { ExtractPage } from '@presentation/pages/ExtractPage.tsx'
 import { LibraryPage } from '@presentation/pages/LibraryPage.tsx'
@@ -75,6 +76,7 @@ function App() {
       {installPrompt.showInstallBanner && (
         <InstallBanner onInstall={installPrompt.install} onDismiss={installPrompt.dismiss} />
       )}
+      <Analytics />
     </>
   )
 }
