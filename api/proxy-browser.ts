@@ -1,6 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
+// @ts-expect-error -- puppeteer-extra default export typing mismatch
 import chromium from '@sparticuz/chromium'
+// @ts-expect-error -- puppeteer-extra default export typing mismatch
 import puppeteerExtra from 'puppeteer-extra'
+// @ts-expect-error -- puppeteer-extra-plugin-stealth default export typing mismatch
 import StealthPlugin from 'puppeteer-extra-plugin-stealth'
 
 puppeteerExtra.use(StealthPlugin())
