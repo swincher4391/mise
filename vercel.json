@@ -15,14 +15,6 @@
       ]
     }
   ],
-  "redirects": [
-    {
-      "source": "/:path*",
-      "has": [{ "type": "host", "value": "mise.swinch.dev" }],
-      "destination": "https://storyskip.swinch.dev/:path*",
-      "permanent": true
-    }
-  ],
   "rewrites": [
     { "source": "/kroger-callback", "destination": "/api/grocery/kroger-callback" }
   ]
