@@ -1,73 +1,41 @@
-# React + TypeScript + Vite
+# Mise
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+**Paste a recipe URL, get a clean recipe.** No ads, no life stories, no pop-ups.
 
-Currently, two official plugins are available:
+Mise extracts structured recipes from any cooking website — or from a photo of a cookbook page — and gives you a distraction-free cooking experience. Save recipes to your library, plan your week, build a grocery list, and check prices at your local Kroger. It works offline and installs as an app on your phone.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+**[mise.swinch.dev](https://mise.swinch.dev)**
 
-## React Compiler
+![Mise screenshot](screenshots/03-recipe-extracted.png)
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Features
 
-## Expanding the ESLint configuration
+- **Recipe extraction** — Paste a URL and get a clean, structured recipe parsed from JSON-LD, Microdata, or headless browser fallback for bot-protected sites
+- **Photo import** — Snap a picture of a cookbook page; OCR + AI vision extracts the recipe
+- **Cook mode** — Full-screen, step-by-step view with hands-free read-aloud (text-to-speech), built-in timers, and screen wake lock
+- **Recipe library** — Save recipes locally with tags, notes, favorites, and search/filter
+- **Serving scaler** — Adjust servings and all ingredient quantities update automatically
+- **Meal planner** — Drag recipes onto a weekly calendar
+- **Grocery list** — Auto-generated from your meal plan with smart ingredient aggregation, unit consolidation, and category grouping
+- **Kroger integration** — Search products, compare prices, and add to your Kroger cart directly from the grocery list
+- **PWA** — Installs on mobile, works offline, caches recipe images
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Tech Stack
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+React 19, TypeScript, Vite, Dexie (IndexedDB), Workbox PWA, Tesseract.js (OCR), Stripe (one-time payment), Vercel serverless functions.
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+## Development
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npx vitest run     # unit tests
+npx tsc -b --noEmit  # type check
 ```
+
+## License
+
+Private — all rights reserved.
