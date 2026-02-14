@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react'
 import type { Recipe } from '@domain/models/Recipe.ts'
 import { fetchViaProxy } from '@infrastructure/proxy/fetchViaProxy.ts'
+import { fetchViaBrowser } from '@infrastructure/proxy/fetchViaBrowser.ts'
 import { extractJsonLd } from '@application/extraction/extractJsonLd.ts'
 import { extractMicrodata } from '@application/extraction/extractMicrodata.ts'
 import { normalizeRecipe } from '@application/extraction/normalizeRecipe.ts'
@@ -31,12 +32,28 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
     setOcrText(null)
 
     try {
-      const html = await fetchViaProxy(url)
+      let html = await fetchViaProxy(url)
 
-      // Detect bot protection block pages
-      if (html.includes('Access to this page has been denied') || html.includes('Please verify you are a human')) {
-        setError('This site blocked automated access. Try taking a screenshot and using Photo import instead.')
-        return
+      // Detect bot protection / block pages
+      const isBlocked =
+        html.includes('Access to this page has been denied') ||
+        html.includes('Please verify you are a human') ||
+        html.includes('Enable JavaScript and cookies to continue') ||
+        html.includes('Checking if the site connection is secure') ||
+        html.includes('Attention Required! | Cloudflare') ||
+        html.includes('Just a moment...') ||
+        html.includes('cf-browser-verification') ||
+        html.includes('_cf_chl_opt') ||
+        html.length < 1500
+
+      if (isBlocked) {
+        // Auto-retry with headless browser fallback
+        try {
+          html = await fetchViaBrowser(url)
+        } catch {
+          setError('This site blocked automated access. Use the Mise Chrome extension to extract directly, or try Photo import.')
+          return
+        }
       }
 
       // Layer 1: JSON-LD

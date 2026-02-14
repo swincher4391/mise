@@ -453,6 +453,80 @@ function stripePlugin(): Plugin {
   }
 }
 
+function browserProxyPlugin(): Plugin {
+  return {
+    name: 'browser-proxy',
+    configureServer(server) {
+      server.middlewares.use('/api/proxy-browser', async (req, res) => {
+        const reqUrl = new URL(req.url!, `http://${req.headers.host}`)
+        const targetUrl = reqUrl.searchParams.get('url')
+        if (!targetUrl) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Missing ?url= parameter' }))
+          return
+        }
+
+        if (isBlockedUrl(targetUrl)) {
+          res.writeHead(403, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'URL not allowed' }))
+          return
+        }
+
+        try {
+          const puppeteerExtra = await import('puppeteer-extra')
+          const StealthPlugin = await import('puppeteer-extra-plugin-stealth')
+          puppeteerExtra.default.use(StealthPlugin.default())
+
+          // Auto-detect Chrome path on common platforms
+          const chromePath =
+            process.env.CHROME_PATH ||
+            'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
+
+          const browser = await puppeteerExtra.default.launch({
+            headless: 'new',
+            executablePath: chromePath,
+            args: [
+              '--no-sandbox',
+              '--disable-setuid-sandbox',
+              '--disable-blink-features=AutomationControlled',
+              '--window-size=1920,1080',
+            ],
+          })
+
+          try {
+            const page = await browser.newPage()
+            await page.setViewport({ width: 1920, height: 1080 })
+
+            // Navigate and wait for full load
+            await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 15000 })
+
+            // Wait for either JSON-LD or main content to appear
+            await page.waitForFunction(
+              `document.querySelector('script[type="application/ld+json"]') !== null
+               || document.body.innerText.length > 1000`,
+              { timeout: 15000 }
+            ).catch(() => {})
+
+            const html = String(await page.evaluate('document.documentElement.outerHTML'))
+
+            res.writeHead(200, {
+              'Content-Type': 'text/html; charset=utf-8',
+              'Access-Control-Allow-Origin': '*',
+            })
+            res.end(html)
+          } finally {
+            await browser.close().catch(() => {})
+          }
+        } catch (err) {
+          const message = err instanceof Error ? err.message : 'Unknown error'
+          res.writeHead(502, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: `Browser fetch failed: ${message}` }))
+        }
+      })
+    },
+  }
+}
+
 function isBlockedUrl(raw: string): boolean {
   let parsed: URL
   try {
@@ -497,6 +571,14 @@ function corsProxyPlugin(): Plugin {
             'User-Agent':
               'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
             Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Cache-Control': 'no-cache',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'none',
+            'Sec-Fetch-User': '?1',
+            'Upgrade-Insecure-Requests': '1',
           },
           redirect: 'follow',
         })
@@ -521,6 +603,7 @@ export default defineConfig({
   plugins: [
     imageExtractPlugin(),
     corsProxyPlugin(),
+    browserProxyPlugin(),
     krogerPlugin(),
     stripePlugin(),
     react(),
