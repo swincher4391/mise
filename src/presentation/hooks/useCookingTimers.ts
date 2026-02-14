@@ -22,21 +22,40 @@ export interface UseCookingTimersResult {
   dismissTimer: (timerId: string) => void
 }
 
-function createAudioBeep(audioCtx: AudioContext) {
+function createTimerAlarm(audioCtx: AudioContext) {
   const now = audioCtx.currentTime
+  // Two-tone ding (C6 → G5), repeated 3 times for a clear kitchen-timer sound
   for (let i = 0; i < 3; i++) {
-    const osc = audioCtx.createOscillator()
-    const gain = audioCtx.createGain()
-    osc.connect(gain)
-    gain.connect(audioCtx.destination)
-    osc.frequency.value = 880
-    gain.gain.value = 0.3
-    osc.start(now + i * 0.6)
-    osc.stop(now + i * 0.6 + 0.5)
+    const offset = i * 0.8
+
+    // High tone (C6)
+    const oscHigh = audioCtx.createOscillator()
+    const gainHigh = audioCtx.createGain()
+    oscHigh.connect(gainHigh)
+    gainHigh.connect(audioCtx.destination)
+    oscHigh.frequency.value = 1047
+    gainHigh.gain.setValueAtTime(0.5, now + offset)
+    gainHigh.gain.exponentialRampToValueAtTime(0.01, now + offset + 0.3)
+    oscHigh.start(now + offset)
+    oscHigh.stop(now + offset + 0.3)
+
+    // Low tone (G5)
+    const oscLow = audioCtx.createOscillator()
+    const gainLow = audioCtx.createGain()
+    oscLow.connect(gainLow)
+    gainLow.connect(audioCtx.destination)
+    oscLow.frequency.value = 784
+    gainLow.gain.setValueAtTime(0.5, now + offset + 0.3)
+    gainLow.gain.exponentialRampToValueAtTime(0.01, now + offset + 0.7)
+    oscLow.start(now + offset + 0.3)
+    oscLow.stop(now + offset + 0.7)
   }
 }
 
-export function useCookingTimers(steps: Step[]): UseCookingTimersResult {
+export function useCookingTimers(
+  steps: Step[],
+  onTimerFinished?: (label: string) => void,
+): UseCookingTimersResult {
   const [timers, setTimers] = useState<TimerState[]>(() => {
     const result: TimerState[] = []
     for (const step of steps) {
@@ -79,10 +98,11 @@ export function useCookingTimers(steps: Step[]): UseCookingTimersResult {
             const remaining = Math.max(0, t.totalSeconds - elapsed)
 
             if (remaining === 0 && t.remainingSeconds > 0) {
-              // Timer just finished — beep
+              // Timer just finished — ding alarm
               if (audioCtxRef.current) {
-                createAudioBeep(audioCtxRef.current)
+                createTimerAlarm(audioCtxRef.current)
               }
+              onTimerFinished?.(t.label)
               return { ...t, remainingSeconds: 0, status: 'finished' as const }
             }
 

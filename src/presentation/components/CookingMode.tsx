@@ -4,6 +4,7 @@ import type { SavedRecipe } from '@domain/models/SavedRecipe.ts'
 import type { ScaledIngredient } from '@application/scaler/scaleIngredients.ts'
 import { useWakeLock } from '@presentation/hooks/useWakeLock.ts'
 import { useCookingTimers } from '@presentation/hooks/useCookingTimers.ts'
+import { useTextToSpeech } from '@presentation/hooks/useTextToSpeech.ts'
 import { CookingStepView } from './CookingStepView.tsx'
 import { CookingIngredientSidebar } from './CookingIngredientSidebar.tsx'
 import { CookingTimerBar } from './CookingTimerBar.tsx'
@@ -18,6 +19,7 @@ export function CookingMode({ recipe, scaledIngredients, onExit }: CookingModePr
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
   const [checkedIngredients, setCheckedIngredients] = useState<Set<string>>(new Set())
   const [showSidebar, setShowSidebar] = useState(false)
+  const [readAloudEnabled, setReadAloudEnabled] = useState(false)
 
   // Filter out section headers from navigable steps
   const navigableSteps = useMemo(
@@ -26,6 +28,18 @@ export function CookingMode({ recipe, scaledIngredients, onExit }: CookingModePr
   )
 
   const wakeLock = useWakeLock()
+  const tts = useTextToSpeech()
+
+  const handleTimerFinished = useCallback(
+    (label: string) => {
+      if (readAloudEnabled) {
+        // Small delay so the ding plays first
+        setTimeout(() => tts.speak(`Timer done: ${label}`), 2500)
+      }
+    },
+    [readAloudEnabled, tts],
+  )
+
   const {
     timersForStep,
     activeTimers,
@@ -33,7 +47,7 @@ export function CookingMode({ recipe, scaledIngredients, onExit }: CookingModePr
     pauseTimer,
     resumeTimer,
     dismissTimer,
-  } = useCookingTimers(navigableSteps)
+  } = useCookingTimers(navigableSteps, handleTimerFinished)
 
   // Request wake lock on mount
   useEffect(() => {
@@ -44,6 +58,23 @@ export function CookingMode({ recipe, scaledIngredients, onExit }: CookingModePr
     // Only run on mount/unmount
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Read step aloud when navigating or toggling on
+  useEffect(() => {
+    if (readAloudEnabled && navigableSteps[currentStepIndex]) {
+      tts.speak(navigableSteps[currentStepIndex].text)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentStepIndex, readAloudEnabled])
+
+  const toggleReadAloud = useCallback(() => {
+    setReadAloudEnabled((prev) => {
+      if (prev) {
+        tts.stop()
+      }
+      return !prev
+    })
+  }, [tts])
 
   const currentStep = navigableSteps[currentStepIndex]
   const hasPrev = currentStepIndex > 0
@@ -122,12 +153,21 @@ export function CookingMode({ recipe, scaledIngredients, onExit }: CookingModePr
   return (
     <div className="cooking-mode">
       <header className="cooking-header">
-        <button className="cooking-exit-btn" onClick={onExit} aria-label="Exit cooking mode">
+        <button className="cooking-exit-btn" onClick={() => { tts.stop(); onExit() }} aria-label="Exit cooking mode">
           &times; Exit
         </button>
         <div className="cooking-progress-wrapper">
           <div className="cooking-progress" style={{ width: `${progress}%` }} />
         </div>
+        {tts.isSupported && (
+          <button
+            className={`cooking-read-aloud-toggle${readAloudEnabled ? ' active' : ''}`}
+            onClick={toggleReadAloud}
+            aria-label="Toggle read aloud"
+          >
+            {readAloudEnabled ? 'Reading' : 'Read Aloud'}
+          </button>
+        )}
         <button
           className="cooking-sidebar-toggle"
           onClick={toggleSidebar}
