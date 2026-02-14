@@ -51,7 +51,7 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
         try {
           html = await fetchViaBrowser(url)
         } catch {
-          setError('This site blocked automated access. Use the Mise Chrome extension to extract directly, or try Photo import.')
+          setError('This site blocked automated access. Use the StorySkip Chrome extension to extract directly, or try Photo import.')
           return
         }
       }
@@ -102,7 +102,7 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
       setRecipe(recipe)
     } catch (apiError) {
       // Log the API error for debugging, then fall back to Tesseract.js OCR
-      console.warn('[Mise] Vision API failed, falling back to OCR:', apiError instanceof Error ? apiError.message : apiError)
+      console.warn('[StorySkip] Vision API failed, falling back to OCR:', apiError instanceof Error ? apiError.message : apiError)
       try {
         const { extractTextFromImage } = await import('@infrastructure/ocr/tesseractOcr.ts')
         const text = await extractTextFromImage(imageBase64)

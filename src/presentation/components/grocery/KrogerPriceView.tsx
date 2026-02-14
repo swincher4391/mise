@@ -253,7 +253,7 @@ export function KrogerPriceView({
         {isConnected && selectedItems.length > 0 && (
           <>
             <p className="kroger-affiliate-disclosure">
-              Mise may earn a commission from purchases made through these links.
+              StorySkip may earn a commission from purchases made through these links.
             </p>
             <button
               className="nav-btn grocery-nav-btn kroger-add-cart-btn"

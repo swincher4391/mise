@@ -30,7 +30,7 @@ export default {
     try {
       const response = await fetch(targetUrl, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; Mise/1.0; +https://mise.recipes)',
+          'User-Agent': 'Mozilla/5.0 (compatible; StorySkip/1.0; +https://storyskip.swinch.dev)',
           'Accept': 'text/html',
         },
       })

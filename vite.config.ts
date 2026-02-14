@@ -80,7 +80,7 @@ If this is not a recipe image, return: {"error": "No recipe found in image"}`
             const contentType = parsed.image.match(/^data:(image\/\w+);/)?.[1] ?? 'image/png'
             const ext = contentType.split('/')[1] ?? 'png'
 
-            const boundary = '----MiseBoundary' + Date.now()
+            const boundary = '----StorySkipBoundary' + Date.now()
             const header = `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="recipe.${ext}"\r\nContent-Type: ${contentType}\r\n\r\n`
             const footer = `\r\n--${boundary}--\r\n`
             const uploadBody = Buffer.concat([
@@ -610,8 +610,8 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
-        name: 'Mise',
-        short_name: 'Mise',
+        name: 'StorySkip',
+        short_name: 'StorySkip',
         description: 'Just the recipe. No stories, no ads, no pop-ups.',
         display: 'standalone',
         theme_color: '#2d5016',

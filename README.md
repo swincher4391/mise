@@ -1,12 +1,12 @@
-# Mise
+# StorySkip
 
 **Paste a recipe URL, get a clean recipe.** No ads, no life stories, no pop-ups.
 
-Mise extracts structured recipes from any cooking website — or from a photo of a cookbook page — and gives you a distraction-free cooking experience. Save recipes to your library, plan your week, build a grocery list, and check prices at your local Kroger. It works offline and installs as an app on your phone.
+StorySkip extracts structured recipes from any cooking website — or from a photo of a cookbook page — and gives you a distraction-free cooking experience. Save recipes to your library, plan your week, build a grocery list, and check prices at your local Kroger. It works offline and installs as an app on your phone.
 
-**[mise.swinch.dev](https://mise.swinch.dev)**
+**[storyskip.swinch.dev](https://storyskip.swinch.dev)**
 
-![Mise screenshot](screenshots/03-recipe-extracted.png)
+![StorySkip screenshot](screenshots/03-recipe-extracted.png)
 
 ## Features
 

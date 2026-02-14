@@ -140,7 +140,7 @@ export function BatchImportPage({ onBack }: BatchImportPageProps) {
   return (
     <main className="extract-page">
       <div className="page-header">
-        <h1 className="app-title">Mise</h1>
+        <h1 className="app-title">StorySkip</h1>
         <p className="app-tagline">Batch Photo Import</p>
       </div>
       <div className="app-nav">
