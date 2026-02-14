@@ -2161,6 +2161,14 @@ body {
   font-size: 0.9rem;
 }
 
+.kroger-affiliate-disclosure {
+  margin-top: 1rem;
+  font-size: 0.75rem;
+  font-style: italic;
+  color: #999;
+  text-align: center;
+}
+
 /* Grocery Mobile */
 
 @media (max-width: 480px) {

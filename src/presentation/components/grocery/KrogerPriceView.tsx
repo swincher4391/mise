@@ -269,6 +269,10 @@ export function KrogerPriceView({
           <p className="kroger-success">Items added to your Kroger cart!</p>
         )}
       </div>
+
+      <p className="kroger-affiliate-disclosure">
+        Mise may earn a commission from purchases made through these links.
+      </p>
     </div>
   )
 }
