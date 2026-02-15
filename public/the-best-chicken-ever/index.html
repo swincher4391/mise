@@ -231,9 +231,34 @@
   /* Content image */
   .content-image {
     width: 100%;
-    aspect-ratio: 16/9;
     border-radius: 8px;
     margin: 24px 0;
+    display: block;
+  }
+  .process-photo {
+    width: 100%;
+    border-radius: 8px;
+    margin: 20px 0;
+    display: block;
+  }
+  .photo-caption {
+    text-align: center;
+    font-size: 13px;
+    color: #999;
+    font-style: italic;
+    margin: -12px 0 22px;
+  }
+  .step-photo {
+    width: 100%;
+    border-radius: 8px;
+    margin: 8px 0 4px;
+    display: block;
+  }
+  .step-caption {
+    font-size: 12px;
+    color: #999;
+    font-style: italic;
+    margin-bottom: 8px;
   }
 
   /* Ads */
@@ -520,7 +545,7 @@
   "name": "Crispy Honey Garlic Chicken",
   "author": { "@type": "Person", "name": "Sarah Mitchell" },
   "description": "Crispy pan-seared chicken thighs glazed with a sticky honey garlic sauce. Ready in 30 minutes and a family favorite!",
-  "image": "https://images.unsplash.com/photo-1598103442097-8b74394b95c6?w=1200",
+  "image": "https://images.unsplash.com/photo-1598103442097-8b74394b95c6?w=800&q=80",
   "datePublished": "2026-01-18",
   "prepTime": "PT10M",
   "cookTime": "PT20M",
@@ -613,7 +638,7 @@
       <span class="jump-arrow">&#x25BC;</span> Jump to Recipe
     </a>
 
-    <div class="hero-image"></div>
+    <img class="content-image" src="https://images.unsplash.com/photo-1598103442097-8b74394b95c6?w=800&q=80" alt="Crispy honey garlic chicken on a plate">
 
     <div class="ad-block ad-leaderboard">ADVERTISEMENT</div>
 
@@ -630,7 +655,8 @@
 
       <p>That class changed everything for me. I came home and immediately started rethinking every sauce I'd ever made. The honey garlic combination that Nana Mae used to make? It was already doing the sweet-salty thing. All it needed was a little acid and a little heat. Rice vinegar and sriracha. That was it. That was the missing piece I'd been looking for all those years.</p>
 
-      <div class="content-image" style="background: linear-gradient(135deg, #c4a882, #d4b892);border-radius:8px;"></div>
+      <img class="process-photo" src="https://images.unsplash.com/photo-1590779033100-9f60a05a013d?w=800&q=80" alt="Fresh ingredients laid out on a cutting board">
+      <p class="photo-caption">Everything you need for the best chicken of your life.</p>
 
       <p>I remember standing in my kitchen at 11pm, eight months pregnant, tears streaming down my face because I had finally nailed it. Josh came downstairs and found me eating chicken thighs straight out of the skillet. "Is everything okay?" he asked. "Nana Mae would be so proud," I told him. He wisely decided not to question the crying pregnant woman eating chicken over the stove and just asked if there was any left for him.</p>
 
@@ -641,6 +667,12 @@
       <p>I need to talk about chicken thighs for a minute. I know, I know — chicken breast is the "healthy" choice. I spent my entire twenties buying boneless skinless chicken breasts and wondering why my dinners tasted like cardboard wrapped in disappointment. Then I discovered thighs and I have never looked back. They're more forgiving, more flavorful, and they actually stay juicy even if you overcook them by a minute or two (which, let's be honest, happens to all of us when we're also helping with homework, refereeing a fight about whose turn it is on the iPad, and trying to remember if we switched the laundry).</p>
 
       <p>The key to this recipe is getting that skin CRISPY. I'm talking shatteringly, addictively, you'll-eat-the-skin-before-it-makes-it-to-the-plate crispy. The secret? Pat those thighs dry. I mean really dry. Use paper towels, do it twice, do it three times. Moisture is the enemy of crispy skin. Then you put them skin-side down in a hot pan and you DO NOT TOUCH THEM. I know it's hard. I know you want to peek. Do not peek. Walk away. Set a timer. Go fold that laundry you forgot about. Come back in seven minutes and prepare to be amazed.</p>
+
+      <img class="process-photo" src="https://images.unsplash.com/photo-1632778149955-e80f8ceca2e8?w=800&q=80" alt="Chicken thighs searing in a cast iron skillet">
+      <p class="photo-caption">Skin-side down, don't touch it. Trust the process.</p>
+
+      <img class="process-photo" src="https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?w=800&q=80" alt="Golden crispy chicken skin close-up">
+      <p class="photo-caption">THIS is the color you're looking for. Golden, crispy perfection.</p>
 
       <div class="fake-video">
         <div class="play-button">
@@ -663,9 +695,15 @@
 
       <p>First, the honey. Please use good honey. I know it's tempting to grab that bear-shaped bottle at the grocery store, and honestly? It'll still be delicious. But if you can find a local raw honey, the depth of flavor is just incredible. My friend Margaret keeps bees in her backyard (she's that kind of person and I love her for it), and when I use her honey in this recipe, it's transcendent.</p>
 
+      <img class="process-photo" src="https://images.unsplash.com/photo-1587049352846-4a222e784d38?w=800&q=80" alt="Honey garlic sauce simmering in a pan">
+      <p class="photo-caption">The sauce should be bubbling and glossy — that's how you know it's ready.</p>
+
       <p>Second, don't skip the cornstarch slurry. I know it seems like an extra step, but it's what takes the sauce from "thin liquid pooling sadly on your plate" to "thick, glossy, cling-to-every-inch-of-the-chicken glaze." It takes thirty seconds. Do it.</p>
 
       <p>Third, and this is important — let the chicken rest for just a minute or two after you coat it in the sauce. I know you're hungry. I know it smells incredible. But that brief rest lets the sauce set up and get even stickier. Trust me on this one.</p>
+
+      <img class="process-photo" src="https://images.unsplash.com/photo-1527477396000-e27163b481c2?w=800&q=80" alt="Finished honey garlic chicken garnished with sesame seeds and green onions">
+      <p class="photo-caption">The finished dish — sticky, crispy, absolutely irresistible.</p>
 
       <div class="ad-block ad-medium">ADVERTISEMENT</div>
 
@@ -708,12 +746,36 @@
 
       <h3 class="recipe-section-title">Instructions</h3>
       <ol>
-        <li>Pat chicken thighs dry with paper towels. Season generously on both sides with salt, pepper, and garlic powder.</li>
-        <li>Heat olive oil in a large skillet over medium-high heat. Place chicken skin-side down and cook for 7-8 minutes until the skin is deeply golden and crispy. Flip and cook 6-7 minutes more until cooked through (165&deg;F internal). Remove to a plate.</li>
-        <li>Drain all but 1 tablespoon of fat from the skillet. Reduce heat to medium and add the minced garlic. Saut&eacute; for 30 seconds until fragrant.</li>
-        <li>Add honey, soy sauce, rice vinegar, sriracha, and sesame oil to the skillet. Stir to combine and bring to a simmer.</li>
-        <li>Pour in the cornstarch slurry and stir constantly for 1-2 minutes until the sauce thickens and becomes glossy.</li>
-        <li>Return the chicken to the skillet and spoon the sauce over each piece, turning to coat. Let it simmer together for 1 minute. Serve garnished with sliced green onions and sesame seeds.</li>
+        <li>
+          Pat chicken thighs dry with paper towels. Season generously on both sides with salt, pepper, and garlic powder.
+          <img class="step-photo" src="https://images.unsplash.com/photo-1604503468506-a8da13d82571?w=700&q=80" alt="Seasoned raw chicken thighs on a cutting board">
+          <div class="step-caption">Season both sides — don't be shy!</div>
+        </li>
+        <li>
+          Heat olive oil in a large skillet over medium-high heat. Place chicken skin-side down and cook for 7-8 minutes until the skin is deeply golden and crispy. Flip and cook 6-7 minutes more until cooked through (165&deg;F internal). Remove to a plate.
+          <img class="step-photo" src="https://images.unsplash.com/photo-1632778149955-e80f8ceca2e8?w=700&q=80" alt="Chicken thighs searing skin-side down in a skillet">
+          <div class="step-caption">Skin-side down — and no peeking for 7 minutes!</div>
+        </li>
+        <li>
+          Drain all but 1 tablespoon of fat from the skillet. Reduce heat to medium and add the minced garlic. Saut&eacute; for 30 seconds until fragrant.
+          <img class="step-photo" src="https://images.unsplash.com/photo-1626200419199-391ae4be7a41?w=700&q=80" alt="Minced garlic sauteing in a skillet">
+          <div class="step-caption">30 seconds — just until you can smell it.</div>
+        </li>
+        <li>
+          Add honey, soy sauce, rice vinegar, sriracha, and sesame oil to the skillet. Stir to combine and bring to a simmer.
+          <img class="step-photo" src="https://images.unsplash.com/photo-1587049352846-4a222e784d38?w=700&q=80" alt="Honey garlic sauce ingredients being combined in a pan">
+          <div class="step-caption">When the sauce starts bubbling, it smells incredible.</div>
+        </li>
+        <li>
+          Pour in the cornstarch slurry and stir constantly for 1-2 minutes until the sauce thickens and becomes glossy.
+          <img class="step-photo" src="https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=700&q=80" alt="Thick glossy sauce coating a spoon">
+          <div class="step-caption">Thick, glossy, and coats the back of a spoon.</div>
+        </li>
+        <li>
+          Return the chicken to the skillet and spoon the sauce over each piece, turning to coat. Let it simmer together for 1 minute. Serve garnished with sliced green onions and sesame seeds.
+          <img class="step-photo" src="https://images.unsplash.com/photo-1527477396000-e27163b481c2?w=700&q=80" alt="Finished glazed chicken garnished with sesame seeds and green onions">
+          <div class="step-caption">Garnish and serve immediately. Try not to eat it all before it hits the table.</div>
+        </li>
       </ol>
 
       <div class="notes">
