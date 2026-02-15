@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The BEST Crispy Honey Garlic Chicken (Family Favorite!) - Sarah's Kitchen Stories</title>
+<meta name="description" content="This crispy honey garlic chicken recipe is absolutely to die for. My family begs me to make it every single week!">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Lora:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Lora', Georgia, 'Times New Roman', serif;
+    color: #3a3a3a;
+    background: #fdf8f6;
+    line-height: 1.85;
+    font-size: 17px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Top bar */
+  .top-bar {
+    background: #c2788e;
+    color: white;
+    text-align: center;
+    padding: 8px;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+  }
+
+  /* Header */
+  .site-header {
+    text-align: center;
+    padding: 32px 20px 24px;
+    border-bottom: 1px solid #e8d8d8;
+    background: white;
+  }
+  .site-title {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 42px;
+    font-weight: 900;
+    color: #c2788e;
+    letter-spacing: -0.5px;
+  }
+  .site-tagline {
+    font-size: 14px;
+    color: #999;
+    margin-top: 4px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  .site-nav {
+    margin-top: 18px;
+    display: flex;
+    justify-content: center;
+    gap: 28px;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #666;
+  }
+  .site-nav a { color: #666; text-decoration: none; }
+  .site-nav a:hover { color: #c2788e; }
+
+  /* Layout */
+  .page-wrapper {
+    max-width: 1100px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 300px;
+    gap: 40px;
+    padding: 30px 20px;
+  }
+  .main-content { min-width: 0; }
+
+  /* Sidebar */
+  .sidebar {
+    font-size: 14px;
+  }
+  .sidebar-widget {
+    background: white;
+    border: 1px solid #ece0e0;
+    border-radius: 6px;
+    padding: 22px;
+    margin-bottom: 24px;
+  }
+  .sidebar-widget h3 {
+    font-family: 'Playfair Display', serif;
+    font-size: 18px;
+    color: #c2788e;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #f0e0e4;
+  }
+  .popular-post {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 14px;
+    cursor: default;
+  }
+  .popular-post-img {
+    width: 70px;
+    height: 70px;
+    border-radius: 6px;
+    background: #e8d0d0;
+    flex-shrink: 0;
+  }
+  .popular-post-title {
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.4;
+    color: #3a3a3a;
+  }
+  .popular-post-date {
+    font-size: 11px;
+    color: #aaa;
+    margin-top: 4px;
+  }
+  .social-icons {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .social-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: default;
+  }
+
+  .sidebar-ad {
+    background: #e8e0e0;
+    border: 1px dashed #cbb;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #999;
+    font-size: 11px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    height: 250px;
+  }
+
+  /* Post */
+  .post-meta {
+    font-size: 13px;
+    color: #999;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+  }
+  .post-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 38px;
+    font-weight: 900;
+    line-height: 1.2;
+    color: #2a2a2a;
+    margin-bottom: 14px;
+  }
+  .post-byline {
+    font-size: 14px;
+    color: #888;
+    margin-bottom: 24px;
+  }
+  .post-byline a { color: #c2788e; text-decoration: none; }
+
+  /* Jump to recipe */
+  .jump-to-recipe {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #c2788e;
+    color: white;
+    padding: 12px 24px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 700;
+    text-decoration: none;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 28px;
+    transition: background 0.2s;
+  }
+  .jump-to-recipe:hover { background: #a8627a; }
+  .jump-arrow { font-size: 18px; }
+
+  /* Hero image */
+  .hero-image {
+    width: 100%;
+    aspect-ratio: 4/3;
+    background: linear-gradient(135deg, #d4a574 0%, #c4956a 40%, #b8855e 100%);
+    border-radius: 8px;
+    margin-bottom: 28px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero-image::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 50% 40%, rgba(255,255,255,0.15) 0%, transparent 70%);
+  }
+
+  /* Blog text */
+  .blog-text p {
+    margin-bottom: 22px;
+  }
+  .blog-text h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 26px;
+    color: #2a2a2a;
+    margin: 36px 0 16px;
+  }
+  .blog-text .dropcap::first-letter {
+    font-family: 'Playfair Display', serif;
+    float: left;
+    font-size: 72px;
+    line-height: 0.8;
+    padding-right: 10px;
+    color: #c2788e;
+    font-weight: 900;
+  }
+
+  /* Content image */
+  .content-image {
+    width: 100%;
+    aspect-ratio: 16/9;
+    border-radius: 8px;
+    margin: 24px 0;
+  }
+
+  /* Ads */
+  .ad-block {
+    background: #e8e8e4;
+    border: 1px dashed #ccc;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #999;
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin: 28px 0;
+    font-family: Arial, sans-serif;
+  }
+  .ad-leaderboard { height: 90px; }
+  .ad-medium { height: 250px; }
+  .ad-large { height: 300px; }
+  .ad-banner { height: 120px; }
+
+  /* Fake video */
+  .fake-video {
+    width: 100%;
+    aspect-ratio: 16/9;
+    background: #1a1a1a;
+    border-radius: 8px;
+    margin: 28px 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    cursor: default;
+  }
+  .play-button {
+    width: 68px;
+    height: 68px;
+    background: rgba(255,255,255,0.85);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .play-triangle {
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 14px 0 14px 24px;
+    border-color: transparent transparent transparent #1a1a1a;
+    margin-left: 4px;
+  }
+  .video-label {
+    position: absolute;
+    bottom: 12px;
+    left: 14px;
+    color: #ccc;
+    font-size: 12px;
+    font-family: Arial, sans-serif;
+  }
+
+  /* Star rating */
+  .stars { color: #e8a948; font-size: 20px; letter-spacing: 2px; }
+
+  /* Recipe card */
+  .recipe-card {
+    background: white;
+    border: 2px solid #c2788e;
+    border-radius: 10px;
+    padding: 32px;
+    margin-top: 36px;
+  }
+  .recipe-card-header {
+    text-align: center;
+    margin-bottom: 24px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #f0e0e4;
+  }
+  .recipe-card-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 30px;
+    font-weight: 900;
+    color: #2a2a2a;
+    margin-bottom: 8px;
+  }
+  .recipe-card-meta {
+    display: flex;
+    justify-content: center;
+    gap: 28px;
+    margin-top: 14px;
+    font-size: 14px;
+    color: #666;
+  }
+  .recipe-card-meta strong { color: #c2788e; }
+
+  .recipe-section-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 22px;
+    color: #c2788e;
+    margin: 24px 0 12px;
+  }
+  .recipe-card ul {
+    padding-left: 20px;
+    margin-bottom: 16px;
+  }
+  .recipe-card li {
+    margin-bottom: 6px;
+  }
+  .recipe-card ol {
+    padding-left: 20px;
+    margin-bottom: 16px;
+  }
+  .recipe-card ol li {
+    margin-bottom: 12px;
+    padding-left: 6px;
+  }
+  .recipe-card .notes {
+    background: #fdf5f0;
+    padding: 16px 20px;
+    border-radius: 8px;
+    border-left: 4px solid #c2788e;
+    margin-top: 20px;
+    font-size: 15px;
+  }
+  .recipe-card .notes strong { color: #c2788e; }
+
+  .print-btn {
+    display: inline-block;
+    background: #c2788e;
+    color: white;
+    border: none;
+    padding: 10px 28px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    cursor: default;
+    margin-top: 16px;
+  }
+
+  /* Newsletter popup */
+  .newsletter-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+  }
+  .newsletter-overlay.show {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .newsletter-popup {
+    background: white;
+    border-radius: 12px;
+    padding: 40px;
+    max-width: 440px;
+    width: 90%;
+    text-align: center;
+    position: relative;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  }
+  .newsletter-close {
+    position: absolute;
+    top: 12px;
+    right: 16px;
+    background: none;
+    border: none;
+    font-size: 28px;
+    color: #999;
+    cursor: pointer;
+    line-height: 1;
+  }
+  .newsletter-emoji { font-size: 48px; margin-bottom: 12px; }
+  .newsletter-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 24px;
+    font-weight: 900;
+    color: #2a2a2a;
+    margin-bottom: 8px;
+  }
+  .newsletter-text {
+    font-size: 15px;
+    color: #777;
+    margin-bottom: 20px;
+  }
+  .newsletter-input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 2px solid #ddd;
+    border-radius: 6px;
+    font-size: 15px;
+    margin-bottom: 12px;
+    font-family: inherit;
+  }
+  .newsletter-btn {
+    width: 100%;
+    padding: 12px;
+    background: #c2788e;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: default;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .newsletter-fine {
+    font-size: 11px;
+    color: #aaa;
+    margin-top: 12px;
+  }
+
+  /* Cookie banner */
+  .cookie-banner {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #2a2a2a;
+    color: #ccc;
+    padding: 16px 24px;
+    font-size: 13px;
+    z-index: 999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    font-family: Arial, sans-serif;
+  }
+  .cookie-banner a { color: #c2788e; }
+  .cookie-accept {
+    background: #c2788e;
+    color: white;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  /* Footer */
+  .site-footer {
+    background: #2a2a2a;
+    color: #888;
+    text-align: center;
+    padding: 40px 20px;
+    font-size: 13px;
+    margin-top: 40px;
+  }
+  .site-footer a { color: #c2788e; text-decoration: none; }
+
+  /* Mobile */
+  @media (max-width: 800px) {
+    .page-wrapper {
+      grid-template-columns: 1fr;
+      padding: 16px;
+    }
+    .sidebar { display: none; }
+    .post-title { font-size: 28px; }
+    .recipe-card { padding: 20px; }
+    .recipe-card-title { font-size: 24px; }
+    .recipe-card-meta { flex-direction: column; gap: 8px; align-items: center; }
+    .site-title { font-size: 32px; }
+    .site-nav { gap: 16px; font-size: 11px; }
+    .newsletter-popup { padding: 28px 20px; }
+  }
+</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Recipe",
+  "name": "Crispy Honey Garlic Chicken",
+  "author": { "@type": "Person", "name": "Sarah Mitchell" },
+  "description": "Crispy pan-seared chicken thighs glazed with a sticky honey garlic sauce. Ready in 30 minutes and a family favorite!",
+  "image": "https://images.unsplash.com/photo-1598103442097-8b74394b95c6?w=1200",
+  "datePublished": "2026-01-18",
+  "prepTime": "PT10M",
+  "cookTime": "PT20M",
+  "totalTime": "PT30M",
+  "recipeYield": "4 servings",
+  "recipeCategory": "Dinner",
+  "recipeCuisine": "Asian-Inspired",
+  "keywords": "honey garlic chicken, crispy chicken, easy dinner, weeknight meal",
+  "nutrition": {
+    "@type": "NutritionInformation",
+    "calories": "385 kcal",
+    "proteinContent": "32g",
+    "fatContent": "18g",
+    "carbohydrateContent": "24g"
+  },
+  "recipeIngredient": [
+    "8 bone-in, skin-on chicken thighs",
+    "1 teaspoon salt",
+    "1/2 teaspoon black pepper",
+    "1 teaspoon garlic powder",
+    "2 tablespoons olive oil",
+    "1/3 cup honey",
+    "1/4 cup soy sauce",
+    "6 cloves garlic, minced",
+    "1 tablespoon rice vinegar",
+    "1 tablespoon sriracha",
+    "1 teaspoon sesame oil",
+    "1 tablespoon cornstarch mixed with 2 tablespoons water",
+    "2 green onions, sliced",
+    "1 tablespoon sesame seeds"
+  ],
+  "recipeInstructions": [
+    {
+      "@type": "HowToStep",
+      "text": "Pat chicken thighs dry with paper towels. Season generously on both sides with salt, pepper, and garlic powder."
+    },
+    {
+      "@type": "HowToStep",
+      "text": "Heat olive oil in a large skillet over medium-high heat. Place chicken skin-side down and cook for 7-8 minutes until the skin is deeply golden and crispy. Flip and cook 6-7 minutes more until cooked through (165°F internal). Remove to a plate."
+    },
+    {
+      "@type": "HowToStep",
+      "text": "Drain all but 1 tablespoon of fat from the skillet. Reduce heat to medium and add the minced garlic. Sauté for 30 seconds until fragrant."
+    },
+    {
+      "@type": "HowToStep",
+      "text": "Add honey, soy sauce, rice vinegar, sriracha, and sesame oil to the skillet. Stir to combine and bring to a simmer."
+    },
+    {
+      "@type": "HowToStep",
+      "text": "Pour in the cornstarch slurry and stir constantly for 1-2 minutes until the sauce thickens and becomes glossy."
+    },
+    {
+      "@type": "HowToStep",
+      "text": "Return the chicken to the skillet and spoon the sauce over each piece, turning to coat. Let it simmer together for 1 minute. Serve garnished with sliced green onions and sesame seeds."
+    }
+  ]
+}
+</script>
+</head>
+<body>
+
+<div class="top-bar">
+  ✨ FREE Meal Prep eBook — Download Now! Limited time only! ✨
+</div>
+
+<header class="site-header">
+  <div class="site-title">Sarah's Kitchen Stories</div>
+  <div class="site-tagline">Simple recipes for real life</div>
+  <nav class="site-nav">
+    <a href="#">Home</a>
+    <a href="#">Recipes</a>
+    <a href="#">About</a>
+    <a href="#">Meal Plans</a>
+    <a href="#">Shop</a>
+    <a href="#">Contact</a>
+  </nav>
+</header>
+
+<div class="page-wrapper">
+  <main class="main-content">
+
+    <div class="post-meta">Dinner &bull; January 18, 2026</div>
+    <h1 class="post-title">The BEST Crispy Honey Garlic Chicken (Family Favorite!)</h1>
+    <div class="post-byline">
+      By <a href="#">Sarah Mitchell</a> &bull; 847 Comments &bull; <span class="stars">&#9733;&#9733;&#9733;&#9733;&#9733;</span> 4.9 from 2,341 reviews
+    </div>
+
+    <a href="#recipe-card" class="jump-to-recipe">
+      <span class="jump-arrow">&#x25BC;</span> Jump to Recipe
+    </a>
+
+    <div class="hero-image"></div>
+
+    <div class="ad-block ad-leaderboard">ADVERTISEMENT</div>
+
+    <div class="blog-text">
+      <p class="dropcap">There are certain recipes that just feel like home. You know the ones I'm talking about — the meals that transport you back to a specific moment in time, a specific kitchen, a specific feeling of warmth and safety. For me, this crispy honey garlic chicken is one of those recipes. Every time I make it, I'm instantly transported back to my grandmother's kitchen in rural Vermont, where the windows would fog up from whatever was simmering on the stove and the whole house smelled like garlic and love.</p>
+
+      <p>My grandmother — we all called her Nana Mae — was the kind of cook who never measured anything. She'd just toss things into a pan with this quiet confidence that I've spent my entire adult life trying to channel. She passed away when I was seventeen, and I'll never forget the last meal she made me: chicken thighs with a sticky, sweet glaze that she said was "just a little bit of this and a little bit of that." I've spent years trying to recreate it. This recipe is the closest I've ever come.</p>
+
+      <div class="ad-block ad-medium">ADVERTISEMENT</div>
+
+      <h2>How a Trip to Thailand Changed Everything</h2>
+
+      <p>A few years ago, my husband Josh and I took a trip to Chiang Mai, Thailand. It was supposed to be a "quick getaway" before our third baby arrived (spoiler: there is no such thing as a quick getaway when you're seven months pregnant and craving pad see ew at 2am). We took a cooking class at this tiny little place on the outskirts of the old city, where a woman named Khun Lek taught us how to balance sweet, salty, sour, and spicy in a single dish.</p>
+
+      <p>That class changed everything for me. I came home and immediately started rethinking every sauce I'd ever made. The honey garlic combination that Nana Mae used to make? It was already doing the sweet-salty thing. All it needed was a little acid and a little heat. Rice vinegar and sriracha. That was it. That was the missing piece I'd been looking for all those years.</p>
+
+      <div class="content-image" style="background: linear-gradient(135deg, #c4a882, #d4b892);border-radius:8px;"></div>
+
+      <p>I remember standing in my kitchen at 11pm, eight months pregnant, tears streaming down my face because I had finally nailed it. Josh came downstairs and found me eating chicken thighs straight out of the skillet. "Is everything okay?" he asked. "Nana Mae would be so proud," I told him. He wisely decided not to question the crying pregnant woman eating chicken over the stove and just asked if there was any left for him.</p>
+
+      <div class="ad-block ad-large">ADVERTISEMENT</div>
+
+      <h2>Why This Recipe Works (A Love Letter to Chicken Thighs)</h2>
+
+      <p>I need to talk about chicken thighs for a minute. I know, I know — chicken breast is the "healthy" choice. I spent my entire twenties buying boneless skinless chicken breasts and wondering why my dinners tasted like cardboard wrapped in disappointment. Then I discovered thighs and I have never looked back. They're more forgiving, more flavorful, and they actually stay juicy even if you overcook them by a minute or two (which, let's be honest, happens to all of us when we're also helping with homework, refereeing a fight about whose turn it is on the iPad, and trying to remember if we switched the laundry).</p>
+
+      <p>The key to this recipe is getting that skin CRISPY. I'm talking shatteringly, addictively, you'll-eat-the-skin-before-it-makes-it-to-the-plate crispy. The secret? Pat those thighs dry. I mean really dry. Use paper towels, do it twice, do it three times. Moisture is the enemy of crispy skin. Then you put them skin-side down in a hot pan and you DO NOT TOUCH THEM. I know it's hard. I know you want to peek. Do not peek. Walk away. Set a timer. Go fold that laundry you forgot about. Come back in seven minutes and prepare to be amazed.</p>
+
+      <div class="fake-video">
+        <div class="play-button">
+          <div class="play-triangle"></div>
+        </div>
+        <div class="video-label">&#9654; Watch: How to Get the Crispiest Chicken Skin (3:24)</div>
+      </div>
+
+      <h2>My Kids' Honest Review</h2>
+
+      <p>My daughter Olivia (she's six) told me this chicken is "even better than dinosaur nuggets," which is genuinely the highest compliment she has ever given any food I've made. My son Ethan (four) ate three pieces and then asked if chickens have feelings. (We had a whole conversation about that. Dinner got philosophical.) Baby Charlotte just smashed hers into her hair, which I'm choosing to interpret as enthusiasm.</p>
+
+      <p>Josh has officially declared this his "death row meal," which is morbid but also very flattering. His coworkers have started requesting it when they come over for football Sundays. His friend Dave, who claims to not like "Asian-inspired food" (Dave is wrong about many things), ate five pieces and asked for the recipe. I told him it was on my blog. He said he doesn't read blogs. So if you're reading this, Dave, I told you so.</p>
+
+      <div class="ad-block ad-banner">ADVERTISEMENT</div>
+
+      <h2>Tips for Making This Recipe Perfect</h2>
+
+      <p>I've made this recipe probably 200 times at this point (not exaggerating — we eat it at least once a week, sometimes twice if I'm being honest). Here are my best tips after years of tweaking:</p>
+
+      <p>First, the honey. Please use good honey. I know it's tempting to grab that bear-shaped bottle at the grocery store, and honestly? It'll still be delicious. But if you can find a local raw honey, the depth of flavor is just incredible. My friend Margaret keeps bees in her backyard (she's that kind of person and I love her for it), and when I use her honey in this recipe, it's transcendent.</p>
+
+      <p>Second, don't skip the cornstarch slurry. I know it seems like an extra step, but it's what takes the sauce from "thin liquid pooling sadly on your plate" to "thick, glossy, cling-to-every-inch-of-the-chicken glaze." It takes thirty seconds. Do it.</p>
+
+      <p>Third, and this is important — let the chicken rest for just a minute or two after you coat it in the sauce. I know you're hungry. I know it smells incredible. But that brief rest lets the sauce set up and get even stickier. Trust me on this one.</p>
+
+      <div class="ad-block ad-medium">ADVERTISEMENT</div>
+
+      <p>Okay, I think I've rambled enough. You're probably scrolling furiously trying to find the actual recipe (sorry about that — I just really love this chicken and I have a lot of feelings about it). Here it is, finally. I hope it brings your family as much joy as it's brought mine. And Nana Mae, if you're reading this from wherever you are — I finally figured out your chicken. It just took me a trip to Thailand, three kids, and about fifteen years of trying.</p>
+
+      <p>If you make this recipe, PLEASE leave a comment below and let me know how it turned out! I read every single one. Also, don't forget to tag me on Instagram <strong>@SarahsKitchenStories</strong> — I repost my favorites every Friday! 💕</p>
+    </div>
+
+    <!-- Recipe Card -->
+    <div class="recipe-card" id="recipe-card">
+      <div class="recipe-card-header">
+        <div class="stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+        <h2 class="recipe-card-title">Crispy Honey Garlic Chicken</h2>
+        <p style="color:#777;font-size:15px;">Crispy pan-seared chicken thighs glazed with a sticky honey garlic sauce. Ready in 30 minutes!</p>
+        <div class="recipe-card-meta">
+          <span><strong>Prep:</strong> 10 min</span>
+          <span><strong>Cook:</strong> 20 min</span>
+          <span><strong>Total:</strong> 30 min</span>
+          <span><strong>Servings:</strong> 4</span>
+        </div>
+      </div>
+
+      <h3 class="recipe-section-title">Ingredients</h3>
+      <ul>
+        <li>8 bone-in, skin-on chicken thighs</li>
+        <li>1 teaspoon salt</li>
+        <li>1/2 teaspoon black pepper</li>
+        <li>1 teaspoon garlic powder</li>
+        <li>2 tablespoons olive oil</li>
+        <li>1/3 cup honey</li>
+        <li>1/4 cup soy sauce</li>
+        <li>6 cloves garlic, minced</li>
+        <li>1 tablespoon rice vinegar</li>
+        <li>1 tablespoon sriracha</li>
+        <li>1 teaspoon sesame oil</li>
+        <li>1 tablespoon cornstarch mixed with 2 tablespoons water</li>
+        <li>2 green onions, sliced</li>
+        <li>1 tablespoon sesame seeds</li>
+      </ul>
+
+      <h3 class="recipe-section-title">Instructions</h3>
+      <ol>
+        <li>Pat chicken thighs dry with paper towels. Season generously on both sides with salt, pepper, and garlic powder.</li>
+        <li>Heat olive oil in a large skillet over medium-high heat. Place chicken skin-side down and cook for 7-8 minutes until the skin is deeply golden and crispy. Flip and cook 6-7 minutes more until cooked through (165&deg;F internal). Remove to a plate.</li>
+        <li>Drain all but 1 tablespoon of fat from the skillet. Reduce heat to medium and add the minced garlic. Saut&eacute; for 30 seconds until fragrant.</li>
+        <li>Add honey, soy sauce, rice vinegar, sriracha, and sesame oil to the skillet. Stir to combine and bring to a simmer.</li>
+        <li>Pour in the cornstarch slurry and stir constantly for 1-2 minutes until the sauce thickens and becomes glossy.</li>
+        <li>Return the chicken to the skillet and spoon the sauce over each piece, turning to coat. Let it simmer together for 1 minute. Serve garnished with sliced green onions and sesame seeds.</li>
+      </ol>
+
+      <div class="notes">
+        <strong>Sarah's Notes:</strong> Store leftovers in an airtight container in the fridge for up to 4 days. Reheat in a skillet over medium heat to re-crisp the skin. To make it spicier, double the sriracha. For a milder version, omit the sriracha and add a squeeze of fresh lime juice instead.
+      </div>
+
+      <div style="text-align:center;margin-top:20px;">
+        <span class="print-btn">&#128424; Print Recipe</span>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-widget">
+      <h3>About Sarah</h3>
+      <div style="width:80px;height:80px;border-radius:50%;background:#d4b0b0;margin:0 auto 12px;"></div>
+      <p style="text-align:center;font-size:13px;color:#666;">Hi, I'm Sarah! Mom of 3, recipe developer, and firm believer that dinner shouldn't take longer than an episode of Ted Lasso. Welcome to my kitchen! 💕</p>
+    </div>
+
+    <div class="sidebar-widget">
+      <h3>Popular Posts</h3>
+      <div class="popular-post">
+        <div class="popular-post-img"></div>
+        <div>
+          <div class="popular-post-title">One-Pan Lemon Herb Salmon</div>
+          <div class="popular-post-date">Jan 5, 2026</div>
+        </div>
+      </div>
+      <div class="popular-post">
+        <div class="popular-post-img"></div>
+        <div>
+          <div class="popular-post-title">Slow Cooker Beef Stew</div>
+          <div class="popular-post-date">Dec 28, 2025</div>
+        </div>
+      </div>
+      <div class="popular-post">
+        <div class="popular-post-img"></div>
+        <div>
+          <div class="popular-post-title">The Chocolate Cake That Broke the Internet</div>
+          <div class="popular-post-date">Dec 12, 2025</div>
+        </div>
+      </div>
+      <div class="popular-post">
+        <div class="popular-post-img"></div>
+        <div>
+          <div class="popular-post-title">Easy Weeknight Tacos (15 Min!)</div>
+          <div class="popular-post-date">Nov 30, 2025</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-ad">ADVERTISEMENT</div>
+
+    <div class="sidebar-widget">
+      <h3>Follow Me</h3>
+      <div class="social-icons">
+        <div class="social-icon" style="background:#E4405F;">IG</div>
+        <div class="social-icon" style="background:#1DA1F2;">X</div>
+        <div class="social-icon" style="background:#E60023;">P</div>
+        <div class="social-icon" style="background:#4267B2;">FB</div>
+        <div class="social-icon" style="background:#FF0000;">YT</div>
+        <div class="social-icon" style="background:#25D366;">TT</div>
+      </div>
+    </div>
+
+    <div class="sidebar-ad" style="height:600px;">ADVERTISEMENT</div>
+  </aside>
+</div>
+
+<footer class="site-footer">
+  <p>&copy; 2026 Sarah's Kitchen Stories. All rights reserved.</p>
+  <p style="margin-top:8px;"><a href="#">Privacy Policy</a> &bull; <a href="#">Terms</a> &bull; <a href="#">Accessibility</a></p>
+  <p style="margin-top:8px;font-size:11px;color:#666;">This site uses cookies and contains affiliate links. As an Amazon Associate I earn from qualifying purchases.</p>
+</footer>
+
+<!-- Newsletter Popup -->
+<div class="newsletter-overlay" id="newsletter">
+  <div class="newsletter-popup">
+    <button class="newsletter-close" id="newsletter-close">&times;</button>
+    <div class="newsletter-emoji">🎉</div>
+    <div class="newsletter-title">Get Sarah's Weekly Recipes!</div>
+    <div class="newsletter-text">Join 50,000 home cooks and get new recipes delivered every Thursday. No spam, ever!</div>
+    <input class="newsletter-input" type="email" placeholder="Your email address...">
+    <div class="newsletter-btn">YES, SEND ME RECIPES!</div>
+    <div class="newsletter-fine">By subscribing you agree to our Privacy Policy. Unsubscribe anytime.</div>
+  </div>
+</div>
+
+<!-- Cookie Banner -->
+<div class="cookie-banner" id="cookie-banner">
+  🍪 We use cookies to improve your experience. By continuing to use this site, you agree to our use of cookies.
+  <a href="#">Learn More</a>
+  <button class="cookie-accept" id="cookie-accept">Accept All</button>
+</div>
+
+<script>
+  // Newsletter popup after 3 seconds
+  setTimeout(function() {
+    document.getElementById('newsletter').classList.add('show');
+  }, 3000);
+
+  document.getElementById('newsletter-close').addEventListener('click', function() {
+    document.getElementById('newsletter').classList.remove('show');
+  });
+
+  document.getElementById('newsletter').addEventListener('click', function(e) {
+    if (e.target === this) this.classList.remove('show');
+  });
+
+  // Cookie banner dismiss
+  document.getElementById('cookie-accept').addEventListener('click', function() {
+    document.getElementById('cookie-banner').style.display = 'none';
+  });
+</script>
+
+</body>
+</html>

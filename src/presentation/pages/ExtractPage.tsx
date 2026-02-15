@@ -172,7 +172,7 @@ export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRec
           <p className="try-it-hint">First time? See it in action:</p>
           <button
             className="try-it-btn"
-            onClick={() => extract('https://www.allrecipes.com/recipe/26317/chicken-pot-pie-ix/')}
+            onClick={() => extract('https://mise.swinch.dev/the-best-chicken-ever/')}
           >
             Try with an example recipe
           </button>
