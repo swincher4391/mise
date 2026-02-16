@@ -3,7 +3,7 @@
 **Just the Recipe.**
 
 **Product Requirements Document**
-*Version 1.3 | February 2026*
+*Version 1.4 | February 2026*
 
 > **Design philosophy:** Personal tool first, product second. Built for our kitchen. If other people want it, they can buy it. Every decision is evaluated against: "Does this make cooking dinner easier tonight?" Not: "Will this convert at 2.3% on a landing page?"
 
@@ -480,6 +480,8 @@ Ranked by expected impact:
 
 - Kroger client credentials (`KROGER_CLIENT_ID`, `KROGER_CLIENT_SECRET`) stored in Vercel environment variables, never exposed to the client.
 - OAuth2 token exchange handled server-side.
+- **User OAuth tokens stored in encrypted httpOnly cookies (AES-256-GCM).** Tokens never reach client JavaScript — no localStorage, no URL hash, no request body exposure. Cookie attributes: `HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/api`.
+- **CSRF protection on OAuth flow.** Random `state` nonce stored in a short-lived httpOnly cookie, validated on callback before code exchange.
 - All Kroger API calls proxied through Vercel serverless functions.
 
 ### 18.4 Payment Security
@@ -487,6 +489,20 @@ Ranked by expected impact:
 - Stripe Checkout handles all payment data. No credit card information touches Mise's code.
 - `STRIPE_SECRET_KEY` and `STRIPE_PRICE_ID` stored in Vercel environment variables.
 - No `.env` files have ever been committed to the repository (verified via full git history scan).
+- **Rate limiting on comp PIN verification.** 5 failed attempts per email triggers 15-minute lockout (in-memory, resets on cold start — acceptable for serverless model).
+
+### 18.5 Content Security Policy
+
+- `script-src 'self'` — no inline scripts permitted. All JavaScript served from same origin.
+- `style-src 'self' 'unsafe-inline'` — inline styles allowed for React/component library compatibility.
+- `connect-src` restricted to known API domains (Stripe, Kroger, Hugging Face, tmpfiles.org).
+- Additional headers: `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Strict-Transport-Security`, `Referrer-Policy: strict-origin-when-cross-origin`.
+
+### 18.6 Input Validation
+
+- **Recipe import payloads** (base64 hash fragment): 1MB size limit, schema validation for expected recipe fields before parsing.
+- **Email format validation** on comp verification endpoint.
+- **Token format validation** on OAuth callback: non-empty string, max 4096 characters.
 
 ---
 
@@ -516,6 +532,18 @@ Ranked by expected impact:
 - **Wake Lock API:** Graceful fallback message when unsupported.
 - **Background timers:** Timer state persisted; resumes on foreground. Audio alerts may not fire while backgrounded.
 - **Storage eviction:** Backup export nudges mitigate data loss risk.
+
+---
+
+## Appendix: v1.3 to v1.4 Changelog
+
+| Section | What Changed |
+| --- | --- |
+| Security (18.3) | Kroger OAuth tokens moved from localStorage/URL hash to encrypted httpOnly cookies (AES-256-GCM). CSRF `state` parameter added to OAuth flow. |
+| Security (18.4) | Added rate limiting (5 attempts / 15 min) on comped user PIN verification. |
+| Security (18.5) | New section. CSP hardened: removed `'unsafe-inline'` from `script-src`. Documented all security headers. |
+| Security (18.6) | New section. Input validation on recipe import payloads, email format, and OAuth token format. |
+| Kroger Integration | `addToCart` API no longer requires client-side token — read from server cookie. Auth status checked via `/api/grocery/kroger-status` endpoint. |
 
 ---
 
