@@ -2,6 +2,7 @@ import { defineConfig, loadEnv, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import path from 'path'
+import { randomBytes, createCipheriv, createDecipheriv } from 'crypto'
 
 function imageExtractPlugin(): Plugin {
   return {
@@ -279,11 +280,70 @@ function krogerPlugin(): Plugin {
         }
       })
 
+      // Cookie helpers for dev server (mirrors api/lib/cookies.ts)
+      const ALGORITHM = 'aes-256-gcm'
+      const IV_LEN = 12
+      const TAG_LEN = 16
+      const cookieSecret = env.COOKIE_SECRET || 'dev-secret-key-must-be-32-chars!'
+
+      function devEncrypt(plaintext: string): string {
+        const key = Buffer.from(cookieSecret.slice(0, 32), 'utf-8')
+        const iv = randomBytes(IV_LEN)
+        const cipher = createCipheriv(ALGORITHM, key, iv)
+        const encrypted = Buffer.concat([cipher.update(plaintext, 'utf-8'), cipher.final()])
+        const tag = cipher.getAuthTag()
+        return Buffer.concat([iv, tag, encrypted]).toString('base64url')
+      }
+
+      function devDecrypt(token: string): string {
+        const key = Buffer.from(cookieSecret.slice(0, 32), 'utf-8')
+        const data = Buffer.from(token, 'base64url')
+        const iv = data.subarray(0, IV_LEN)
+        const tag = data.subarray(IV_LEN, IV_LEN + TAG_LEN)
+        const ciphertext = data.subarray(IV_LEN + TAG_LEN)
+        const decipher = createDecipheriv(ALGORITHM, key, iv)
+        decipher.setAuthTag(tag)
+        return decipher.update(ciphertext) + decipher.final('utf-8')
+      }
+
+      function parseCookies(header: string): Record<string, string> {
+        const result: Record<string, string> = {}
+        for (const pair of header.split(';')) {
+          const eq = pair.indexOf('=')
+          if (eq < 0) continue
+          result[pair.slice(0, eq).trim()] = pair.slice(eq + 1).trim()
+        }
+        return result
+      }
+
+      function getSessionFromCookie(req: any): { accessToken: string; refreshToken: string; expiresAt: number } | null {
+        const cookies = parseCookies(req.headers.cookie ?? '')
+        const raw = cookies['kroger_session']
+        if (!raw) return null
+        try {
+          const session = JSON.parse(devDecrypt(raw))
+          if (Date.now() > session.expiresAt) return null
+          return session
+        } catch { return null }
+      }
+
+      function setCookieHeader(res: any, cookie: string): void {
+        const existing = res.getHeader('Set-Cookie')
+        if (!existing) res.setHeader('Set-Cookie', [cookie])
+        else if (Array.isArray(existing)) res.setHeader('Set-Cookie', [...existing, cookie])
+        else res.setHeader('Set-Cookie', [String(existing), cookie])
+      }
+
       // OAuth2 authorize redirect
       server.middlewares.use('/api/grocery/kroger-authorize', (_req, res) => {
         if (!clientId || !redirectUri) return jsonResponse(res, 500, { error: 'Kroger OAuth2 not configured' })
-        const authorizeUrl = `https://api.kroger.com/v1/connect/oauth2/authorize?scope=${encodeURIComponent('cart.basic:write profile.compact')}&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code`
-        res.writeHead(302, { Location: authorizeUrl })
+        const state = randomBytes(16).toString('hex')
+        setCookieHeader(res, `kroger_oauth_state=${state}; HttpOnly; SameSite=Lax; Path=/api; Max-Age=300`)
+        const authorizeUrl = `https://api.kroger.com/v1/connect/oauth2/authorize?scope=${encodeURIComponent('cart.basic:write profile.compact')}&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&state=${state}`
+        const cookies = res.getHeader('Set-Cookie')
+        const headers: Record<string, any> = { Location: authorizeUrl }
+        if (cookies) headers['Set-Cookie'] = cookies
+        res.writeHead(302, headers)
         res.end()
       })
 
@@ -296,6 +356,15 @@ function krogerPlugin(): Plugin {
         const url = new URL(req.url!, `http://${req.headers.host}`)
         const code = url.searchParams.get('code')
         if (!code) return jsonResponse(res, 400, { error: 'Missing authorization code' })
+
+        // Validate CSRF state
+        const state = url.searchParams.get('state')
+        const cookies = parseCookies(req.headers.cookie ?? '')
+        const expectedState = cookies['kroger_oauth_state']
+        if (!state || !expectedState || state !== expectedState) {
+          return jsonResponse(res, 403, { error: 'Invalid OAuth state parameter' })
+        }
+
         try {
           const basic = Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
           const tokenRes = await fetch('https://api.kroger.com/v1/connect/oauth2/token', {
@@ -305,13 +374,35 @@ function krogerPlugin(): Plugin {
           })
           if (!tokenRes.ok) throw new Error(`Token exchange failed (${tokenRes.status})`)
           const tokens: any = await tokenRes.json()
-          const hash = `#kroger_access_token=${tokens.access_token}&kroger_refresh_token=${tokens.refresh_token ?? ''}&kroger_expires_in=${tokens.expires_in}`
-          res.writeHead(302, { Location: `/${hash}` })
+          if (!tokens.access_token || typeof tokens.access_token !== 'string' || tokens.access_token.length > 4096) {
+            throw new Error('Invalid token received from Kroger')
+          }
+          const expiresIn = Number(tokens.expires_in) || 1800
+          const session = { accessToken: tokens.access_token, refreshToken: tokens.refresh_token ?? '', expiresAt: Date.now() + expiresIn * 1000 }
+          const payload = devEncrypt(JSON.stringify(session))
+          setCookieHeader(res, `kroger_session=${payload}; HttpOnly; SameSite=Lax; Path=/api; Max-Age=${expiresIn}`)
+          setCookieHeader(res, `kroger_oauth_state=; HttpOnly; SameSite=Lax; Path=/api; Max-Age=0`)
+          const allCookies = res.getHeader('Set-Cookie')
+          const headers: Record<string, any> = { Location: '/' }
+          if (allCookies) headers['Set-Cookie'] = allCookies
+          res.writeHead(302, headers)
           res.end()
         } catch (err: any) {
           res.writeHead(302, { Location: `/?kroger_error=${encodeURIComponent(err.message)}` })
           res.end()
         }
+      })
+
+      // Kroger auth status endpoint
+      server.middlewares.use('/api/grocery/kroger-status', (req, res) => {
+        const session = getSessionFromCookie(req)
+        jsonResponse(res, 200, { authenticated: session !== null })
+      })
+
+      // Kroger logout endpoint
+      server.middlewares.use('/api/grocery/kroger-logout', (_req, res) => {
+        setCookieHeader(res, `kroger_session=; HttpOnly; SameSite=Lax; Path=/api; Max-Age=0`)
+        jsonResponse(res, 200, { ok: true })
       })
 
       // Cart add endpoint
@@ -321,13 +412,14 @@ function krogerPlugin(): Plugin {
           return res.end()
         }
         if (req.method !== 'PUT') return jsonResponse(res, 405, { error: 'Method not allowed' })
+        const session = getSessionFromCookie(req)
+        if (!session) return jsonResponse(res, 401, { error: 'Not authenticated with Kroger' })
         try {
           const body = JSON.parse(await readBody(req))
-          if (!body.accessToken) return jsonResponse(res, 400, { error: 'accessToken is required' })
           if (!Array.isArray(body.items) || body.items.length === 0) return jsonResponse(res, 400, { error: 'items array is required' })
           const response = await fetch('https://api.kroger.com/v1/cart/add', {
             method: 'PUT',
-            headers: { Authorization: `Bearer ${body.accessToken}`, 'Content-Type': 'application/json', Accept: 'application/json' },
+            headers: { Authorization: `Bearer ${session.accessToken}`, 'Content-Type': 'application/json', Accept: 'application/json' },
             body: JSON.stringify({ items: body.items.map((i: any) => ({ upc: i.upc, quantity: i.quantity })) }),
           })
           if (!response.ok) {
