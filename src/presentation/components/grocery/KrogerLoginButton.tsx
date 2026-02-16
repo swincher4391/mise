@@ -1,10 +1,13 @@
 interface KrogerLoginButtonProps {
-  isConnected: boolean
+  isConnected: boolean | null
   onConnect: () => void
   onDisconnect: () => void
 }
 
 export function KrogerLoginButton({ isConnected, onConnect, onDisconnect }: KrogerLoginButtonProps) {
+  // Don't render anything while auth status is loading to prevent flash
+  if (isConnected === null) return null
+
   if (isConnected) {
     return (
       <div className="kroger-login-status">

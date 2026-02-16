@@ -28,7 +28,14 @@ export function useExtensionImport(onRecipeReceived: (recipe: Recipe) => void) {
     if (hash.startsWith('#import=')) {
       try {
         const payload = hash.slice(8)
-        const raw = JSON.parse(atob(payload))
+        // Size limit: reject payloads over 1MB decoded
+        if (payload.length > 1_400_000) throw new Error('Payload too large')
+        const decoded = atob(payload)
+        if (decoded.length > 1_000_000) throw new Error('Payload too large')
+        const raw = JSON.parse(decoded)
+        // Basic schema validation
+        if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) throw new Error('Invalid recipe format')
+        if (!raw.title && !raw.name && !raw['@type']) throw new Error('Missing recipe fields')
         const recipe = normalizeExtensionRecipe(raw)
         onRecipeReceived(recipe)
         // Clean up the hash
