@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
+import { setTokenCookie, getStateCookie, clearStateCookie } from '../lib/cookies.js'
 
 const TOKEN_URL = 'https://api.kroger.com/v1/connect/oauth2/token'
 
@@ -30,6 +31,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Missing authorization code' })
   }
 
+  // Validate CSRF state parameter
+  const state = req.query.state as string | undefined
+  const expectedState = getStateCookie(req)
+  if (!state || !expectedState || state !== expectedState) {
+    return res.status(403).json({ error: 'Invalid OAuth state parameter' })
+  }
+
   const redirectUri = process.env.KROGER_REDIRECT_URI
   if (!redirectUri) {
     return res.status(500).json({ error: 'KROGER_REDIRECT_URI not configured' })
@@ -37,10 +45,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const tokens: any = await exchangeCode(code, redirectUri)
+
+    // Validate token format
+    if (!tokens.access_token || typeof tokens.access_token !== 'string' || tokens.access_token.length > 4096) {
+      throw new Error('Invalid token received from Kroger')
+    }
+
+    const expiresIn = Number(tokens.expires_in) || 1800
+    setTokenCookie(res, {
+      accessToken: tokens.access_token,
+      refreshToken: tokens.refresh_token ?? '',
+      expiresAt: Date.now() + expiresIn * 1000,
+    })
+    clearStateCookie(res)
+
+    // Redirect cleanly — no tokens in URL
     const appUrl = new URL(redirectUri)
     const baseUrl = `${appUrl.protocol}//${appUrl.host}`
-    const hash = `#kroger_access_token=${tokens.access_token}&kroger_refresh_token=${tokens.refresh_token ?? ''}&kroger_expires_in=${tokens.expires_in}`
-    res.writeHead(302, { Location: `${baseUrl}/${hash}` })
+    const cookieHeaders = res.getHeader('Set-Cookie')
+    const headers: Record<string, any> = { Location: `${baseUrl}/` }
+    if (cookieHeaders) headers['Set-Cookie'] = cookieHeaders
+    res.writeHead(302, headers)
     res.end()
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'

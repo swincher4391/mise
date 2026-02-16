@@ -11,21 +11,6 @@
   </head>
   <body>
     <div id="root"></div>
-    <script>
-      // Parse Kroger OAuth tokens from hash before React loads
-      (function() {
-        var h = window.location.hash;
-        if (h.indexOf("kroger_access_token=") === -1) return;
-        var p = new URLSearchParams(h.slice(1));
-        var access = p.get("kroger_access_token");
-        if (!access) return;
-        localStorage.setItem("kroger_access_token", access);
-        localStorage.setItem("kroger_refresh_token", p.get("kroger_refresh_token") || "");
-        localStorage.setItem("kroger_token_expiry", String(Date.now() + Number(p.get("kroger_expires_in") || "1800") * 1000));
-        window.__krogerOAuthJustCompleted = true;
-        history.replaceState(null, "", location.pathname + location.search);
-      })();
-    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

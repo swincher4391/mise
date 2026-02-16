@@ -178,7 +178,6 @@ export function GroceryPage({ onNavigateToLibrary }: GroceryPageProps) {
           isConnected={kroger.isConnected}
           onConnect={kroger.connectKroger}
           onDisconnect={kroger.disconnectKroger}
-          getAccessToken={kroger.getAccessToken}
           onBack={handleBackToList}
         />
       )}

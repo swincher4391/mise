@@ -41,11 +41,12 @@ export async function searchProducts(term: string, locationId: string): Promise<
   return data.products
 }
 
-export async function addToCart(accessToken: string, items: { upc: string; quantity: number }[]): Promise<void> {
+export async function addToCart(items: { upc: string; quantity: number }[]): Promise<void> {
   const res = await fetch('/api/grocery/kroger-cart', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ accessToken, items }),
+    credentials: 'same-origin',
+    body: JSON.stringify({ items }),
   })
   if (!res.ok && res.status !== 204) {
     const data = await res.json().catch(() => ({ error: 'Request failed' }))

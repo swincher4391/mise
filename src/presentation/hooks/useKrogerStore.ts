@@ -1,10 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import {
-  saveKrogerTokens,
-  getKrogerAccessToken,
-  clearKrogerTokens,
-  hasKrogerTokens,
-} from '@infrastructure/kroger/krogerTokenStore.ts'
+import { checkKrogerAuth, logoutKroger } from '@infrastructure/kroger/krogerTokenStore.ts'
 import { getAuthorizeUrl } from '@infrastructure/kroger/krogerApi.ts'
 
 const STORE_KEY = 'kroger_selected_store'
@@ -21,21 +16,11 @@ export function useKrogerStore() {
     return saved ? JSON.parse(saved) : null
   })
 
-  const [isConnected, setIsConnected] = useState(() => {
-    return getKrogerAccessToken() !== null
-  })
+  const [isConnected, setIsConnected] = useState<boolean | null>(null)
 
-  // Fallback: parse tokens from hash if inline script in index.html didn't run
-  // (e.g. service worker serving cached old HTML)
+  // Check auth status via server-side cookie on mount
   useEffect(() => {
-    const hash = window.location.hash
-    if (!hash.includes('kroger_access_token')) return
-    const params = new URLSearchParams(hash.slice(1))
-    const accessToken = params.get('kroger_access_token')
-    if (!accessToken) return
-    saveKrogerTokens(accessToken, params.get('kroger_refresh_token') ?? '', Number(params.get('kroger_expires_in') || '1800'))
-    setIsConnected(true)
-    window.history.replaceState(null, '', window.location.pathname + window.location.search)
+    checkKrogerAuth().then(setIsConnected)
   }, [])
 
   const selectStore = useCallback((store: SelectedStore) => {
@@ -52,18 +37,9 @@ export function useKrogerStore() {
     window.location.href = getAuthorizeUrl()
   }, [])
 
-  const disconnectKroger = useCallback(() => {
-    clearKrogerTokens()
+  const disconnectKroger = useCallback(async () => {
+    await logoutKroger()
     setIsConnected(false)
-  }, [])
-
-  const getAccessToken = useCallback((): string | null => {
-    const token = getKrogerAccessToken()
-    if (!token && hasKrogerTokens()) {
-      // Token expired — update state
-      setIsConnected(false)
-    }
-    return token
   }, [])
 
   return {
@@ -73,6 +49,5 @@ export function useKrogerStore() {
     clearStore,
     connectKroger,
     disconnectKroger,
-    getAccessToken,
   }
 }

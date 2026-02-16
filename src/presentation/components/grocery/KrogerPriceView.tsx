@@ -18,10 +18,9 @@ interface KrogerPriceViewProps {
   items: GroceryItem[]
   locationId: string
   storeName: string
-  isConnected: boolean
+  isConnected: boolean | null
   onConnect: () => void
   onDisconnect: () => void
-  getAccessToken: () => string | null
   onBack: () => void
 }
 
@@ -32,7 +31,6 @@ export function KrogerPriceView({
   isConnected,
   onConnect,
   onDisconnect,
-  getAccessToken,
   onBack,
 }: KrogerPriceViewProps) {
   const [matches, setMatches] = useState<ProductMatch[]>([])
@@ -102,8 +100,7 @@ export function KrogerPriceView({
   }, 0)
 
   const handleAddToCart = async () => {
-    const token = getAccessToken()
-    if (!token) {
+    if (!isConnected) {
       setCartError('Please connect your Kroger account first')
       return
     }
@@ -111,7 +108,6 @@ export function KrogerPriceView({
     setCartError(null)
     try {
       await addToCart(
-        token,
         selectedItems.map((m) => ({ upc: m.products[m.viewIndex].upc, quantity: m.quantity }))
       )
       setCartStatus('success')

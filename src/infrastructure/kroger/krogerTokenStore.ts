@@ -1,38 +1,19 @@
-const ACCESS_KEY = 'kroger_access_token'
-const REFRESH_KEY = 'kroger_refresh_token'
-const EXPIRY_KEY = 'kroger_token_expiry'
-
-/** Returns true if the current page load is a return from Kroger OAuth.
- *  Set by the inline script in index.html before React loads. */
-export function isKrogerOAuthReturn(): boolean {
-  return !!(window as any).__krogerOAuthJustCompleted
-}
-
-export function saveKrogerTokens(accessToken: string, refreshToken: string, expiresIn: number): void {
-  localStorage.setItem(ACCESS_KEY, accessToken)
-  localStorage.setItem(REFRESH_KEY, refreshToken)
-  localStorage.setItem(EXPIRY_KEY, String(Date.now() + expiresIn * 1000))
-}
-
-export function getKrogerAccessToken(): string | null {
-  const expiry = localStorage.getItem(EXPIRY_KEY)
-  if (expiry && Date.now() > Number(expiry)) {
-    // Token expired
-    return null
+/** Check Kroger authentication status via server-side cookie */
+export async function checkKrogerAuth(): Promise<boolean> {
+  try {
+    const res = await fetch('/api/grocery/kroger-status', { credentials: 'same-origin' })
+    if (!res.ok) return false
+    const data = await res.json()
+    return data.authenticated === true
+  } catch {
+    return false
   }
-  return localStorage.getItem(ACCESS_KEY)
 }
 
-export function getKrogerRefreshToken(): string | null {
-  return localStorage.getItem(REFRESH_KEY)
-}
-
-export function clearKrogerTokens(): void {
-  localStorage.removeItem(ACCESS_KEY)
-  localStorage.removeItem(REFRESH_KEY)
-  localStorage.removeItem(EXPIRY_KEY)
-}
-
-export function hasKrogerTokens(): boolean {
-  return localStorage.getItem(ACCESS_KEY) !== null
+/** Log out of Kroger by clearing server-side cookie */
+export async function logoutKroger(): Promise<void> {
+  await fetch('/api/grocery/kroger-logout', {
+    method: 'POST',
+    credentials: 'same-origin',
+  }).catch(() => {})
 }
