@@ -718,7 +718,7 @@ export default defineConfig({
         navigateFallbackDenylist: [/^\/api\//, /^\/kroger-callback/],
         runtimeCaching: [
           {
-            urlPattern: /^https:\/\/(?!.*\/api\/).*\.(jpg|jpeg|png|webp|gif)$/i,
+            urlPattern: ({ sameOrigin, url }) => sameOrigin && /\.(jpg|jpeg|png|webp|gif)$/i.test(url.pathname),
             handler: 'CacheFirst',
             options: {
               cacheName: 'recipe-images',

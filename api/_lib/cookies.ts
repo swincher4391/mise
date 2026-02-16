@@ -46,7 +46,7 @@ export function clearTokenCookie(res: VercelResponse): void {
 }
 
 export function setStateCookie(res: VercelResponse, state: string): void {
-  appendCookie(res, `${STATE_COOKIE}=${state}; HttpOnly; Secure; SameSite=Lax; Path=/api; Max-Age=300`)
+  appendCookie(res, `${STATE_COOKIE}=${state}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=300`)
 }
 
 export function getStateCookie(req: VercelRequest): string | null {
@@ -55,7 +55,7 @@ export function getStateCookie(req: VercelRequest): string | null {
 }
 
 export function clearStateCookie(res: VercelResponse): void {
-  appendCookie(res, `${STATE_COOKIE}=; HttpOnly; Secure; SameSite=Lax; Path=/api; Max-Age=0`)
+  appendCookie(res, `${STATE_COOKIE}=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0`)
 }
 
 function parseCookies(header: string): Record<string, string> {
