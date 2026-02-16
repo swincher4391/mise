@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { setTokenCookie, getStateCookie, clearStateCookie } from '../lib/cookies.js'
+import { setTokenCookie, getStateCookie, clearStateCookie } from '../_lib/cookies.js'
 
 const TOKEN_URL = 'https://api.kroger.com/v1/connect/oauth2/token'
 

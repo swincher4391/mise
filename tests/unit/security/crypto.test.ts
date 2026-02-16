@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
-import { decrypt, encrypt } from '../../../api/lib/crypto.ts'
+import { decrypt, encrypt } from '../../../api/_lib/crypto.ts'
 
 const VALID_COOKIE_SECRET = '12345678901234567890123456789012'
 const originalCookieSecret = process.env.COOKIE_SECRET
