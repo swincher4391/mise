@@ -13,6 +13,11 @@ import type { Recipe } from '@domain/models/Recipe.ts'
 
 type View = 'plan' | 'extract' | 'library' | 'grocery'
 
+// One-time cleanup: remove legacy Kroger tokens from localStorage.
+// These were stored client-side before the migration to encrypted HttpOnly cookies.
+const LEGACY_KEYS = ['kroger_access_token', 'kroger_refresh_token', 'kroger_token_expiry']
+LEGACY_KEYS.forEach((key) => localStorage.removeItem(key))
+
 function App() {
   const [view, setView] = useState<View>('extract')
   const [selectedRecipeId, setSelectedRecipeId] = useState<string | null>(null)

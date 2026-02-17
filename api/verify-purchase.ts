@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import Stripe from 'stripe'
+import { setPublicCors } from './_lib/cors.js'
 
 // In-memory rate limiting for PIN attempts (resets on cold start)
 const failedAttempts = new Map<string, { count: number; resetAt: number }>()
@@ -34,15 +35,20 @@ function clearFailedAttempts(email: string): void {
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+  setPublicCors(res)
 
   if (req.method === 'OPTIONS') return res.status(204).end()
-  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
 
-  const sessionId = req.query.sessionId as string | undefined
-  const email = req.query.email as string | undefined
+  // Accept both GET (legacy/session_id) and POST (email/pin verification)
+  if (req.method !== 'GET' && req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' })
+  }
+
+  // GET: only for session_id verification (Stripe redirect)
+  // POST: for email/pin verification (keeps sensitive data out of URLs/logs)
+  const isPost = req.method === 'POST'
+  const sessionId = isPost ? req.body?.sessionId : req.query.sessionId as string | undefined
+  const email = isPost ? req.body?.email : req.query.email as string | undefined
 
   if (!sessionId && !email) {
     return res.status(400).json({ error: 'sessionId or email is required' })
@@ -54,7 +60,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // Comped users — bypass Stripe entirely (format: "email:pin,email:pin")
-  const pin = req.query.pin as string | undefined
+  const pin = isPost ? req.body?.pin : req.query.pin as string | undefined
   const compedEntries = (process.env.COMPED_EMAILS ?? '').split(',').map((e) => e.trim()).filter(Boolean)
   if (email) {
     for (const entry of compedEntries) {

@@ -22,9 +22,13 @@ export interface VerifyResult {
 }
 
 export async function verifyAndCache(email: string, pin?: string): Promise<VerifyResult> {
-  let url = `/api/verify-purchase?email=${encodeURIComponent(email)}`
-  if (pin) url += `&pin=${encodeURIComponent(pin)}`
-  const res = await fetch(url)
+  const body: Record<string, string> = { email }
+  if (pin) body.pin = pin
+  const res = await fetch('/api/verify-purchase', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
   if (!res.ok) {
     throw new Error('Failed to verify purchase')
   }
