@@ -35,7 +35,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       body: JSON.stringify({
         title: body.title ?? 'Shopping List',
         line_items: body.line_items,
-        landing_page_configuration: body.landing_page_configuration,
+        landing_page_configuration: { enable_pantry_items: true },
       }),
     })
 
@@ -47,7 +47,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const data = await response.json()
-    return res.status(200).json({ url: data.products_link_url })
+    const url = data.products_link_url
+    if (typeof url !== 'string' || !url.startsWith('https://')) {
+      return res.status(502).json({ error: 'Invalid URL returned from Instacart' })
+    }
+    return res.status(200).json({ url })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'
     return res.status(502).json({ error: `Instacart request failed: ${message}` })

@@ -19,20 +19,12 @@ export interface InstacartRecipeRequest {
   cooking_time?: string
   instructions?: string[]
   ingredients: InstacartLineItem[]
-  landing_page_configuration?: {
-    partner_linkback_url?: string
-    enable_pantry_items?: boolean
-  }
 }
 
 export interface InstacartShoppingListRequest {
   title: string
   image_url?: string
   line_items: InstacartLineItem[]
-  landing_page_configuration?: {
-    partner_linkback_url?: string
-    enable_pantry_items?: boolean
-  }
 }
 
 const INSTACART_UNITS = new Set([
@@ -173,10 +165,6 @@ export function mapRecipeToInstacart(recipe: Recipe): InstacartRecipeRequest {
     request.instructions = recipe.steps.map((s) => s.text)
   }
 
-  request.landing_page_configuration = {
-    enable_pantry_items: true,
-  }
-
   return request
 }
 
@@ -193,8 +181,5 @@ export function mapGroceryListToInstacart(
   return {
     title,
     line_items: lineItems,
-    landing_page_configuration: {
-      enable_pantry_items: true,
-    },
   }
 }

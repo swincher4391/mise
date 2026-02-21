@@ -35,7 +35,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (body.servings) requestBody.servings = body.servings
     if (body.cooking_time) requestBody.cooking_time = body.cooking_time
     if (body.instructions) requestBody.instructions = body.instructions
-    if (body.landing_page_configuration) requestBody.landing_page_configuration = body.landing_page_configuration
+    requestBody.landing_page_configuration = { enable_pantry_items: true }
 
     const response = await fetch(`${INSTACART_BASE}/idp/v1/products/recipe`, {
       method: 'POST',
@@ -55,7 +55,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const data = await response.json()
-    return res.status(200).json({ url: data.products_link_url })
+    const url = data.products_link_url
+    if (typeof url !== 'string' || !url.startsWith('https://')) {
+      return res.status(502).json({ error: 'Invalid URL returned from Instacart' })
+    }
+    return res.status(200).json({ url })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'
     return res.status(502).json({ error: `Instacart request failed: ${message}` })

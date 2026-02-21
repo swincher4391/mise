@@ -132,7 +132,6 @@ describe('mapRecipeToInstacart', () => {
       display_text: '3 eggs',
       measurements: [{ quantity: 3, unit: 'each' }],
     })
-    expect(result.landing_page_configuration?.enable_pantry_items).toBe(true)
   })
 
   it('omits optional fields when not present', () => {
@@ -174,6 +173,5 @@ describe('mapGroceryListToInstacart', () => {
     expect(result.line_items).toHaveLength(2)
     expect(result.line_items[0].name).toBe('milk')
     expect(result.line_items[1].name).toBe('Bread')
-    expect(result.landing_page_configuration?.enable_pantry_items).toBe(true)
   })
 })
