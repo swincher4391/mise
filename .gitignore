@@ -36,6 +36,9 @@ Thumbs.db
 # Test scripts
 test-*.mjs
 
+# PRD docs (private)
+*_PRD_*
+
 # Windows artifacts
 nul
 New Text Document.txt
