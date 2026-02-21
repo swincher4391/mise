@@ -15,7 +15,7 @@ type View = 'plan' | 'extract' | 'library' | 'grocery'
 
 // One-time cleanup: remove legacy Kroger tokens from localStorage.
 // These were stored client-side before the migration to encrypted HttpOnly cookies.
-const LEGACY_KEYS = ['kroger_access_token', 'kroger_refresh_token', 'kroger_token_expiry']
+const LEGACY_KEYS = ['kroger_access_token', 'kroger_refresh_token', 'kroger_token_expiry', 'kroger_selected_store']
 LEGACY_KEYS.forEach((key) => localStorage.removeItem(key))
 
 function App() {

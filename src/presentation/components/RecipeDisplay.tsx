@@ -4,6 +4,7 @@ import type { SavedRecipe } from '@domain/models/SavedRecipe.ts'
 import { scaleIngredients } from '@application/scaler/scaleIngredients.ts'
 import { useIsRecipeSaved, useSavedRecipes } from '@presentation/hooks/useSavedRecipes.ts'
 import { downloadSingleRecipe } from '@application/export/exportRecipes.ts'
+import { createRecipePage } from '@infrastructure/instacart/instacartApi.ts'
 import { UpgradePrompt } from './UpgradePrompt.tsx'
 import { RecipeHeader } from './RecipeHeader.tsx'
 import { ServingScaler } from './ServingScaler.tsx'
@@ -36,6 +37,7 @@ export function RecipeDisplay({ recipe, showSaveButton, onDelete, purchase, onSa
   const [showUpgrade, setShowUpgrade] = useState(false)
   const [editMode, setEditMode] = useState(false)
   const [editedRecipe, setEditedRecipe] = useState<Recipe | null>(null)
+  const [instacartLoading, setInstacartLoading] = useState(false)
 
   const saved = isSavedRecipe(recipe) ? recipe : null
   const effective = editedRecipe ?? recipe
@@ -60,6 +62,19 @@ export function RecipeDisplay({ recipe, showSaveButton, onDelete, purchase, onSa
     }
     await save(effective)
     onSaved?.()
+  }
+
+  const handleShopInstacart = async () => {
+    setInstacartLoading(true)
+    try {
+      const result = await createRecipePage(effective)
+      window.open(result.url, '_blank', 'noopener')
+    } catch (err) {
+      console.error('Instacart error:', err)
+      alert(err instanceof Error ? err.message : 'Failed to create Instacart recipe page')
+    } finally {
+      setInstacartLoading(false)
+    }
   }
 
   const handleApplyEdit = (edited: Recipe) => {
@@ -192,6 +207,24 @@ export function RecipeDisplay({ recipe, showSaveButton, onDelete, purchase, onSa
             />
           )}
           <IngredientList ingredients={scaledIngredients} />
+          {effective.ingredients.length > 0 && (
+            <button
+              className="nav-btn"
+              onClick={handleShopInstacart}
+              disabled={instacartLoading}
+              style={{
+                backgroundColor: '#003D29',
+                color: '#FAF1E5',
+                border: 'none',
+                width: '100%',
+                padding: '12px 18px',
+                marginBottom: '1rem',
+                fontSize: '0.95rem',
+              }}
+            >
+              {instacartLoading ? 'Loading...' : 'Shop ingredients on Instacart'}
+            </button>
+          )}
           <StepList steps={effective.steps} />
         </>
       )}

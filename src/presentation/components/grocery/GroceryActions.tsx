@@ -2,11 +2,12 @@ interface GroceryActionsProps {
   onBack: () => void
   onShare: () => void
   onClearChecked: () => void
-  onPriceCheck: () => void
+  onShopInstacart: () => void
+  shopLoading: boolean
   shareStatus: 'idle' | 'copied' | 'shared'
 }
 
-export function GroceryActions({ onBack, onShare, onClearChecked, onPriceCheck, shareStatus }: GroceryActionsProps) {
+export function GroceryActions({ onBack, onShare, onClearChecked, onShopInstacart, shopLoading, shareStatus }: GroceryActionsProps) {
   return (
     <div className="grocery-actions">
       <button className="nav-btn" onClick={onBack}>
@@ -18,8 +19,13 @@ export function GroceryActions({ onBack, onShare, onClearChecked, onPriceCheck, 
       <button className="nav-btn" onClick={onClearChecked}>
         Uncheck All
       </button>
-      <button className="nav-btn grocery-nav-btn" onClick={onPriceCheck}>
-        Price Check
+      <button
+        className="nav-btn grocery-nav-btn"
+        onClick={onShopInstacart}
+        disabled={shopLoading}
+        style={{ backgroundColor: '#003D29', color: '#FAF1E5', border: 'none' }}
+      >
+        {shopLoading ? 'Loading...' : 'Shop on Instacart'}
       </button>
     </div>
   )
