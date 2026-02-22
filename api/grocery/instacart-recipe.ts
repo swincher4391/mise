@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { setPublicCors } from '../_lib/cors.ts'
+import { setPublicCors } from '../_lib/cors.js'
 
 const INSTACART_BASE = process.env.INSTACART_API_URL ?? 'https://connect.instacart.com'
 
