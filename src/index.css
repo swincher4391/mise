@@ -1533,6 +1533,38 @@ body {
 
 /* ── Grocery List ── */
 
+.instacart-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 46px;
+  padding: 0 18px;
+  background-color: #003D29;
+  color: #FAF1E5;
+  border: none;
+  border-radius: 23px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  width: 100%;
+  margin-bottom: 1rem;
+}
+
+.instacart-cta:hover {
+  opacity: 0.9;
+}
+
+.instacart-cta:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.instacart-cta img {
+  width: 22px;
+  height: 22px;
+}
+
 .grocery-nav-btn {
   background: #2d5016;
   color: #fff;

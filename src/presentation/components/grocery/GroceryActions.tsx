@@ -20,11 +20,12 @@ export function GroceryActions({ onBack, onShare, onClearChecked, onShopInstacar
         Uncheck All
       </button>
       <button
-        className="nav-btn grocery-nav-btn"
+        className="instacart-cta"
         onClick={onShopInstacart}
         disabled={shopLoading}
-        style={{ backgroundColor: '#003D29', color: '#FAF1E5', border: 'none' }}
+        style={{ width: 'auto', marginBottom: 0 }}
       >
+        <img src="/instacart-carrot.svg" alt="" width="22" height="22" />
         {shopLoading ? 'Loading...' : 'Shop on Instacart'}
       </button>
     </div>

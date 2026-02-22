@@ -209,20 +209,12 @@ export function RecipeDisplay({ recipe, showSaveButton, onDelete, purchase, onSa
           <IngredientList ingredients={scaledIngredients} />
           {effective.ingredients.length > 0 && (
             <button
-              className="nav-btn"
+              className="instacart-cta"
               onClick={handleShopInstacart}
               disabled={instacartLoading}
-              style={{
-                backgroundColor: '#003D29',
-                color: '#FAF1E5',
-                border: 'none',
-                width: '100%',
-                padding: '12px 18px',
-                marginBottom: '1rem',
-                fontSize: '0.95rem',
-              }}
             >
-              {instacartLoading ? 'Loading...' : 'Shop ingredients on Instacart'}
+              <img src="/instacart-carrot.svg" alt="" width="22" height="22" />
+              {instacartLoading ? 'Loading...' : 'Shop ingredients'}
             </button>
           )}
           <StepList steps={effective.steps} />
