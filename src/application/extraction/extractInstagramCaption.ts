@@ -35,15 +35,15 @@ export function extractCaptionFromMeta(html: string): string | null {
 
   let text = ogMatch[1]
 
-  // Strip the "80K likes, 19K comments - username on DATE: " prefix
-  // Pattern: everything up to the first opening quote after the colon
-  text = text.replace(/^[\d.KMB]+\s*likes?,?\s*[\d.KMB]+\s*comments?\s*-\s*\w+\s+on\s+[^:]+:\s*"?/, '')
-  // Strip trailing quote
-  text = text.replace(/"?\s*$/, '')
-
-  // Decode HTML entities and escaped newlines
+  // Decode HTML entities and escaped newlines first (before stripping prefix/quotes)
   text = decodeEntities(text)
     .replace(/\\n/g, '\n')
+
+  // Strip the "80K likes, 19K comments - username on DATE: " prefix
+  // Pattern: everything up to the first opening quote after the colon
+  text = text.replace(/^[\d.,KMB]+\s*likes?,?\s*[\d.,KMB]+\s*comments?\s*-\s*\w+\s+on\s+[^:]+:\s*"?/, '')
+  // Strip trailing quote (og:description wraps caption in quotes, sometimes followed by period)
+  text = text.replace(/"\s*\.?\s*$/, '')
 
   // Clean up hashtags and engagement text
   text = text
