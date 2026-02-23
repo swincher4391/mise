@@ -7,6 +7,9 @@ import { extractMicrodata } from '@application/extraction/extractMicrodata.ts'
 import { normalizeRecipe } from '@application/extraction/normalizeRecipe.ts'
 import { extractImageRecipe } from '@infrastructure/ocr/extractImageRecipe.ts'
 import { createImageRecipe } from '@application/extraction/createImageRecipe.ts'
+import { isInstagramUrl, toInstagramEmbedUrl, extractCaptionFromEmbed } from '@application/extraction/extractInstagramCaption.ts'
+import { parseTextRecipe } from '@application/extraction/parseTextRecipe.ts'
+import { createManualRecipe } from '@application/extraction/createManualRecipe.ts'
 
 interface UseRecipeExtractionResult {
   recipe: Recipe | null
@@ -70,6 +73,30 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
         const normalized = normalizeRecipe(microdataRecipes[0], url, html)
         normalized.extractionLayer = 'microdata'
         setRecipe(normalized)
+        return
+      }
+
+      // Layer 3: Instagram caption extraction
+      if (isInstagramUrl(url)) {
+        const embedUrl = toInstagramEmbedUrl(url)
+        if (embedUrl) {
+          try {
+            const embedHtml = await fetchViaProxy(embedUrl)
+            const caption = extractCaptionFromEmbed(embedHtml)
+            if (caption) {
+              const parsed = parseTextRecipe(caption)
+              if (parsed.ingredientLines.length > 0 || parsed.stepLines.length > 0) {
+                const recipe = createManualRecipe({ ...parsed, sourceUrl: url })
+                recipe.extractionLayer = 'text'
+                setRecipe(recipe)
+                return
+              }
+            }
+          } catch {
+            // Embed fetch failed — fall through to error
+          }
+        }
+        setError("Couldn't extract a recipe from this Instagram post. Try copying the caption and using Paste to import it.")
         return
       }
 
