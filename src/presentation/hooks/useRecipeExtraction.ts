@@ -10,6 +10,7 @@ import { createImageRecipe } from '@application/extraction/createImageRecipe.ts'
 import { isInstagramUrl, toInstagramEmbedUrl, extractCaptionFromEmbed, extractCaptionFromMeta } from '@application/extraction/extractInstagramCaption.ts'
 import { parseTextRecipe } from '@application/extraction/parseTextRecipe.ts'
 import { createManualRecipe } from '@application/extraction/createManualRecipe.ts'
+import { transcribeInstagramVideo } from '@infrastructure/video/transcribeInstagramVideo.ts'
 
 interface UseRecipeExtractionResult {
   recipe: Recipe | null
@@ -109,6 +110,22 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
             // Embed fetch failed — fall through to error
           }
         }
+        // Layer 4: Video transcription (recipe spoken in reel audio)
+        try {
+          const transcript = await transcribeInstagramVideo(url)
+          if (transcript) {
+            const parsed = parseTextRecipe(transcript)
+            if (parsed.ingredientLines.length > 0 || parsed.stepLines.length > 0) {
+              const recipe = createManualRecipe({ ...parsed, sourceUrl: url })
+              recipe.extractionLayer = 'text'
+              setRecipe(recipe)
+              return
+            }
+          }
+        } catch {
+          // Transcription failed — fall through to error message
+        }
+
         setError("Couldn't extract a recipe from this Instagram post. The recipe may be in the comments — try copying the recipe text from the caption or comments and using Paste to import it, or screenshot it and use Photo import.")
         return
       }
