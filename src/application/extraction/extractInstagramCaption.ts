@@ -26,6 +26,42 @@ export function isInstagramUrl(url: string): boolean {
   return /instagram\.com\/(reel|p)\//i.test(url)
 }
 
+/** Extract caption from og:description meta tag on the main Instagram page */
+export function extractCaptionFromMeta(html: string): string | null {
+  // og:description contains: "80K likes, 19K comments - username on DATE: "CAPTION TEXT""
+  const ogMatch = html.match(/<meta[^>]*property="og:description"[^>]*content="([^"]*)"/)
+    || html.match(/<meta[^>]*content="([^"]*)"[^>]*property="og:description"/)
+  if (!ogMatch) return null
+
+  let text = ogMatch[1]
+
+  // Strip the "80K likes, 19K comments - username on DATE: " prefix
+  // Pattern: everything up to the first opening quote after the colon
+  text = text.replace(/^[\d.KMB]+\s*likes?,?\s*[\d.KMB]+\s*comments?\s*-\s*\w+\s+on\s+[^:]+:\s*"?/, '')
+  // Strip trailing quote
+  text = text.replace(/"?\s*$/, '')
+
+  // Decode HTML entities and escaped newlines
+  text = text
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\\n/g, '\n')
+
+  // Clean up hashtags and engagement text
+  text = text
+    .replace(/#\w+/g, '')
+    .replace(/\bcomment\s+\w+\s+and\s+I['']ll\b.*$/gim, '')
+    .replace(/\bcomment\s+\w+\b.*send\b.*$/gim, '')
+    .replace(/^follow\s+(for|me)\b.*$/gim, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+
+  return text || null
+}
+
 /** Extract caption text from Instagram's captioned embed HTML */
 export function extractCaptionFromEmbed(html: string): string | null {
   // Extract the <div class="Caption"> block

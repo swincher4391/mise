@@ -7,7 +7,7 @@ import { extractMicrodata } from '@application/extraction/extractMicrodata.ts'
 import { normalizeRecipe } from '@application/extraction/normalizeRecipe.ts'
 import { extractImageRecipe } from '@infrastructure/ocr/extractImageRecipe.ts'
 import { createImageRecipe } from '@application/extraction/createImageRecipe.ts'
-import { isInstagramUrl, toInstagramEmbedUrl, extractCaptionFromEmbed } from '@application/extraction/extractInstagramCaption.ts'
+import { isInstagramUrl, toInstagramEmbedUrl, extractCaptionFromEmbed, extractCaptionFromMeta } from '@application/extraction/extractInstagramCaption.ts'
 import { parseTextRecipe } from '@application/extraction/parseTextRecipe.ts'
 import { createManualRecipe } from '@application/extraction/createManualRecipe.ts'
 
@@ -78,6 +78,19 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
 
       // Layer 3: Instagram caption extraction
       if (isInstagramUrl(url)) {
+        // Try og:description from the main page first (works even when embedding is disabled)
+        const metaCaption = extractCaptionFromMeta(html)
+        if (metaCaption) {
+          const parsed = parseTextRecipe(metaCaption)
+          if (parsed.ingredientLines.length > 0 || parsed.stepLines.length > 0) {
+            const recipe = createManualRecipe({ ...parsed, sourceUrl: url })
+            recipe.extractionLayer = 'text'
+            setRecipe(recipe)
+            return
+          }
+        }
+
+        // Fall back to captioned embed endpoint
         const embedUrl = toInstagramEmbedUrl(url)
         if (embedUrl) {
           try {
