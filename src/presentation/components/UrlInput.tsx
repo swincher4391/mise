@@ -4,10 +4,11 @@ import { compressImage } from '@infrastructure/imageProcessing.ts'
 interface UrlInputProps {
   onExtract: (url: string) => void
   onImageSelected: (imageBase64: string) => void
+  onPasteText: () => void
   isLoading: boolean
 }
 
-export function UrlInput({ onExtract, onImageSelected, isLoading }: UrlInputProps) {
+export function UrlInput({ onExtract, onImageSelected, onPasteText, isLoading }: UrlInputProps) {
   const [url, setUrl] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -65,6 +66,15 @@ export function UrlInput({ onExtract, onImageSelected, isLoading }: UrlInputProp
         title="Extract from photo"
       >
         Photo
+      </button>
+      <button
+        type="button"
+        className="image-btn"
+        onClick={onPasteText}
+        disabled={isLoading}
+        title="Paste recipe text"
+      >
+        Paste
       </button>
       <input
         ref={fileInputRef}

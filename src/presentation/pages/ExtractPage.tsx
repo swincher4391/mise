@@ -7,6 +7,7 @@ import { PwaStatus } from '@presentation/components/PwaStatus.tsx'
 import { UpgradePrompt } from '@presentation/components/UpgradePrompt.tsx'
 import { BatchImportPage } from '@presentation/pages/BatchImportPage.tsx'
 import { createManualRecipe } from '@application/extraction/createManualRecipe.ts'
+import { parseTextRecipe } from '@application/extraction/parseTextRecipe.ts'
 import type { Recipe } from '@domain/models/Recipe.ts'
 import type { PurchaseState } from '@presentation/hooks/usePurchase.ts'
 
@@ -24,6 +25,8 @@ export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRec
   const [showUpgrade, setShowUpgrade] = useState(false)
   const [upgradeFeature, setUpgradeFeature] = useState('')
   const [showBatchImport, setShowBatchImport] = useState(false)
+  const [showPasteInput, setShowPasteInput] = useState(false)
+  const [pasteText, setPasteText] = useState('')
 
   useEffect(() => {
     if (importedRecipe) {
@@ -52,64 +55,24 @@ export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRec
   }
 
   const handleOcrParse = () => {
-    const lines = editableOcrText.split('\n').filter((l) => l.trim())
-    if (lines.length === 0) return
+    const parsed = parseTextRecipe(editableOcrText)
+    if (!parsed.title && parsed.ingredientLines.length === 0 && parsed.stepLines.length === 0) return
 
-    // Try to detect sections: title, ingredients, steps
-    let title = lines[0]
-    const ingredientLines: string[] = []
-    const stepLines: string[] = []
-
-    // Clean title — strip leading symbols, list markers, etc.
-    title = title.replace(/^[<\u00ae=\-[\]0-9.]+\s*/, '').trim()
-
-    let section: 'unknown' | 'ingredients' | 'steps' = 'unknown'
-
-    for (let i = 1; i < lines.length; i++) {
-      const line = lines[i]
-      const lower = line.toLowerCase().trim()
-
-      // Detect section headers
-      if (/^(=\s*)?ingredients\s*:?$/i.test(lower) || lower === '= ingredients:') {
-        section = 'ingredients'
-        continue
-      }
-      if (/^(instructions|steps|directions|method)\s*:?$/i.test(lower)) {
-        section = 'steps'
-        continue
-      }
-
-      // Skip UI artifacts (buttons, category labels, etc.)
-      if (/^[\u00ae<>[\]]+/.test(line.trim()) || /^(DO category|Addo List|Plan Meal)/i.test(lower)) {
-        continue
-      }
-
-      // Clean leading markers (-, *, numbers with dots)
-      const cleaned = line.replace(/^[-*\u2022]\s*/, '').replace(/^\d+\.\s*/, '').trim()
-      if (!cleaned) continue
-
-      if (section === 'ingredients') {
-        ingredientLines.push(cleaned)
-      } else if (section === 'steps') {
-        stepLines.push(cleaned)
-      } else {
-        // Before any section header — try to detect by format
-        if (/^[-*\u2022]\s/.test(line.trim()) || /^\d+[a-z]*\s*(cup|tbsp|tsp|tablespoon|teaspoon|oz|lb|g|kg|ml)\b/i.test(cleaned)) {
-          ingredientLines.push(cleaned)
-        } else if (/^\d+\.\s/.test(line.trim())) {
-          stepLines.push(cleaned)
-        }
-      }
-    }
-
-    const recipe = createManualRecipe({
-      title,
-      ingredientLines,
-      stepLines,
-    })
+    const recipe = createManualRecipe(parsed)
     recipe.extractionLayer = 'image'
     setRecipe(recipe)
     clearOcrText()
+  }
+
+  const handlePasteParse = () => {
+    const parsed = parseTextRecipe(pasteText)
+    if (!parsed.title && parsed.ingredientLines.length === 0 && parsed.stepLines.length === 0) return
+
+    const recipe = createManualRecipe(parsed)
+    recipe.extractionLayer = 'text'
+    setRecipe(recipe)
+    setShowPasteInput(false)
+    setPasteText('')
   }
 
   if (showBatchImport) {
@@ -136,6 +99,7 @@ export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRec
       <UrlInput
         onExtract={extract}
         onImageSelected={extractFromImage}
+        onPasteText={() => setShowPasteInput(true)}
         isLoading={isLoading}
       />
       {isLoading && (
@@ -167,7 +131,32 @@ export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRec
           </div>
         </div>
       )}
-      {!recipe && !isLoading && !error && !ocrText && (
+      {showPasteInput && !ocrText && (
+        <div className="ocr-review">
+          <h2>Paste Recipe Text</h2>
+          <p className="ocr-hint">
+            Paste your recipe below. First line becomes the title. Use &ldquo;Ingredients:&rdquo; and
+            &ldquo;Instructions:&rdquo; headers to separate sections.
+          </p>
+          <textarea
+            className="form-textarea"
+            value={pasteText}
+            onChange={(e) => setPasteText(e.target.value)}
+            rows={12}
+            placeholder={'My Favorite Recipe\n\nIngredients:\n- 2 cups flour\n- 1 cup sugar\n\nInstructions:\n1. Mix dry ingredients\n2. Bake at 350°F for 25 minutes'}
+            autoFocus
+          />
+          <div className="form-actions">
+            <button className="save-btn" onClick={handlePasteParse} disabled={!pasteText.trim()}>
+              Parse Recipe
+            </button>
+            <button className="nav-btn" onClick={() => { setShowPasteInput(false); setPasteText('') }}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+      {!recipe && !isLoading && !error && !ocrText && !showPasteInput && (
         <div className="try-it-section">
           <p className="try-it-hint">First time? See it in action:</p>
           <button
