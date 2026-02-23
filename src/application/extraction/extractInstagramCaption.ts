@@ -42,12 +42,7 @@ export function extractCaptionFromMeta(html: string): string | null {
   text = text.replace(/"?\s*$/, '')
 
   // Decode HTML entities and escaped newlines
-  text = text
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
+  text = decodeEntities(text)
     .replace(/\\n/g, '\n')
 
   // Clean up hashtags and engagement text
@@ -78,7 +73,7 @@ export function extractCaptionFromEmbed(html: string): string | null {
 
 /** Strip HTML tags, hashtags, and engagement text from caption */
 function cleanCaption(html: string): string {
-  return html
+  let text = html
     // Remove the username link at the start
     .replace(/<a[^>]*class="CaptionUsername"[^>]*>[\s\S]*?<\/a>/gi, '')
     // Remove hashtag links
@@ -89,13 +84,9 @@ function cleanCaption(html: string): string {
     .replace(/<\/(p|div|li)>/gi, '\n')
     // Strip remaining HTML tags
     .replace(/<[^>]+>/g, '')
-    // Decode HTML entities
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
     .replace(/&nbsp;/g, ' ')
+
+  text = decodeEntities(text)
     // Remove standalone hashtags that weren't in links
     .replace(/^#\w+\s*$/gm, '')
     // Remove "Follow for more" / engagement prompts
@@ -105,4 +96,25 @@ function cleanCaption(html: string): string {
     // Clean up whitespace
     .replace(/\n{3,}/g, '\n\n')
     .trim()
+
+  return text
+}
+
+/** Decode all HTML entities (named and numeric) */
+function decodeEntities(text: string): string {
+  return text
+    .replace(/&#x([0-9a-f]+);/gi, (_, hex) => String.fromCodePoint(parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (_, dec) => String.fromCodePoint(parseInt(dec, 10)))
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&#39;/g, "'")
+    .replace(/&ndash;/g, '–')
+    .replace(/&mdash;/g, '—')
+    .replace(/&frac12;/g, '½')
+    .replace(/&frac14;/g, '¼')
+    .replace(/&frac34;/g, '¾')
+    .replace(/&deg;/g, '°')
 }
