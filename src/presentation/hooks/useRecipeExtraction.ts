@@ -109,7 +109,7 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
             // Embed fetch failed — fall through to error
           }
         }
-        setError("Couldn't extract a recipe from this Instagram post. Try copying the caption and using Paste to import it.")
+        setError("Couldn't extract a recipe from this Instagram post. The recipe may be in the comments — try copying the recipe text from the caption or comments and using Paste to import it, or screenshot it and use Photo import.")
         return
       }
 
