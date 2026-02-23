@@ -2,6 +2,15 @@
  * Extract recipe text from an Instagram reel/post caption.
  * Instagram doesn't include structured recipe data (JSON-LD, microdata).
  * The captioned embed endpoint returns the post caption as HTML text.
+ *
+ * Embed HTML structure:
+ *   <div class="Caption">
+ *     <a class="CaptionUsername">username</a>
+ *     <br><br>
+ *     Caption text with <br> line breaks...
+ *     <a>#hashtag</a>
+ *     <div class="CaptionComments">...</div>   ← stop here
+ *   </div>
  */
 
 /** Convert an Instagram URL to its captioned embed URL */
@@ -19,40 +28,26 @@ export function isInstagramUrl(url: string): boolean {
 
 /** Extract caption text from Instagram's captioned embed HTML */
 export function extractCaptionFromEmbed(html: string): string | null {
-  // The caption lives inside a <div class="Caption"> with the text in the
-  // child elements. We look for the caption container and extract text.
-
-  // Pattern 1: Caption div with class="CaptionText"
-  const captionTextMatch = html.match(/<div[^>]*class="CaptionText"[^>]*>([\s\S]*?)<\/div>/i)
-  if (captionTextMatch) {
-    return cleanCaption(captionTextMatch[1])
+  // Extract the <div class="Caption"> block
+  const captionMatch = html.match(/<div[^>]*class="Caption"[^>]*>([\s\S]*?)<div[^>]*class="CaptionComments"/)
+  if (!captionMatch) {
+    // Fallback: try without CaptionComments boundary
+    const fallback = html.match(/<div[^>]*class="Caption"[^>]*>([\s\S]*?)<\/div>/)
+    if (!fallback) return null
+    return cleanCaption(fallback[1])
   }
 
-  // Pattern 2: Caption container class
-  const captionMatch = html.match(/<div[^>]*class="Caption"[^>]*>([\s\S]*?)<\/div>\s*<\/div>/i)
-  if (captionMatch) {
-    return cleanCaption(captionMatch[1])
-  }
-
-  // Pattern 3: Look for the caption in a span within the embed
-  const spanMatch = html.match(/<span[^>]*class="CaptionText"[^>]*>([\s\S]*?)<\/span>/i)
-  if (spanMatch) {
-    return cleanCaption(spanMatch[1])
-  }
-
-  // Pattern 4: data attribute with caption content
-  const dataMatch = html.match(/data-caption="([^"]*)"/)
-  if (dataMatch) {
-    return decodeHtmlEntities(dataMatch[1])
-  }
-
-  return null
+  return cleanCaption(captionMatch[1])
 }
 
-/** Strip HTML tags and clean up caption text */
+/** Strip HTML tags, hashtags, and engagement text from caption */
 function cleanCaption(html: string): string {
   return html
-    // Replace <br> and <br/> with newlines
+    // Remove the username link at the start
+    .replace(/<a[^>]*class="CaptionUsername"[^>]*>[\s\S]*?<\/a>/gi, '')
+    // Remove hashtag links
+    .replace(/<a[^>]*>#\w+<\/a>/gi, '')
+    // Replace <br> with newlines
     .replace(/<br\s*\/?>/gi, '\n')
     // Replace block elements with newlines
     .replace(/<\/(p|div|li)>/gi, '\n')
@@ -65,18 +60,13 @@ function cleanCaption(html: string): string {
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
     .replace(/&nbsp;/g, ' ')
+    // Remove standalone hashtags that weren't in links
+    .replace(/^#\w+\s*$/gm, '')
+    // Remove "Follow for more" / engagement prompts
+    .replace(/^follow\s+(for|me)\b.*$/gim, '')
+    // Remove emoji-only lines
+    .replace(/^[\s\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE00}-\u{FEFF}]+$/gmu, '')
     // Clean up whitespace
     .replace(/\n{3,}/g, '\n\n')
-    .trim()
-}
-
-function decodeHtmlEntities(text: string): string {
-  return text
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/\\n/g, '\n')
     .trim()
 }
