@@ -1,15 +1,13 @@
 /**
- * Orchestrates Instagram video transcription via two serverless functions:
- * 1. Extract video URL from Instagram page (Puppeteer)
+ * Orchestrates Instagram video transcription:
+ * 1. Extract video URL via proxy-browser in video mode (Puppeteer)
  * 2. Transcribe video audio via HF Whisper
  */
 export async function transcribeInstagramVideo(url: string): Promise<string> {
-  // Step 1: Extract the video URL from the Instagram page
-  const extractResponse = await fetch('/api/extract-video-url', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ url }),
-  })
+  // Step 1: Extract the video URL using the existing browser proxy in video mode
+  const extractResponse = await fetch(
+    `/api/proxy-browser?url=${encodeURIComponent(url)}&mode=video`
+  )
 
   if (!extractResponse.ok) {
     const data = await extractResponse.json().catch(() => ({ error: 'Server error' }))
