@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { gunzipSync } from 'node:zlib'
-import { buildRecipeHtml } from './_lib/recipeHtml.ts'
+import { buildRecipeHtml } from './_lib/recipeHtml.js'
 
 const MAX_ENCODED_BYTES = 12_000
 
