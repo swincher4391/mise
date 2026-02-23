@@ -15,15 +15,15 @@
 
 /** Convert an Instagram URL to its captioned embed URL */
 export function toInstagramEmbedUrl(url: string): string | null {
-  // Match /reel/SHORTCODE/ or /p/SHORTCODE/
-  const match = url.match(/instagram\.com\/(?:reel|p)\/([\w-]+)/)
+  // Match /reel/SHORTCODE/, /reels/SHORTCODE/, or /p/SHORTCODE/
+  const match = url.match(/instagram\.com\/(?:reels?|p)\/([\w-]+)/)
   if (!match) return null
   return `https://www.instagram.com/reel/${match[1]}/embed/captioned/`
 }
 
 /** Check if a URL is an Instagram post/reel */
 export function isInstagramUrl(url: string): boolean {
-  return /instagram\.com\/(reel|p)\//i.test(url)
+  return /instagram\.com\/(reels?|p)\//i.test(url)
 }
 
 /** Extract caption from og:description meta tag on the main Instagram page */
