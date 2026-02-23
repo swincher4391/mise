@@ -4,6 +4,7 @@ import type { SavedRecipe } from '@domain/models/SavedRecipe.ts'
 import { scaleIngredients } from '@application/scaler/scaleIngredients.ts'
 import { useIsRecipeSaved, useSavedRecipes } from '@presentation/hooks/useSavedRecipes.ts'
 import { downloadSingleRecipe } from '@application/export/exportRecipes.ts'
+import { shareRecipe } from '@application/share/shareRecipe.ts'
 import { createRecipePage } from '@infrastructure/instacart/instacartApi.ts'
 import { UpgradePrompt } from './UpgradePrompt.tsx'
 import { RecipeHeader } from './RecipeHeader.tsx'
@@ -38,6 +39,7 @@ export function RecipeDisplay({ recipe, showSaveButton, onDelete, purchase, onSa
   const [editMode, setEditMode] = useState(false)
   const [editedRecipe, setEditedRecipe] = useState<Recipe | null>(null)
   const [instacartLoading, setInstacartLoading] = useState(false)
+  const [shareStatus, setShareStatus] = useState<'idle' | 'copied' | 'shared'>('idle')
 
   const saved = isSavedRecipe(recipe) ? recipe : null
   const effective = editedRecipe ?? recipe
@@ -80,6 +82,14 @@ export function RecipeDisplay({ recipe, showSaveButton, onDelete, purchase, onSa
   const handleApplyEdit = (edited: Recipe) => {
     setEditedRecipe(edited)
     setEditMode(false)
+  }
+
+  const handleShare = async () => {
+    const result = await shareRecipe(effective)
+    if (result) {
+      setShareStatus(result)
+      setTimeout(() => setShareStatus('idle'), 2000)
+    }
   }
 
   const handleStartEditNotes = () => {
@@ -143,6 +153,9 @@ export function RecipeDisplay({ recipe, showSaveButton, onDelete, purchase, onSa
               Export
             </button>
           )}
+          <button className="nav-btn" onClick={handleShare}>
+            {shareStatus === 'copied' ? 'Link Copied!' : shareStatus === 'shared' ? 'Shared!' : 'Share'}
+          </button>
           {onDelete && (
             <button className="delete-btn" onClick={onDelete}>
               Remove
