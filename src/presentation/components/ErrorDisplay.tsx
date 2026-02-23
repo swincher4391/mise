@@ -3,6 +3,7 @@ interface ErrorDisplayProps {
 }
 
 const isBotBlocked = (error: string) => error.includes('Chrome extension')
+const isInstagram = (error: string) => error.includes('Instagram')
 
 export function ErrorDisplay({ error }: ErrorDisplayProps) {
   return (
@@ -19,6 +20,15 @@ export function ErrorDisplay({ error }: ErrorDisplayProps) {
               recipe page.
             </p>
             <p style={{ marginTop: '0.5rem' }}>Or try <strong>Photo import</strong> — take a screenshot and we'll read it for you.</p>
+          </>
+        ) : isInstagram(error) ? (
+          <>
+            <p>This post may have embedding disabled. To import the recipe:</p>
+            <ol>
+              <li>Open the post in Instagram</li>
+              <li>Copy the recipe text from the caption</li>
+              <li>Tap <strong>Paste</strong> above and paste it in</li>
+            </ol>
           </>
         ) : (
           <>
