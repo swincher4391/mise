@@ -2903,3 +2903,11 @@ body {
   font-size: 0.8rem;
   padding: 0.3rem 0.6rem;
 }
+
+/* App Version */
+.app-version {
+  text-align: center;
+  font-size: 0.7rem;
+  color: #bbb;
+  padding: 1rem 0 0.5rem;
+}
