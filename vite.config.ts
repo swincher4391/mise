@@ -551,6 +551,15 @@ export default defineConfig({
         display: 'standalone',
         theme_color: '#2d5016',
         background_color: '#fafaf5',
+        share_target: {
+          action: '/',
+          method: 'GET',
+          params: {
+            url: 'url',
+            title: 'title',
+            text: 'text',
+          },
+        } as any,
         icons: [
           { src: '/icon-192.svg', sizes: '192x192', type: 'image/svg+xml' },
           { src: '/icon-192.svg', sizes: '512x512', type: 'image/svg+xml' },

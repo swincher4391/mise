@@ -7,6 +7,7 @@ import { GroceryPage } from '@presentation/pages/GroceryPage.tsx'
 import { TopNav } from '@presentation/components/BottomNav.tsx'
 import { InstallBanner } from '@presentation/components/InstallBanner.tsx'
 import { useExtensionImport } from '@presentation/hooks/useExtensionImport.ts'
+import { useShareTarget } from '@presentation/hooks/useShareTarget.ts'
 import { usePurchase } from '@presentation/hooks/usePurchase.ts'
 import { useInstallPrompt } from '@presentation/hooks/useInstallPrompt.ts'
 import type { Recipe } from '@domain/models/Recipe.ts'
@@ -22,6 +23,7 @@ function App() {
   const [view, setView] = useState<View>('extract')
   const [selectedRecipeId, setSelectedRecipeId] = useState<string | null>(null)
   const [importedRecipe, setImportedRecipe] = useState<Recipe | null>(null)
+  const [sharedUrl, setSharedUrl] = useState<string | null>(null)
   const purchase = usePurchase()
   const installPrompt = useInstallPrompt()
 
@@ -30,7 +32,13 @@ function App() {
     setView('extract')
   }, [])
 
+  const handleShareTarget = useCallback((url: string) => {
+    setSharedUrl(url)
+    setView('extract')
+  }, [])
+
   useExtensionImport(handleExtensionRecipe)
+  useShareTarget(handleShareTarget)
 
   const renderPage = () => {
     switch (view) {
@@ -45,6 +53,8 @@ function App() {
           <ExtractPage
             importedRecipe={importedRecipe}
             onImportedRecipeConsumed={() => setImportedRecipe(null)}
+            sharedUrl={sharedUrl}
+            onSharedUrlConsumed={() => setSharedUrl(null)}
             onNavigateToLibrary={() => {
               setSelectedRecipeId(null)
               setView('library')

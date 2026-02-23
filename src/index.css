@@ -487,6 +487,57 @@ body {
   color: white;
 }
 
+/* iOS Share Shortcut Tip */
+.ios-shortcut-tip {
+  position: relative;
+  margin: 1rem auto;
+  max-width: 480px;
+  padding: 1rem 1.25rem;
+  background: #f0f4ed;
+  border: 1px solid #d4dece;
+  border-radius: 10px;
+  text-align: center;
+  font-size: 0.9rem;
+  color: #333;
+}
+
+.ios-shortcut-tip p {
+  margin: 0 0 0.5rem;
+}
+
+.ios-shortcut-tip p:last-of-type {
+  margin-bottom: 0.75rem;
+  color: #666;
+}
+
+.ios-shortcut-dismiss {
+  position: absolute;
+  top: 0.25rem;
+  right: 0.5rem;
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  color: #999;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0.25rem;
+}
+
+.ios-shortcut-dismiss:hover {
+  color: #666;
+}
+
+.ios-shortcut-btn {
+  display: inline-block;
+  padding: 0.5rem 1.25rem;
+  background: #2d5016;
+  color: white;
+  text-decoration: none;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
 /* Navigation */
 .app-nav {
   display: flex;

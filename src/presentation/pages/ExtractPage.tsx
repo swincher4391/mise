@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useRecipeExtraction } from '@presentation/hooks/useRecipeExtraction.ts'
 import { UrlInput } from '@presentation/components/UrlInput.tsx'
 import { RecipeDisplay } from '@presentation/components/RecipeDisplay.tsx'
@@ -15,11 +15,13 @@ interface ExtractPageProps {
   onNavigateToLibrary: () => void
   importedRecipe?: Recipe | null
   onImportedRecipeConsumed?: () => void
+  sharedUrl?: string | null
+  onSharedUrlConsumed?: () => void
   purchase: PurchaseState
   onRecipeExtracted?: () => void
 }
 
-export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRecipeConsumed, purchase, onRecipeExtracted }: ExtractPageProps) {
+export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRecipeConsumed, sharedUrl, onSharedUrlConsumed, purchase, onRecipeExtracted }: ExtractPageProps) {
   const { recipe, isLoading, error, ocrText, extract, extractFromImage, setRecipe, clearOcrText } = useRecipeExtraction()
   const [editableOcrText, setEditableOcrText] = useState('')
   const [showUpgrade, setShowUpgrade] = useState(false)
@@ -27,6 +29,8 @@ export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRec
   const [showBatchImport, setShowBatchImport] = useState(false)
   const [showPasteInput, setShowPasteInput] = useState(false)
   const [pasteText, setPasteText] = useState('')
+  const [shortcutDismissed, setShortcutDismissed] = useState(() => localStorage.getItem('mise_shortcut_dismissed') === 'true')
+  const isIos = useMemo(() => /iP(hone|ad|od)/i.test(navigator.userAgent), [])
 
   useEffect(() => {
     if (importedRecipe) {
@@ -34,6 +38,13 @@ export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRec
       onImportedRecipeConsumed?.()
     }
   }, [importedRecipe, setRecipe, onImportedRecipeConsumed])
+
+  useEffect(() => {
+    if (sharedUrl && !isLoading) {
+      extract(sharedUrl)
+      onSharedUrlConsumed?.()
+    }
+  }, [sharedUrl]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (recipe) onRecipeExtracted?.()
@@ -165,6 +176,22 @@ export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRec
           >
             Try with an example recipe
           </button>
+        </div>
+      )}
+
+      {isIos && !shortcutDismissed && !recipe && !isLoading && !ocrText && !showPasteInput && (
+        <div className="ios-shortcut-tip">
+          <button className="ios-shortcut-dismiss" onClick={() => { setShortcutDismissed(true); localStorage.setItem('mise_shortcut_dismissed', 'true') }}>&times;</button>
+          <p><strong>Share recipes from any app</strong></p>
+          <p>Install the Mise shortcut to share recipe links directly from Instagram, Safari, and more.</p>
+          <a
+            href="https://www.icloud.com/shortcuts/e887fe307c1c426c8503aed2cb4ec679"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ios-shortcut-btn"
+          >
+            Install Shortcut
+          </a>
         </div>
       )}
 
