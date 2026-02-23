@@ -55,9 +55,20 @@ export function parseTextRecipe(text: string): ParsedTextRecipe {
         ingredientLines.push(cleaned)
       } else if (/^\d+\.\s/.test(line.trim())) {
         stepLines.push(cleaned)
+      } else if (hasCookingVerbs(cleaned)) {
+        stepLines.push(cleaned)
       }
     }
   }
 
   return { title, ingredientLines, stepLines }
+}
+
+/** Detect lines that read like cooking instructions based on action verbs */
+const COOKING_VERBS = /\b(cook|bake|roast|grill|saut[eé]|fry|simmer|boil|steam|broil|braise|stir|mix|combine|whisk|fold|blend|chop|dice|slice|mince|peel|drain|heat|preheat|melt|pour|add|toss|season|marinate|spread|serve|refrigerat|chill|freeze|let\s+sit|set\s+aside|bring\s+to|stir\s+in|fold\s+in|top\s+with|remove\s+from|place\s+in|transfer|arrange)\b/i
+
+function hasCookingVerbs(line: string): boolean {
+  // Must be long enough to be an instruction (not just "serve" as a noun)
+  // and contain at least one cooking action verb
+  return line.length > 20 && COOKING_VERBS.test(line)
 }
