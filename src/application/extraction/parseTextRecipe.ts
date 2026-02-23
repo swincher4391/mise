@@ -48,7 +48,7 @@ export function parseTextRecipe(text: string): ParsedTextRecipe {
     if (section === 'ingredients') {
       ingredientLines.push(cleaned)
     } else if (section === 'steps') {
-      stepLines.push(cleaned)
+      splitSentences(cleaned).forEach(s => stepLines.push(s))
     } else {
       // Before any section header — try to detect by format
       if (/^[-*\u2022]\s/.test(line.trim()) || /^\d+[a-z]*\s*(cups?|tbsps?|tsps?|tablespoons?|teaspoons?|oz|lbs?|g|kg|ml)\b/i.test(cleaned)) {
@@ -56,12 +56,22 @@ export function parseTextRecipe(text: string): ParsedTextRecipe {
       } else if (/^\d+\.\s/.test(line.trim())) {
         stepLines.push(cleaned)
       } else if (hasCookingVerbs(cleaned)) {
-        stepLines.push(cleaned)
+        splitSentences(cleaned).forEach(s => stepLines.push(s))
       }
     }
   }
 
   return { title, ingredientLines, stepLines }
+}
+
+/** Split a long line into individual sentences on period boundaries */
+function splitSentences(text: string): string[] {
+  // Split on period followed by a space and uppercase letter (sentence boundary)
+  // Avoid splitting on abbreviations like "oz.", "tbsp.", "350°F.", etc.
+  const sentences = text.split(/\.(?:\s+)(?=[A-Z])/)
+    .map(s => s.trim().replace(/\.$/, '').trim())
+    .filter(s => s.length > 0)
+  return sentences.length > 0 ? sentences : [text]
 }
 
 /** Detect lines that read like cooking instructions based on action verbs */
