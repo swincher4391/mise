@@ -185,7 +185,7 @@ export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRec
           <p><strong>Share recipes from any app</strong></p>
           <p>Install the Mise shortcut to share recipe links directly from Instagram, Safari, and more.</p>
           <a
-            href="https://www.icloud.com/shortcuts/e887fe307c1c426c8503aed2cb4ec679"
+            href="https://www.icloud.com/shortcuts/b79cba5fd4724d389fdd287e6f559f1"
             target="_blank"
             rel="noopener noreferrer"
             className="ios-shortcut-btn"
