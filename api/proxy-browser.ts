@@ -55,15 +55,28 @@ const TOTAL_FRAMES = FRAMES_PER_GRID * NUM_GRIDS // 36 frames across the video
  * Returns plain-text transcript or null if unavailable.
  */
 async function fetchYouTubeTranscript(videoId: string): Promise<string | null> {
-  // Use the well-known public innertube API key (same for all users/sessions)
   const apiKey = 'AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8'
 
-  // Call player endpoint with Android client context to get caption tracks
+  // Step 1: Fetch watch page to establish session cookies.
+  // YouTube requires session cookies for caption access from datacenter IPs.
+  const pageResp = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Cookie': 'CONSENT=YES+cb.20210328-17-p0.en+FX+299',
+    },
+    signal: AbortSignal.timeout(10000),
+  })
+  const cookies = pageResp.headers.getSetCookie?.() ?? []
+  const cookieStr = cookies.map((c: string) => c.split(';')[0]).join('; ') + '; CONSENT=YES+cb.20210328-17-p0.en+FX+299'
+
+  // Step 2: Call player endpoint with Android client + session cookies.
+  // Android client bypasses login requirement; cookies authenticate the session.
   const playerResp = await fetch(`https://www.youtube.com/youtubei/v1/player?key=${apiKey}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'User-Agent': 'com.google.android.youtube/20.10.38 (Linux; U; Android 14; en_US)',
+      'Cookie': cookieStr,
     },
     body: JSON.stringify({
       context: {
@@ -91,14 +104,18 @@ async function fetchYouTubeTranscript(videoId: string): Promise<string | null> {
     throw new Error(`No caption tracks (playability: ${playStatus}, hasCaptions: ${!!playerData.captions})`)
   }
 
-  // Step 3: Fetch caption text (prefer English, fall back to first track)
+  // Step 3: Fetch caption text with session cookies (prefer English)
   const enTrack = tracks.find((t: any) => t.languageCode === 'en') ?? tracks[0]
   const captionResp = await fetch(enTrack.baseUrl, {
+    headers: { 'Cookie': cookieStr },
     signal: AbortSignal.timeout(10000),
   })
   if (!captionResp.ok) return null
 
   const captionXml = await captionResp.text()
+  if (!captionXml || captionXml.length === 0) {
+    throw new Error('Caption URL returned empty response')
+  }
 
   // Parse XML: format uses <p> elements with <s> word segments
   const paragraphs = [...captionXml.matchAll(/<p\s[^>]*>([\s\S]*?)<\/p>/g)]
