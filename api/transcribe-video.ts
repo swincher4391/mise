@@ -51,14 +51,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Write mp4 to /tmp and extract audio as wav using ffmpeg
     writeFileSync(tmpMp4, videoBuffer)
 
-    execFileSync(ffmpegPath as string, [
-      '-y', '-i', tmpMp4,
-      '-vn',        // no video
-      '-ac', '1',   // mono
-      '-ar', '16000', // 16kHz (Whisper's expected sample rate)
-      '-f', 'wav',
-      tmpWav,
-    ], { timeout: 15000 })
+    try {
+      execFileSync(ffmpegPath as string, [
+        '-y', '-i', tmpMp4,
+        '-vn',        // no video
+        '-ac', '1',   // mono
+        '-ar', '16000', // 16kHz (Whisper's expected sample rate)
+        '-f', 'wav',
+        tmpWav,
+      ], { timeout: 15000, stdio: ['pipe', 'pipe', 'pipe'] })
+    } catch (ffmpegErr: any) {
+      const stderr = ffmpegErr?.stderr?.toString?.() ?? ''
+      return res.status(502).json({
+        error: `ffmpeg failed: ${stderr.slice(-500)}`,
+      })
+    }
 
     const wavBuffer = readFileSync(tmpWav)
 
