@@ -80,11 +80,16 @@ async function fetchYouTubeTranscript(videoId: string): Promise<string | null> {
     signal: AbortSignal.timeout(10000),
   })
 
-  if (!playerResp.ok) return null
+  if (!playerResp.ok) {
+    throw new Error(`Player API returned ${playerResp.status}`)
+  }
   const playerData = await playerResp.json()
 
+  const playStatus = playerData.playabilityStatus?.status ?? 'unknown'
   const tracks = playerData.captions?.playerCaptionsTracklistRenderer?.captionTracks
-  if (!tracks || tracks.length === 0) return null
+  if (!tracks || tracks.length === 0) {
+    throw new Error(`No caption tracks (playability: ${playStatus}, hasCaptions: ${!!playerData.captions})`)
+  }
 
   // Step 3: Fetch caption text (prefer English, fall back to first track)
   const enTrack = tracks.find((t: any) => t.languageCode === 'en') ?? tracks[0]
@@ -226,6 +231,7 @@ ${transcript}`,
       // so don't fall through to Puppeteer — return error immediately.
       return res.status(404).json({
         error: `YouTube transcript unavailable: ${transcriptError}. This video may not have captions.`,
+        debug: transcriptError,
       })
     }
   }
