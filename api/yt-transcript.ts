@@ -48,63 +48,100 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Extract caption text from inside the page's JS context.
     // The browser has full session cookies, so the timedtext URL works.
-    const transcript = await page.evaluate(async () => {
+    const result = await page.evaluate(async () => {
+      const debug: string[] = []
       try {
-        // Strategy 1: Extract ytInitialPlayerResponse from the page
-        const scripts = document.querySelectorAll('script')
-        let playerResponse = null
+        // Try the global variable first (faster)
+        let playerResponse = (window as any).ytInitialPlayerResponse
+        debug.push(`global: ${playerResponse ? 'found' : 'missing'}`)
 
-        for (const script of scripts) {
-          const text = script.textContent || ''
-          const match = text.match(/var ytInitialPlayerResponse\s*=\s*(\{.*?\});/s)
-            || text.match(/ytInitialPlayerResponse\s*=\s*(\{.*?\});/s)
-          if (match) {
-            try { playerResponse = JSON.parse(match[1]) } catch {}
-            break
+        // Fall back to script tag parsing
+        if (!playerResponse) {
+          const scripts = document.querySelectorAll('script')
+          debug.push(`scripts: ${scripts.length}`)
+          for (const script of scripts) {
+            const text = script.textContent || ''
+            if (text.includes('ytInitialPlayerResponse')) {
+              const match = text.match(/var ytInitialPlayerResponse\s*=\s*(\{.*?\});/s)
+                || text.match(/ytInitialPlayerResponse\s*=\s*(\{.*?\});/s)
+              if (match) {
+                try { playerResponse = JSON.parse(match[1]) } catch (e) {
+                  debug.push(`parse error: ${(e as Error).message}`)
+                }
+              }
+              break
+            }
           }
         }
 
-        // Also try the global variable
         if (!playerResponse) {
-          playerResponse = (window as any).ytInitialPlayerResponse
+          debug.push('no playerResponse')
+          // Try to find it in page HTML
+          const html = document.documentElement.outerHTML
+          const hasYtInit = html.includes('ytInitialPlayerResponse')
+          debug.push(`html has ytInitialPlayerResponse: ${hasYtInit}`)
+          debug.push(`html length: ${html.length}`)
+          debug.push(`title: ${document.title}`)
+          return { transcript: null, debug: debug.join('; ') }
         }
 
-        if (!playerResponse?.captions) return null
+        const status = playerResponse.playabilityStatus?.status
+        debug.push(`playability: ${status}`)
+        debug.push(`hasCaptions: ${!!playerResponse.captions}`)
+
+        if (!playerResponse.captions) {
+          return { transcript: null, debug: debug.join('; ') }
+        }
 
         const tracks = playerResponse.captions?.playerCaptionsTracklistRenderer?.captionTracks
-        if (!tracks || tracks.length === 0) return null
+        debug.push(`tracks: ${tracks?.length ?? 0}`)
+        if (!tracks || tracks.length === 0) {
+          return { transcript: null, debug: debug.join('; ') }
+        }
 
-        // Prefer English track
         const track = tracks.find((t: any) => t.languageCode === 'en') || tracks[0]
-        if (!track?.baseUrl) return null
+        debug.push(`trackUrl length: ${track?.baseUrl?.length ?? 0}`)
+        if (!track?.baseUrl) {
+          return { transcript: null, debug: debug.join('; ') }
+        }
 
         // Fetch captions from inside the page context (has cookies!)
         const resp = await fetch(track.baseUrl)
-        if (!resp.ok) return null
+        debug.push(`captionStatus: ${resp.status}`)
         const xml = await resp.text()
-        if (!xml || xml.length < 10) return null
+        debug.push(`captionLength: ${xml.length}`)
+        if (!xml || xml.length < 10) {
+          return { transcript: null, debug: debug.join('; ') }
+        }
 
         // Parse XML - format 1: <p> with <s> segments
         const pMatches = [...xml.matchAll(/<p\s[^>]*>([\s\S]*?)<\/p>/g)]
         if (pMatches.length > 0) {
-          return pMatches.map(p => {
+          const text = pMatches.map(p => {
             const segs = [...p[1].matchAll(/<s[^>]*>([^<]*)<\/s>/g)]
             return segs.map(s => s[1]).join(' ')
           }).filter(t => t.trim()).join(' ').replace(/\s+/g, ' ').trim()
+          return { transcript: text || null, debug: debug.join('; ') }
         }
 
         // Parse XML - format 2: <text> elements
         const tMatches = [...xml.matchAll(/<text[^>]*>([^<]*)<\/text>/g)]
         if (tMatches.length > 0) {
-          return tMatches.map(m => m[1].replace(/\n/g, ' ')).filter(Boolean)
+          const text = tMatches.map(m => m[1].replace(/\n/g, ' ')).filter(Boolean)
             .join(' ').replace(/\s+/g, ' ').trim()
+          return { transcript: text || null, debug: debug.join('; ') }
         }
 
-        return null
-      } catch {
-        return null
+        debug.push('unknown xml format')
+        return { transcript: null, debug: debug.join('; ') }
+      } catch (e) {
+        debug.push(`error: ${(e as Error).message}`)
+        return { transcript: null, debug: debug.join('; ') }
       }
     })
+
+    const transcript = result?.transcript
+    const debugInfo = result?.debug
 
     // Close browser early to free memory
     await browser.close().catch(() => {})
@@ -114,6 +151,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(404).json({
         error: 'No captions available for this video',
         text: null,
+        debug: debugInfo,
       })
     }
 
