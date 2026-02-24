@@ -31,6 +31,11 @@ export function isTikTokUrl(url: string): boolean {
   return /tiktok\.com\//i.test(url)
 }
 
+/** Check if a URL is a YouTube Short */
+export function isYouTubeShortsUrl(url: string): boolean {
+  return /youtube\.com\/shorts\//i.test(url) || /youtu\.be\//i.test(url)
+}
+
 /** Extract caption from og:description meta tag on the main Instagram page */
 export function extractCaptionFromMeta(html: string): string | null {
   // og:description contains: "80K likes, 19K comments - username on DATE: "CAPTION TEXT""

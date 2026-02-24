@@ -7,7 +7,7 @@ import { extractMicrodata } from '@application/extraction/extractMicrodata.ts'
 import { normalizeRecipe } from '@application/extraction/normalizeRecipe.ts'
 import { extractImageRecipe } from '@infrastructure/ocr/extractImageRecipe.ts'
 import { createImageRecipe } from '@application/extraction/createImageRecipe.ts'
-import { isInstagramUrl, isTikTokUrl, toInstagramEmbedUrl, extractCaptionFromEmbed, extractCaptionFromMeta } from '@application/extraction/extractInstagramCaption.ts'
+import { isInstagramUrl, isTikTokUrl, isYouTubeShortsUrl, toInstagramEmbedUrl, extractCaptionFromEmbed, extractCaptionFromMeta } from '@application/extraction/extractInstagramCaption.ts'
 import { parseTextRecipe } from '@application/extraction/parseTextRecipe.ts'
 import { createManualRecipe } from '@application/extraction/createManualRecipe.ts'
 import { transcribeInstagramVideo } from '@infrastructure/video/transcribeInstagramVideo.ts'
@@ -46,12 +46,15 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
     setExtractionStatus(null)
 
     try {
-      // TikTok video extraction — skip HTML fetch entirely since TikTok always
-      // blocks proxied requests and never has structured recipe data anyway.
-      if (isTikTokUrl(url)) {
+      // Short-form video platforms — skip HTML fetch entirely and go straight
+      // to video transcription + OCR since these sites block proxied requests
+      // and never have structured recipe data.
+      const isShortVideo = isTikTokUrl(url) || isYouTubeShortsUrl(url)
+      if (isShortVideo) {
+        const platform = isTikTokUrl(url) ? 'TikTok' : 'YouTube Short'
         const totalSteps = 2
 
-        // Layer 4: Video transcription (recipe spoken in TikTok audio)
+        // Layer 4: Video transcription (recipe spoken in audio)
         setExtractionStatus({ message: 'Transcribing video audio…', step: 1, totalSteps })
         try {
           const transcript = await transcribeInstagramVideo(url)
@@ -85,7 +88,7 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
           // Frame OCR failed — fall through to error message
         }
 
-        setError("Couldn't extract a recipe from this TikTok. Try copying the recipe text from the comments and using Paste to import it, or screenshot it and use Photo import.")
+        setError(`Couldn't extract a recipe from this ${platform}. Try copying the recipe text from the comments and using Paste to import it, or screenshot it and use Photo import.`)
         return
       }
 
