@@ -2,8 +2,13 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 // @ts-expect-error -- @sparticuz/chromium default export typing mismatch
 import chromium from '@sparticuz/chromium'
 import puppeteer from 'puppeteer-core'
+import { execFileSync } from 'child_process'
+import { writeFileSync, readFileSync, unlinkSync } from 'fs'
+import path from 'path'
+// @ts-expect-error -- ffmpeg-static exports a string path
+import ffmpegPath from 'ffmpeg-static'
 
-export const maxDuration = 30
+export const maxDuration = 60
 
 function isBlockedUrl(raw: string): boolean {
   let parsed: URL
@@ -36,7 +41,8 @@ function isBlockedUrl(raw: string): boolean {
   return false
 }
 
-const VIDEO_URL_PATTERN = /\.(mp4|m4v)|video/i
+const WHISPER_URL = 'https://router.huggingface.co/hf-inference/models/openai/whisper-large-v3'
+const MAX_VIDEO_SIZE = 50 * 1024 * 1024 // 50MB
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const targetUrl = req.query.url
@@ -48,11 +54,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(403).json({ error: 'URL not allowed' })
   }
 
-  const mode = req.query.mode // 'video' to extract video URL instead of HTML
+  const mode = req.query.mode // 'transcribe' to extract video + transcribe audio
 
   res.setHeader('Access-Control-Allow-Origin', '*')
 
   let browser
+  const tmpFiles: string[] = []
   try {
     browser = await puppeteer.launch({
       args: chromium.args,
@@ -63,27 +70,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const page = await browser.newPage()
 
-    if (mode === 'video') {
-      // Video mode: intercept network responses to find video URLs
-      let videoUrl: string | null = null
+    if (mode === 'transcribe') {
+      const apiKey = process.env.HF_API_KEY
+      if (!apiKey) {
+        return res.status(500).json({ error: 'HF_API_KEY not configured on server' })
+      }
 
-      page.on('response', (response) => {
-        if (videoUrl) return
-        const reqUrl: string = response.url()
+      // Intercept video responses and capture the body directly
+      let videoBuffer: Buffer | null = null
+
+      page.on('response', async (response) => {
+        if (videoBuffer) return
         const contentType: string = response.headers()['content-type'] ?? ''
-        if (
-          contentType.includes('video/mp4') ||
-          contentType.includes('video/') ||
-          VIDEO_URL_PATTERN.test(reqUrl)
-        ) {
-          videoUrl = reqUrl
+        if (contentType.includes('video/mp4') || contentType.includes('video/')) {
+          try {
+            const buf = await response.buffer()
+            if (buf.length > 1000) { // skip tiny segments
+              videoBuffer = buf
+            }
+          } catch {}
         }
       })
 
       await page.goto(targetUrl, { waitUntil: 'networkidle2', timeout: 20000 }).catch(() => {})
 
-      // If no video found during initial load, try clicking play
-      if (!videoUrl) {
+      // If no video captured, try clicking play
+      if (!videoBuffer) {
         await page
           .evaluate(() => {
             const playBtn = document.querySelector('[aria-label="Play"]') as HTMLElement | null
@@ -92,22 +104,70 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           .catch(() => {})
 
         const deadline = Date.now() + 5000
-        while (!videoUrl && Date.now() < deadline) {
+        while (!videoBuffer && Date.now() < deadline) {
           await new Promise((r) => setTimeout(r, 500))
         }
       }
 
-      if (!videoUrl) {
-        return res.status(404).json({ error: 'No video URL found on page' })
+      // Close browser early to free memory
+      await browser.close().catch(() => {})
+      browser = null
+
+      if (!videoBuffer) {
+        return res.status(404).json({ error: 'No video found on page' })
       }
 
-      return res.status(200).json({ videoUrl })
+      if (videoBuffer.length > MAX_VIDEO_SIZE) {
+        return res.status(400).json({ error: 'Video exceeds 50MB size limit' })
+      }
+
+      // Convert mp4 to wav using ffmpeg
+      const tmpMp4 = path.join('/tmp', `video-${Date.now()}.mp4`)
+      const tmpWav = path.join('/tmp', `audio-${Date.now()}.wav`)
+      tmpFiles.push(tmpMp4, tmpWav)
+
+      writeFileSync(tmpMp4, videoBuffer)
+
+      try {
+        execFileSync(ffmpegPath as string, [
+          '-y', '-i', tmpMp4,
+          '-vn', '-ac', '1', '-ar', '16000', '-f', 'wav',
+          tmpWav,
+        ], { timeout: 15000, stdio: ['pipe', 'pipe', 'pipe'] })
+      } catch (ffmpegErr: any) {
+        const stderr = ffmpegErr?.stderr?.toString?.() ?? ''
+        return res.status(502).json({ error: `ffmpeg conversion failed: ${stderr.slice(-300)}` })
+      }
+
+      const wavBuffer = readFileSync(tmpWav)
+
+      // Send to HF Whisper
+      const whisperResponse = await fetch(WHISPER_URL, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'audio/wav',
+        },
+        body: wavBuffer,
+        signal: AbortSignal.timeout(30000),
+      })
+
+      if (!whisperResponse.ok) {
+        const errorText = await whisperResponse.text()
+        return res.status(502).json({
+          error: `Whisper API error (${whisperResponse.status}): ${errorText.slice(0, 200)}`,
+        })
+      }
+
+      const data = await whisperResponse.json()
+      const text = data.text ?? ''
+
+      return res.status(200).json({ text: text || null, error: text ? undefined : 'No speech detected' })
     }
 
     // Default mode: return rendered HTML
     await page.goto(targetUrl, { waitUntil: 'networkidle2', timeout: 20000 })
 
-    // Wait for JSON-LD recipe data to appear (many sites inject it via JS)
     await page
       .waitForFunction('!!document.querySelector(\'script[type="application/ld+json"]\')', {
         timeout: 10000,
@@ -124,6 +184,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } finally {
     if (browser) {
       await browser.close().catch(() => {})
+    }
+    for (const f of tmpFiles) {
+      try { unlinkSync(f) } catch {}
     }
   }
 }
