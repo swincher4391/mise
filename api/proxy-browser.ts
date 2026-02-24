@@ -76,61 +76,103 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(500).json({ error: 'HF_API_KEY not configured on server' })
       }
 
-      // Intercept video responses and capture the body directly
-      let videoBuffer: Buffer | null = null
-
-      page.on('response', async (response) => {
-        if (videoBuffer) return
-        const contentType: string = response.headers()['content-type'] ?? ''
-        if (contentType.includes('video/mp4') || contentType.includes('video/')) {
-          try {
-            const buf = await response.buffer()
-            if (buf.length > 1000) { // skip tiny segments
-              videoBuffer = buf
-            }
-          } catch {}
-        }
-      })
-
       await page.goto(targetUrl, { waitUntil: 'networkidle2', timeout: 20000 }).catch(() => {})
 
-      // If no video captured, try clicking play
-      if (!videoBuffer) {
-        await page
-          .evaluate(() => {
-            const playBtn = document.querySelector('[aria-label="Play"]') as HTMLElement | null
-            playBtn?.click()
-          })
-          .catch(() => {})
+      // Try clicking play to trigger video load
+      await page
+        .evaluate(() => {
+          const playBtn = document.querySelector('[aria-label="Play"]') as HTMLElement | null
+          playBtn?.click()
+        })
+        .catch(() => {})
 
-        const deadline = Date.now() + 5000
-        while (!videoBuffer && Date.now() < deadline) {
-          await new Promise((r) => setTimeout(r, 500))
+      await new Promise((r) => setTimeout(r, 2000))
+
+      // Extract the video src from the <video> element in the page
+      const videoSrc = await page.evaluate(() => {
+        const video = document.querySelector('video')
+        if (!video) return null
+        // Try blob URL — won't work, try currentSrc or src
+        const src = video.currentSrc || video.src || video.querySelector('source')?.src
+        if (src && !src.startsWith('blob:')) return src
+        return null
+      })
+
+      // If no direct src, download via the page's fetch context (preserves cookies)
+      const videoBase64 = await page.evaluate(async (src: string | null) => {
+        // Strategy 1: If we have a direct (non-blob) src, fetch it
+        if (src) {
+          try {
+            const resp = await fetch(src)
+            const buf = await resp.arrayBuffer()
+            const bytes = new Uint8Array(buf)
+            let binary = ''
+            for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i])
+            return btoa(binary)
+          } catch {}
         }
-      }
+
+        // Strategy 2: Use MediaRecorder to capture from the video element
+        const video = document.querySelector('video') as HTMLVideoElement | null
+        if (!video) return null
+
+        // Restart video from beginning
+        video.currentTime = 0
+        video.muted = true
+        await video.play().catch(() => {})
+
+        return new Promise<string | null>((resolve) => {
+          const stream = (video as any).captureStream?.() || (video as any).mozCaptureStream?.()
+          if (!stream) { resolve(null); return }
+
+          const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' })
+          const chunks: Blob[] = []
+
+          recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data) }
+          recorder.onstop = async () => {
+            const blob = new Blob(chunks, { type: 'video/webm' })
+            const buf = await blob.arrayBuffer()
+            const bytes = new Uint8Array(buf)
+            let binary = ''
+            for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i])
+            resolve(btoa(binary))
+          }
+
+          recorder.start()
+
+          // Record for the video's duration (or max 90s)
+          const duration = (video.duration || 60) * 1000
+          setTimeout(() => {
+            recorder.stop()
+            video.pause()
+          }, Math.min(duration + 500, 90000))
+        })
+      }, videoSrc)
 
       // Close browser early to free memory
       await browser.close().catch(() => {})
       browser = null
 
-      if (!videoBuffer) {
+      if (!videoBase64) {
         return res.status(404).json({ error: 'No video found on page' })
       }
+
+      const videoBuffer = Buffer.from(videoBase64, 'base64')
 
       if (videoBuffer.length > MAX_VIDEO_SIZE) {
         return res.status(400).json({ error: 'Video exceeds 50MB size limit' })
       }
 
-      // Convert mp4 to wav using ffmpeg
-      const tmpMp4 = path.join('/tmp', `video-${Date.now()}.mp4`)
+      // Convert video to wav using ffmpeg (input may be mp4 or webm)
+      const tmpVideo = path.join('/tmp', `video-${Date.now()}`)
       const tmpWav = path.join('/tmp', `audio-${Date.now()}.wav`)
-      tmpFiles.push(tmpMp4, tmpWav)
+      tmpFiles.push(tmpVideo, tmpWav)
 
-      writeFileSync(tmpMp4, videoBuffer)
+      writeFileSync(tmpVideo, videoBuffer)
 
       try {
         execFileSync(ffmpegPath as string, [
-          '-y', '-i', tmpMp4,
+          '-y', '-i', tmpVideo,
           '-vn', '-ac', '1', '-ar', '16000', '-f', 'wav',
           tmpWav,
         ], { timeout: 15000, stdio: ['pipe', 'pipe', 'pipe'] })
