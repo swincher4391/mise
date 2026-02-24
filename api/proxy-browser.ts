@@ -235,9 +235,54 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       const data = await whisperResponse.json()
-      const text = data.text ?? ''
+      const rawTranscript = data.text ?? ''
 
-      return res.status(200).json({ text: text || null, error: text ? undefined : 'No speech detected' })
+      if (!rawTranscript) {
+        return res.status(200).json({ text: null, error: 'No speech detected' })
+      }
+
+      // Post-process: ask LLM to structure the raw transcript into a recipe
+      try {
+        const structureResponse = await fetch(VISION_URL, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: VISION_MODEL,
+            messages: [
+              {
+                role: 'user',
+                content: `Below is a raw audio transcript from a cooking video. Extract and structure it into a recipe. Return ONLY the recipe as plain text with:
+- Title on the first line
+- "Ingredients:" section with each ingredient on its own line, prefixed with "- "
+- "Instructions:" section with numbered steps
+
+If the transcript does not contain a recipe, return an empty string.
+
+Transcript:
+${rawTranscript}`,
+              },
+            ],
+            max_tokens: 2048,
+          }),
+          signal: AbortSignal.timeout(30000),
+        })
+
+        if (structureResponse.ok) {
+          const structureData = await structureResponse.json()
+          const structured = structureData.choices?.[0]?.message?.content ?? ''
+          const cleaned = structured.replace(/```\w*\n?/g, '').replace(/\*\*/g, '').trim()
+          if (cleaned) {
+            return res.status(200).json({ text: cleaned })
+          }
+        }
+      } catch {
+        // Structuring failed — fall through to raw transcript
+      }
+
+      return res.status(200).json({ text: rawTranscript })
     }
 
     if (mode === 'ocr-frames') {
