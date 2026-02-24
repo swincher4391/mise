@@ -1,12 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-// @ts-expect-error -- puppeteer-extra default export typing mismatch
+// @ts-expect-error -- @sparticuz/chromium default export typing mismatch
 import chromium from '@sparticuz/chromium'
-// @ts-expect-error -- puppeteer-extra default export typing mismatch
-import puppeteerExtra from 'puppeteer-extra'
-// @ts-expect-error -- puppeteer-extra-plugin-stealth default export typing mismatch
-import StealthPlugin from 'puppeteer-extra-plugin-stealth'
-
-puppeteerExtra.use(StealthPlugin())
+import puppeteer from 'puppeteer-core'
 
 export const maxDuration = 30
 
@@ -59,7 +54,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   let browser
   try {
-    browser = await puppeteerExtra.launch({
+    browser = await puppeteer.launch({
       args: chromium.args,
       defaultViewport: chromium.defaultViewport,
       executablePath: await chromium.executablePath(),
@@ -72,7 +67,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Video mode: intercept network responses to find video URLs
       let videoUrl: string | null = null
 
-      page.on('response', (response: any) => {
+      page.on('response', (response) => {
         if (videoUrl) return
         const reqUrl: string = response.url()
         const contentType: string = response.headers()['content-type'] ?? ''
