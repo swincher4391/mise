@@ -13,11 +13,18 @@ import { createManualRecipe } from '@application/extraction/createManualRecipe.t
 import { transcribeInstagramVideo } from '@infrastructure/video/transcribeInstagramVideo.ts'
 import { extractFrameRecipe } from '@infrastructure/video/extractFrameRecipe.ts'
 
+export interface ExtractionStatus {
+  message: string
+  step: number
+  totalSteps: number
+}
+
 interface UseRecipeExtractionResult {
   recipe: Recipe | null
   isLoading: boolean
   error: string | null
   ocrText: string | null
+  extractionStatus: ExtractionStatus | null
   extract: (url: string) => Promise<void>
   extractFromImage: (imageBase64: string) => Promise<void>
   setRecipe: (recipe: Recipe | null) => void
@@ -29,18 +36,23 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [ocrText, setOcrText] = useState<string | null>(null)
+  const [extractionStatus, setExtractionStatus] = useState<ExtractionStatus | null>(null)
 
   const extract = useCallback(async (url: string) => {
     setIsLoading(true)
     setError(null)
     setRecipe(null)
     setOcrText(null)
+    setExtractionStatus(null)
 
     try {
       // TikTok video extraction — skip HTML fetch entirely since TikTok always
       // blocks proxied requests and never has structured recipe data anyway.
       if (isTikTokUrl(url)) {
+        const totalSteps = 2
+
         // Layer 4: Video transcription (recipe spoken in TikTok audio)
+        setExtractionStatus({ message: 'Transcribing video audio…', step: 1, totalSteps })
         try {
           const transcript = await transcribeInstagramVideo(url)
           if (transcript) {
@@ -57,6 +69,7 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
         }
 
         // Layer 5: Video frame OCR (text overlaid on video, step by step)
+        setExtractionStatus({ message: 'Reading video frames…', step: 2, totalSteps })
         try {
           const frameText = await extractFrameRecipe(url)
           if (frameText) {
@@ -76,6 +89,10 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
         return
       }
 
+      const isInstagram = isInstagramUrl(url)
+      const totalSteps = isInstagram ? 5 : 2
+
+      setExtractionStatus({ message: 'Fetching page…', step: 1, totalSteps })
       let html = await fetchViaProxy(url)
 
       // Detect bot protection / block pages
@@ -92,6 +109,7 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
 
       if (isBlocked) {
         // Auto-retry with headless browser fallback
+        setExtractionStatus({ message: 'Retrying with headless browser…', step: 1, totalSteps })
         try {
           html = await fetchViaBrowser(url)
         } catch {
@@ -101,6 +119,7 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
       }
 
       // Layer 1: JSON-LD
+      setExtractionStatus({ message: 'Scanning for recipe data…', step: 2, totalSteps })
       const recipes = extractJsonLd(html)
       if (recipes.length > 0) {
         const normalized = normalizeRecipe(recipes[0], url, html)
@@ -118,7 +137,8 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
       }
 
       // Layer 3: Instagram caption extraction
-      if (isInstagramUrl(url)) {
+      if (isInstagram) {
+        setExtractionStatus({ message: 'Checking Instagram captions…', step: 3, totalSteps })
         // Try og:description from the main page first (works even when embedding is disabled)
         const metaCaption = extractCaptionFromMeta(html)
         if (metaCaption) {
@@ -151,6 +171,7 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
           }
         }
         // Layer 4: Video transcription (recipe spoken in reel audio)
+        setExtractionStatus({ message: 'Transcribing video audio…', step: 4, totalSteps })
         try {
           const transcript = await transcribeInstagramVideo(url)
           if (transcript) {
@@ -167,6 +188,7 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
         }
 
         // Layer 5: Video frame OCR (text overlaid on video, step by step)
+        setExtractionStatus({ message: 'Reading video frames…', step: 5, totalSteps })
         try {
           const frameText = await extractFrameRecipe(url)
           if (frameText) {
@@ -192,6 +214,7 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
       setError(message)
     } finally {
       setIsLoading(false)
+      setExtractionStatus(null)
     }
   }, [])
 
@@ -200,6 +223,7 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
     setError(null)
     setRecipe(null)
     setOcrText(null)
+    setExtractionStatus({ message: 'Analyzing photo…', step: 1, totalSteps: 1 })
 
     try {
       // Try HF Vision API via serverless function
@@ -216,6 +240,7 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
     } catch (apiError) {
       // Log the API error for debugging, then fall back to Tesseract.js OCR
       console.warn('[Mise] Vision API failed, falling back to OCR:', apiError instanceof Error ? apiError.message : apiError)
+      setExtractionStatus({ message: 'Falling back to OCR…', step: 1, totalSteps: 1 })
       try {
         const { extractTextFromImage } = await import('@infrastructure/ocr/tesseractOcr.ts')
         const text = await extractTextFromImage(imageBase64)
@@ -231,10 +256,11 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
       }
     } finally {
       setIsLoading(false)
+      setExtractionStatus(null)
     }
   }, [])
 
   const clearOcrText = useCallback(() => setOcrText(null), [])
 
-  return { recipe, isLoading, error, ocrText, extract, extractFromImage, setRecipe, clearOcrText }
+  return { recipe, isLoading, error, ocrText, extractionStatus, extract, extractFromImage, setRecipe, clearOcrText }
 }
