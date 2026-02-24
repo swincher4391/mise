@@ -55,18 +55,10 @@ const TOTAL_FRAMES = FRAMES_PER_GRID * NUM_GRIDS // 36 frames across the video
  * Returns plain-text transcript or null if unavailable.
  */
 async function fetchYouTubeTranscript(videoId: string): Promise<string | null> {
-  // Step 1: Get innertube API key from watch page
-  const pageResp = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    },
-    signal: AbortSignal.timeout(10000),
-  })
-  const html = await pageResp.text()
-  const apiKey = html.match(/"INNERTUBE_API_KEY":"([^"]+)"/)?.[1]
-  if (!apiKey) return null
+  // Use the well-known public innertube API key (same for all users/sessions)
+  const apiKey = 'AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8'
 
-  // Step 2: Call player endpoint with Android client context
+  // Call player endpoint with Android client context to get caption tracks
   const playerResp = await fetch(`https://www.youtube.com/youtubei/v1/player?key=${apiKey}`, {
     method: 'POST',
     headers: {
@@ -180,6 +172,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const ytId = targetUrl.match(/(?:shorts\/|youtu\.be\/|[?&]v=)([^&?/\s]{11})/)?.[1]
     if (ytId) {
+      let transcriptError = ''
       try {
         const transcript = await fetchYouTubeTranscript(ytId)
         if (transcript && transcript.length > 30) {
@@ -222,10 +215,18 @@ ${transcript}`,
 
           // LLM structuring failed — return raw transcript
           return res.status(200).json({ text: transcript })
+        } else {
+          transcriptError = transcript ? 'Transcript too short' : 'No captions available'
         }
-      } catch {
-        // Caption fetch failed — fall through to Puppeteer approach
+      } catch (err) {
+        transcriptError = err instanceof Error ? err.message : 'Caption fetch failed'
       }
+
+      // YouTube videos can't be captured by Vercel's headless Chrome (no codecs),
+      // so don't fall through to Puppeteer — return error immediately.
+      return res.status(404).json({
+        error: `YouTube transcript unavailable: ${transcriptError}. This video may not have captions.`,
+      })
     }
   }
 
