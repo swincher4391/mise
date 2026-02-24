@@ -45,7 +45,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'audio/mp4',
+        'Content-Type': 'audio/mpeg',
       },
       body: videoBuffer,
       signal: AbortSignal.timeout(45000),
