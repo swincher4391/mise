@@ -39,7 +39,9 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
       payload.st = []
     }
 
-    const html = buildRecipeHtml(payload)
+    // Build the full share URL so the CTA can deep-link back into Mise
+    const shareUrl = `https://mise.swinch.dev/api/r?d=${encodeURIComponent(encoded)}`
+    const html = buildRecipeHtml(payload, shareUrl)
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8')
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')

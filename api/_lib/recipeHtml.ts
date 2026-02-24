@@ -54,7 +54,7 @@ function formatTime(minutes: number): string {
   return `${m}m`
 }
 
-export function buildRecipeHtml(payload: SharePayload): string {
+export function buildRecipeHtml(payload: SharePayload, shareUrl?: string): string {
   // Build JSON-LD
   const jsonLd: Record<string, unknown> = {
     '@context': 'https://schema.org',
@@ -195,7 +195,7 @@ ${stepsHtml}
 
 ${nutritionHtml}
 
-  <a class="cta" href="https://mise.swinch.dev">Open in Mise</a>
+  <a class="cta" href="https://mise.swinch.dev${shareUrl ? `?url=${encodeURIComponent(shareUrl)}` : ''}">Open in Mise</a>
 
   <div class="footer">
     Shared from <a href="https://mise.swinch.dev">Mise</a> — recipe extraction for any URL.

@@ -42,7 +42,40 @@ function isBlockedUrl(raw: string): boolean {
 }
 
 const WHISPER_URL = 'https://router.huggingface.co/hf-inference/models/openai/whisper-large-v3'
+const VISION_URL = 'https://router.huggingface.co/v1/chat/completions'
+const VISION_MODEL = 'Qwen/Qwen2.5-VL-7B-Instruct:hyperbolic'
 const MAX_VIDEO_SIZE = 50 * 1024 * 1024 // 50MB
+const FRAMES_PER_GRID = 9 // 3x3 tile per image
+const NUM_GRIDS = 4 // Qwen max 4 images per request
+const TOTAL_FRAMES = FRAMES_PER_GRID * NUM_GRIDS // 36 frames across the video
+
+async function uploadFrameToTempHost(buffer: Buffer, index: number): Promise<string> {
+  const boundary = '----MiseBoundary' + Date.now() + index
+  const header = `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="frame-${index}.jpg"\r\nContent-Type: image/jpeg\r\n\r\n`
+  const footer = `\r\n--${boundary}--\r\n`
+
+  const body = Buffer.concat([
+    Buffer.from(header, 'utf-8'),
+    buffer,
+    Buffer.from(footer, 'utf-8'),
+  ])
+
+  const response = await fetch('https://tmpfiles.org/api/v1/upload', {
+    method: 'POST',
+    headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}` },
+    body,
+  })
+
+  if (!response.ok) {
+    throw new Error(`Frame upload failed (${response.status})`)
+  }
+
+  const data: any = await response.json()
+  const pageUrl: string = data?.data?.url
+  if (!pageUrl) throw new Error('No URL returned from image host')
+
+  return pageUrl.replace('tmpfiles.org/', 'tmpfiles.org/dl/')
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const targetUrl = req.query.url
@@ -205,6 +238,207 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const text = data.text ?? ''
 
       return res.status(200).json({ text: text || null, error: text ? undefined : 'No speech detected' })
+    }
+
+    if (mode === 'ocr-frames') {
+      const apiKey = process.env.HF_API_KEY
+      if (!apiKey) {
+        return res.status(500).json({ error: 'HF_API_KEY not configured on server' })
+      }
+
+      await page.goto(targetUrl, { waitUntil: 'networkidle2', timeout: 20000 }).catch(() => {})
+
+      // Try clicking play to trigger video load
+      await page
+        .evaluate(() => {
+          const playBtn = document.querySelector('[aria-label="Play"]') as HTMLElement | null
+          playBtn?.click()
+        })
+        .catch(() => {})
+
+      await new Promise((r) => setTimeout(r, 2000))
+
+      // Extract the video src from the <video> element
+      const videoSrc = await page.evaluate(() => {
+        const video = document.querySelector('video')
+        if (!video) return null
+        const src = video.currentSrc || video.src || video.querySelector('source')?.src
+        if (src && !src.startsWith('blob:')) return src
+        return null
+      })
+
+      // Capture video — record ~30s to catch steps that appear throughout
+      const videoBase64 = await page.evaluate(async (src: string | null) => {
+        if (src) {
+          try {
+            const resp = await fetch(src)
+            const buf = await resp.arrayBuffer()
+            const bytes = new Uint8Array(buf)
+            let binary = ''
+            for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i])
+            return btoa(binary)
+          } catch {}
+        }
+
+        const video = document.querySelector('video') as HTMLVideoElement | null
+        if (!video) return null
+
+        video.currentTime = 0
+        video.muted = true
+        await video.play().catch(() => {})
+
+        return new Promise<string | null>((resolve) => {
+          const stream = (video as any).captureStream?.() || (video as any).mozCaptureStream?.()
+          if (!stream) { resolve(null); return }
+
+          const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' })
+          const chunks: Blob[] = []
+
+          recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data) }
+          recorder.onstop = async () => {
+            const blob = new Blob(chunks, { type: 'video/webm' })
+            const buf = await blob.arrayBuffer()
+            const bytes = new Uint8Array(buf)
+            let binary = ''
+            for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i])
+            resolve(btoa(binary))
+          }
+
+          recorder.start()
+          const duration = (video.duration || 30) * 1000
+          setTimeout(() => {
+            recorder.stop()
+            video.pause()
+          }, Math.min(duration + 500, 30000))
+        })
+      }, videoSrc)
+
+      // Close browser early to free memory
+      await browser.close().catch(() => {})
+      browser = null
+
+      if (!videoBase64) {
+        return res.status(404).json({ error: 'No video found on page' })
+      }
+
+      const videoBuffer = Buffer.from(videoBase64, 'base64')
+      if (videoBuffer.length > MAX_VIDEO_SIZE) {
+        return res.status(400).json({ error: 'Video exceeds 50MB size limit' })
+      }
+
+      // Write video to tmp and extract evenly-spaced frames with ffmpeg
+      const tmpVideo = path.join('/tmp', `ocr-video-${Date.now()}`)
+      tmpFiles.push(tmpVideo)
+      writeFileSync(tmpVideo, videoBuffer)
+
+      // Get total frame count to calculate interval
+      let totalFrames = 300 // default estimate
+      try {
+        // ffmpeg writes frame count to stderr and exits non-zero for -f null
+        execFileSync(ffmpegPath as string, [
+          '-i', tmpVideo,
+          '-map', '0:v:0', '-c', 'copy', '-f', 'null', '-',
+        ], { timeout: 10000, stdio: ['pipe', 'pipe', 'pipe'] })
+      } catch (probeErr: any) {
+        const stderr = probeErr?.stderr?.toString?.() ?? ''
+        const frameMatch = stderr.match(/frame=\s*(\d+)/)
+        if (frameMatch) totalFrames = parseInt(frameMatch[1], 10)
+      }
+
+      // Use ffmpeg's tile filter to select 16 frames and arrange them into 4 grid
+      // collages (2x2 each). This gives 16 moments of coverage within the 4-image API limit.
+      const interval = Math.max(1, Math.floor(totalFrames / TOTAL_FRAMES))
+      const ts = Date.now()
+      const gridPattern = path.join('/tmp', `ocr-grid-${ts}-%03d.jpg`)
+
+      try {
+        execFileSync(ffmpegPath as string, [
+          '-y', '-i', tmpVideo,
+          '-vf', `select='not(mod(n\\,${interval}))',setpts=N/FRAME_RATE/TB,tile=3x3`,
+          '-frames:v', String(NUM_GRIDS),
+          '-q:v', '3',
+          gridPattern,
+        ], { timeout: 15000, stdio: ['pipe', 'pipe', 'pipe'] })
+      } catch (ffmpegErr: any) {
+        const stderr = ffmpegErr?.stderr?.toString?.() ?? ''
+        return res.status(502).json({ error: `ffmpeg frame extraction failed: ${stderr.slice(-300)}` })
+      }
+
+      // Upload grid collages to tmpfiles.org
+      const frameUrls: string[] = []
+      for (let i = 1; i <= NUM_GRIDS; i++) {
+        const gridPath = gridPattern.replace('%03d', String(i).padStart(3, '0'))
+        tmpFiles.push(gridPath)
+        try {
+          const gridBuffer = readFileSync(gridPath)
+          const url = await uploadFrameToTempHost(gridBuffer, i)
+          frameUrls.push(url)
+        } catch {
+          // Grid may not exist if video was shorter than expected
+          break
+        }
+      }
+
+      if (frameUrls.length === 0) {
+        return res.status(502).json({ error: 'No frame grids could be extracted from video' })
+      }
+
+      // Send all frame URLs to Qwen vision model in a single prompt
+      const imageContent = frameUrls.map((url) => ({
+        type: 'image_url' as const,
+        image_url: { url },
+      }))
+
+      const visionResponse = await fetch(VISION_URL, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: VISION_MODEL,
+          messages: [
+            {
+              role: 'user',
+              content: [
+                {
+                  type: 'text',
+                  text: `These are 3x3 grid collages of frames from a cooking video, in chronological order (left-to-right, top-to-bottom within each grid, then next grid). Each grid contains 9 frames showing different moments. Recipe steps appear as text overlaid on the video — each step shows briefly then disappears, so different frames capture different steps.
+
+Read ALL text visible across ALL grids and ALL frames within each grid. Combine them into the complete recipe in chronological order. Do not skip any steps — even if text is small, read it carefully. Ingredients are implied by the steps (e.g. "cook the chicken" implies chicken).
+
+Return the recipe as plain text with:
+- Title on the first line (infer from the steps if not shown)
+- "Instructions:" section with numbered steps in order
+
+If no recipe text is visible in any frame, return an empty string.`,
+                },
+                ...imageContent,
+              ],
+            },
+          ],
+          max_tokens: 2048,
+        }),
+        signal: AbortSignal.timeout(30000),
+      })
+
+      if (!visionResponse.ok) {
+        const errorText = await visionResponse.text()
+        return res.status(502).json({
+          error: `Vision API error (${visionResponse.status}): ${errorText.slice(0, 200)}`,
+        })
+      }
+
+      const visionData = await visionResponse.json()
+      let extractedText = visionData.choices?.[0]?.message?.content ?? ''
+
+      // Strip markdown code fences and bold markers the model sometimes adds
+      extractedText = extractedText
+        .replace(/```\w*\n?/g, '')
+        .replace(/\*\*/g, '')
+        .trim()
+
+      return res.status(200).json({ text: extractedText || null })
     }
 
     // Default mode: return rendered HTML

@@ -11,11 +11,15 @@ export interface ParsedTextRecipe {
  * by format (bullets → ingredients, numbered → steps).
  */
 export function parseTextRecipe(text: string): ParsedTextRecipe {
-  const lines = text.split('\n').filter((l) => l.trim())
+  let lines = text.split('\n').filter((l) => l.trim())
   if (lines.length === 0) return { title: '', ingredientLines: [], stepLines: [] }
 
-  // First line is the title — strip leading symbols, list markers, etc.
-  const title = lines[0].replace(/^[<\u00ae=\-[\]0-9.]+\s*/, '').trim()
+
+  // First line is the title — strip leading symbols, list markers, prefixes, etc.
+  const title = lines[0]
+    .replace(/^[<\u00ae=\-[\]0-9.]+\s*/, '')
+    .replace(/^Title:\s*/i, '')
+    .trim()
 
   const ingredientLines: string[] = []
   const stepLines: string[] = []

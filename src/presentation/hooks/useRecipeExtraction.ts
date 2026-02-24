@@ -11,6 +11,7 @@ import { isInstagramUrl, toInstagramEmbedUrl, extractCaptionFromEmbed, extractCa
 import { parseTextRecipe } from '@application/extraction/parseTextRecipe.ts'
 import { createManualRecipe } from '@application/extraction/createManualRecipe.ts'
 import { transcribeInstagramVideo } from '@infrastructure/video/transcribeInstagramVideo.ts'
+import { extractFrameRecipe } from '@infrastructure/video/extractFrameRecipe.ts'
 
 interface UseRecipeExtractionResult {
   recipe: Recipe | null
@@ -123,7 +124,23 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
             }
           }
         } catch {
-          // Transcription failed — fall through to error message
+          // Transcription failed — fall through to frame OCR
+        }
+
+        // Layer 5: Video frame OCR (text overlaid on video, step by step)
+        try {
+          const frameText = await extractFrameRecipe(url)
+          if (frameText) {
+            const parsed = parseTextRecipe(frameText)
+            if (parsed.ingredientLines.length > 0 || parsed.stepLines.length > 0) {
+              const recipe = createManualRecipe({ ...parsed, sourceUrl: url })
+              recipe.extractionLayer = 'text'
+              setRecipe(recipe)
+              return
+            }
+          }
+        } catch {
+          // Frame OCR failed — fall through to error message
         }
 
         setError("Couldn't extract a recipe from this Instagram post. The recipe may be in the comments — try copying the recipe text from the caption or comments and using Paste to import it, or screenshot it and use Photo import.")
