@@ -1,36 +1,120 @@
 /**
- * YouTube transcript extraction via innertube player API.
- * Uses Edge Runtime for Cloudflare's network (not Vercel's datacenter IPs).
+ * YouTube transcript extraction using Puppeteer.
+ * Loads the YouTube page in headless Chrome and extracts captions from inside
+ * the page's JavaScript context (where the browser has full session cookies).
  */
+import type { VercelRequest, VercelResponse } from '@vercel/node'
+// @ts-expect-error -- @sparticuz/chromium default export typing mismatch
+import chromium from '@sparticuz/chromium'
+import puppeteer from 'puppeteer-core'
 
-export const config = {
-  runtime: 'edge',
-}
+export const maxDuration = 60
 
 const VISION_URL = 'https://router.huggingface.co/v1/chat/completions'
 const VISION_MODEL = 'Qwen/Qwen2.5-VL-7B-Instruct:hyperbolic'
 
-export default async function handler(req: Request): Promise<Response> {
-  const url = new URL(req.url)
-  const videoId = url.searchParams.get('videoId')
-
-  if (!videoId || !/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
-    return Response.json({ error: 'Missing or invalid videoId parameter' }, { status: 400 })
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  const videoId = req.query.videoId
+  if (!videoId || typeof videoId !== 'string' || !/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
+    return res.status(400).json({ error: 'Missing or invalid videoId parameter' })
   }
 
   const apiKey = process.env.HF_API_KEY
   if (!apiKey) {
-    return Response.json({ error: 'HF_API_KEY not configured' }, { status: 500 })
+    return res.status(500).json({ error: 'HF_API_KEY not configured' })
   }
 
+  res.setHeader('Access-Control-Allow-Origin', '*')
+
+  let browser
   try {
-    const transcript = await fetchYouTubeTranscript(videoId)
+    browser = await puppeteer.launch({
+      args: chromium.args,
+      defaultViewport: chromium.defaultViewport,
+      executablePath: await chromium.executablePath(),
+      headless: chromium.headless,
+    })
+
+    const page = await browser.newPage()
+
+    // Navigate to YouTube watch page
+    await page.goto(`https://www.youtube.com/watch?v=${videoId}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 15000,
+    }).catch(() => {})
+
+    // Wait for YouTube player to initialize
+    await new Promise((r) => setTimeout(r, 3000))
+
+    // Extract caption text from inside the page's JS context.
+    // The browser has full session cookies, so the timedtext URL works.
+    const transcript = await page.evaluate(async () => {
+      try {
+        // Strategy 1: Extract ytInitialPlayerResponse from the page
+        const scripts = document.querySelectorAll('script')
+        let playerResponse = null
+
+        for (const script of scripts) {
+          const text = script.textContent || ''
+          const match = text.match(/var ytInitialPlayerResponse\s*=\s*(\{.*?\});/s)
+            || text.match(/ytInitialPlayerResponse\s*=\s*(\{.*?\});/s)
+          if (match) {
+            try { playerResponse = JSON.parse(match[1]) } catch {}
+            break
+          }
+        }
+
+        // Also try the global variable
+        if (!playerResponse) {
+          playerResponse = (window as any).ytInitialPlayerResponse
+        }
+
+        if (!playerResponse?.captions) return null
+
+        const tracks = playerResponse.captions?.playerCaptionsTracklistRenderer?.captionTracks
+        if (!tracks || tracks.length === 0) return null
+
+        // Prefer English track
+        const track = tracks.find((t: any) => t.languageCode === 'en') || tracks[0]
+        if (!track?.baseUrl) return null
+
+        // Fetch captions from inside the page context (has cookies!)
+        const resp = await fetch(track.baseUrl)
+        if (!resp.ok) return null
+        const xml = await resp.text()
+        if (!xml || xml.length < 10) return null
+
+        // Parse XML - format 1: <p> with <s> segments
+        const pMatches = [...xml.matchAll(/<p\s[^>]*>([\s\S]*?)<\/p>/g)]
+        if (pMatches.length > 0) {
+          return pMatches.map(p => {
+            const segs = [...p[1].matchAll(/<s[^>]*>([^<]*)<\/s>/g)]
+            return segs.map(s => s[1]).join(' ')
+          }).filter(t => t.trim()).join(' ').replace(/\s+/g, ' ').trim()
+        }
+
+        // Parse XML - format 2: <text> elements
+        const tMatches = [...xml.matchAll(/<text[^>]*>([^<]*)<\/text>/g)]
+        if (tMatches.length > 0) {
+          return tMatches.map(m => m[1].replace(/\n/g, ' ')).filter(Boolean)
+            .join(' ').replace(/\s+/g, ' ').trim()
+        }
+
+        return null
+      } catch {
+        return null
+      }
+    })
+
+    // Close browser early to free memory
+    await browser.close().catch(() => {})
+    browser = null
 
     if (!transcript || transcript.length < 30) {
-      return Response.json(
-        { error: 'No captions available for this video', text: null },
-        { status: 404 },
-      )
+      return res.status(404).json({
+        error: 'No captions available for this video',
+        text: null,
+      })
     }
 
     // Structure raw caption text into a recipe via LLM
@@ -67,163 +151,20 @@ ${transcript}`,
         const structured = structureData.choices?.[0]?.message?.content ?? ''
         const cleaned = structured.replace(/```\w*\n?/g, '').replace(/\*\*/g, '').trim()
         if (cleaned) {
-          return Response.json({ text: cleaned })
+          return res.status(200).json({ text: cleaned })
         }
       }
     } catch {
       // Structuring failed — return raw transcript
     }
 
-    return Response.json({ text: transcript })
+    return res.status(200).json({ text: transcript })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'
-    return Response.json({ error: message, text: null }, { status: 502 })
+    return res.status(502).json({ error: message, text: null })
+  } finally {
+    if (browser) {
+      await browser.close().catch(() => {})
+    }
   }
-}
-
-async function fetchYouTubeTranscript(videoId: string): Promise<string | null> {
-  const innertubeKey = 'AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8'
-
-  // Step 1: Fetch watch page to establish session cookies
-  const pageResp = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
-    headers: {
-      'User-Agent':
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Accept-Language': 'en-US,en;q=0.9',
-      'Cookie': 'CONSENT=YES+cb.20210328-17-p0.en+FX+299',
-    },
-    signal: AbortSignal.timeout(10000),
-  })
-
-  // Collect cookies from page response
-  const setCookies = pageResp.headers.getSetCookie?.() ?? []
-  const cookieStr =
-    setCookies.map((c: string) => c.split(';')[0]).join('; ') +
-    '; CONSENT=YES+cb.20210328-17-p0.en+FX+299'
-
-  // Step 2: Call player endpoint with Android client + session cookies
-  const playerResp = await fetch(
-    `https://www.youtube.com/youtubei/v1/player?key=${innertubeKey}`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'com.google.android.youtube/20.10.38 (Linux; U; Android 14; en_US)',
-        Cookie: cookieStr,
-      },
-      body: JSON.stringify({
-        context: {
-          client: {
-            clientName: 'ANDROID',
-            clientVersion: '20.10.38',
-            androidSdkVersion: 34,
-            hl: 'en',
-            gl: 'US',
-          },
-        },
-        videoId,
-      }),
-      signal: AbortSignal.timeout(10000),
-    },
-  )
-
-  if (!playerResp.ok) {
-    throw new Error(`Player API returned ${playerResp.status}`)
-  }
-
-  const playerData = await playerResp.json()
-  const playStatus = playerData.playabilityStatus?.status ?? 'unknown'
-  const tracks = playerData.captions?.playerCaptionsTracklistRenderer?.captionTracks
-
-  if (!tracks || tracks.length === 0) {
-    // Fallback: try extracting caption URL from the page HTML
-    const html = await pageResp.clone().text().catch(() => '')
-    return extractTranscriptFromPageHtml(html, cookieStr)
-      ?? (() => { throw new Error(`No caption tracks (playability: ${playStatus})`) })()
-  }
-
-  // Step 3: Fetch caption text with session cookies (prefer English)
-  const enTrack = tracks.find((t: any) => t.languageCode === 'en') ?? tracks[0]
-  const captionResp = await fetch(enTrack.baseUrl, {
-    headers: { Cookie: cookieStr },
-    signal: AbortSignal.timeout(10000),
-  })
-
-  if (!captionResp.ok) {
-    throw new Error(`Caption fetch returned ${captionResp.status}`)
-  }
-
-  const captionXml = await captionResp.text()
-  if (!captionXml || captionXml.length === 0) {
-    throw new Error('Caption URL returned empty response')
-  }
-
-  return parseCaptionXml(captionXml)
-}
-
-function extractTranscriptFromPageHtml(
-  html: string,
-  _cookieStr: string,
-): string | null {
-  // Try to extract caption text from ytInitialPlayerResponse in the page HTML
-  const playerMatch =
-    html.match(/var ytInitialPlayerResponse\s*=\s*(\{.*?\});/s) ??
-    html.match(/ytInitialPlayerResponse\s*=\s*(\{.*?\});/s)
-
-  if (!playerMatch) return null
-
-  try {
-    const playerData = JSON.parse(playerMatch[1])
-    const tracks =
-      playerData.captions?.playerCaptionsTracklistRenderer?.captionTracks
-    if (!tracks || tracks.length === 0) return null
-
-    // Caption URLs from the page HTML typically return empty when fetched
-    // server-side (ip=0.0.0.0), but we try anyway
-    return null
-  } catch {
-    return null
-  }
-}
-
-function parseCaptionXml(xml: string): string | null {
-  // Format 1: <p> elements with <s> word segments
-  const paragraphs = [...xml.matchAll(/<p\s[^>]*>([\s\S]*?)<\/p>/g)]
-  if (paragraphs.length > 0) {
-    const lines = paragraphs
-      .map((p) => {
-        const segments = [...p[1].matchAll(/<s[^>]*>([^<]*)<\/s>/g)]
-        return segments
-          .map((s) => s[1])
-          .join(' ')
-          .replace(/&amp;/g, '&')
-          .replace(/&lt;/g, '<')
-          .replace(/&gt;/g, '>')
-          .replace(/&quot;/g, '"')
-          .replace(/&#39;/g, "'")
-      })
-      .filter((t) => t.trim())
-    const text = lines.join(' ').replace(/\s+/g, ' ').trim()
-    return text || null
-  }
-
-  // Format 2: <text> elements
-  const textMatches = [...xml.matchAll(/<text[^>]*>([^<]*)<\/text>/g)]
-  if (textMatches.length > 0) {
-    const lines = textMatches
-      .map((m) =>
-        m[1]
-          .replace(/&amp;/g, '&')
-          .replace(/&lt;/g, '<')
-          .replace(/&gt;/g, '>')
-          .replace(/&quot;/g, '"')
-          .replace(/&#39;/g, "'")
-          .replace(/\n/g, ' '),
-      )
-      .filter(Boolean)
-    const text = lines.join(' ').replace(/\s+/g, ' ').trim()
-    return text || null
-  }
-
-  return null
 }
