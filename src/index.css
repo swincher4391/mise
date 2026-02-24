@@ -173,6 +173,59 @@ body {
   color: #666;
 }
 
+/* Extraction Status Bar */
+.extraction-status {
+  text-align: center;
+  padding: 1.25rem 1rem;
+  color: #666;
+}
+
+.extraction-status-bar {
+  width: 100%;
+  height: 6px;
+  background: #e5e7eb;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 0.75rem;
+}
+
+.extraction-status-bar-fill {
+  height: 100%;
+  background: #6366f1;
+  border-radius: 3px;
+  transition: width 0.4s ease;
+  position: relative;
+}
+
+.extraction-status-bar-fill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.4) 50%,
+    transparent 100%
+  );
+  animation: status-bar-shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes status-bar-shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.extraction-status-message {
+  font-size: 0.9rem;
+  margin: 0;
+  color: #555;
+}
+
+.extraction-status-step {
+  color: #999;
+  font-size: 0.8rem;
+}
+
 /* Error */
 .error-display {
   background: #fef2f2;

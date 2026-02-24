@@ -1,14 +1,16 @@
 import { useState, useRef } from 'react'
 import { compressImage } from '@infrastructure/imageProcessing.ts'
+import type { ExtractionStatus } from '@presentation/hooks/useRecipeExtraction.ts'
 
 interface UrlInputProps {
   onExtract: (url: string) => void
   onImageSelected: (imageBase64: string) => void
   onPasteText: () => void
   isLoading: boolean
+  extractionStatus?: ExtractionStatus | null
 }
 
-export function UrlInput({ onExtract, onImageSelected, onPasteText, isLoading }: UrlInputProps) {
+export function UrlInput({ onExtract, onImageSelected, onPasteText, isLoading, extractionStatus }: UrlInputProps) {
   const [url, setUrl] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -56,7 +58,9 @@ export function UrlInput({ onExtract, onImageSelected, onPasteText, isLoading }:
         required
       />
       <button type="submit" disabled={isLoading || !url.trim()}>
-        {isLoading ? 'Extracting...' : 'Extract'}
+        {isLoading
+          ? (extractionStatus?.message ?? 'Extracting…')
+          : 'Extract'}
       </button>
       <button
         type="button"

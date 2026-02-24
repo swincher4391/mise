@@ -22,7 +22,7 @@ interface ExtractPageProps {
 }
 
 export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRecipeConsumed, sharedUrl, onSharedUrlConsumed, purchase, onRecipeExtracted }: ExtractPageProps) {
-  const { recipe, isLoading, error, ocrText, extract, extractFromImage, setRecipe, clearOcrText } = useRecipeExtraction()
+  const { recipe, isLoading, error, ocrText, extractionStatus, extract, extractFromImage, setRecipe, clearOcrText } = useRecipeExtraction()
   const [editableOcrText, setEditableOcrText] = useState('')
   const [showUpgrade, setShowUpgrade] = useState(false)
   const [upgradeFeature, setUpgradeFeature] = useState('')
@@ -112,10 +112,28 @@ export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRec
         onImageSelected={extractFromImage}
         onPasteText={() => setShowPasteInput(true)}
         isLoading={isLoading}
+        extractionStatus={extractionStatus}
       />
       {isLoading && (
-        <div className="loading">
-          <p>Extracting recipe...</p>
+        <div className="extraction-status" role="status" aria-live="polite">
+          {extractionStatus ? (
+            <>
+              <div className="extraction-status-bar">
+                <div
+                  className="extraction-status-bar-fill"
+                  style={{ width: `${(extractionStatus.step / extractionStatus.totalSteps) * 100}%` }}
+                />
+              </div>
+              <p className="extraction-status-message">
+                {extractionStatus.message}
+                <span className="extraction-status-step">
+                  {' '}Step {extractionStatus.step} of {extractionStatus.totalSteps}
+                </span>
+              </p>
+            </>
+          ) : (
+            <p>Extracting recipe…</p>
+          )}
         </div>
       )}
       {error && <ErrorDisplay error={error} />}
