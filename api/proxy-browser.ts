@@ -49,99 +49,6 @@ const FRAMES_PER_GRID = 9 // 3x3 tile per image
 const NUM_GRIDS = 4 // Qwen max 4 images per request
 const TOTAL_FRAMES = FRAMES_PER_GRID * NUM_GRIDS // 36 frames across the video
 
-/**
- * Fetch YouTube auto-generated captions via the innertube player API.
- * Uses Android client impersonation to avoid bot detection.
- * Returns plain-text transcript or null if unavailable.
- */
-async function fetchYouTubeTranscript(videoId: string): Promise<string | null> {
-  const apiKey = 'AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8'
-
-  // Step 1: Fetch watch page to establish session cookies.
-  // YouTube requires session cookies for caption access from datacenter IPs.
-  const pageResp = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Cookie': 'CONSENT=YES+cb.20210328-17-p0.en+FX+299',
-    },
-    signal: AbortSignal.timeout(10000),
-  })
-  const cookies = pageResp.headers.getSetCookie?.() ?? []
-  const cookieStr = cookies.map((c: string) => c.split(';')[0]).join('; ') + '; CONSENT=YES+cb.20210328-17-p0.en+FX+299'
-
-  // Step 2: Call player endpoint with Android client + session cookies.
-  // Android client bypasses login requirement; cookies authenticate the session.
-  const playerResp = await fetch(`https://www.youtube.com/youtubei/v1/player?key=${apiKey}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'User-Agent': 'com.google.android.youtube/20.10.38 (Linux; U; Android 14; en_US)',
-      'Cookie': cookieStr,
-    },
-    body: JSON.stringify({
-      context: {
-        client: {
-          clientName: 'ANDROID',
-          clientVersion: '20.10.38',
-          androidSdkVersion: 34,
-          hl: 'en',
-          gl: 'US',
-        },
-      },
-      videoId,
-    }),
-    signal: AbortSignal.timeout(10000),
-  })
-
-  if (!playerResp.ok) {
-    throw new Error(`Player API returned ${playerResp.status}`)
-  }
-  const playerData = await playerResp.json()
-
-  const playStatus = playerData.playabilityStatus?.status ?? 'unknown'
-  const tracks = playerData.captions?.playerCaptionsTracklistRenderer?.captionTracks
-  if (!tracks || tracks.length === 0) {
-    throw new Error(`No caption tracks (playability: ${playStatus}, hasCaptions: ${!!playerData.captions})`)
-  }
-
-  // Step 3: Fetch caption text with session cookies (prefer English)
-  const enTrack = tracks.find((t: any) => t.languageCode === 'en') ?? tracks[0]
-  const captionResp = await fetch(enTrack.baseUrl, {
-    headers: { 'Cookie': cookieStr },
-    signal: AbortSignal.timeout(10000),
-  })
-  if (!captionResp.ok) return null
-
-  const captionXml = await captionResp.text()
-  if (!captionXml || captionXml.length === 0) {
-    throw new Error('Caption URL returned empty response')
-  }
-
-  // Parse XML: format uses <p> elements with <s> word segments
-  const paragraphs = [...captionXml.matchAll(/<p\s[^>]*>([\s\S]*?)<\/p>/g)]
-  if (paragraphs.length > 0) {
-    const lines = paragraphs.map(p => {
-      const segments = [...p[1].matchAll(/<s[^>]*>([^<]*)<\/s>/g)]
-      return segments.map(s => s[1]).join(' ')
-        .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-        .replace(/&quot;/g, '"').replace(/&#39;/g, "'")
-    }).filter(t => t.trim())
-    return lines.join(' ').replace(/\s+/g, ' ').trim()
-  }
-
-  // Fallback: older XML format uses <text> elements
-  const textMatches = [...captionXml.matchAll(/<text[^>]*>([^<]*)<\/text>/g)]
-  if (textMatches.length > 0) {
-    const lines = textMatches.map(m =>
-      m[1].replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-        .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/\n/g, ' ')
-    ).filter(Boolean)
-    return lines.join(' ').replace(/\s+/g, ' ').trim()
-  }
-
-  return null
-}
-
 async function uploadFrameToTempHost(buffer: Buffer, index: number): Promise<string> {
   const boundary = '----MiseBoundary' + Date.now() + index
   const header = `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="frame-${index}.jpg"\r\nContent-Type: image/jpeg\r\n\r\n`
@@ -184,73 +91,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   res.setHeader('Access-Control-Allow-Origin', '*')
 
-  // YouTube caption extraction via innertube API (no browser needed)
+  // YouTube is handled by the dedicated /api/yt-transcript edge endpoint.
+  // Block YouTube from the Puppeteer function to prevent 60s hangs.
   const isYouTube = /youtube\.com|youtu\.be/i.test(targetUrl)
   if (isYouTube && (mode === 'transcribe' || mode === 'ocr-frames')) {
-    const apiKey = process.env.HF_API_KEY
-    if (!apiKey) {
-      return res.status(500).json({ error: 'HF_API_KEY not configured on server' })
-    }
-
-    const ytId = targetUrl.match(/(?:shorts\/|youtu\.be\/|[?&]v=)([^&?/\s]{11})/)?.[1]
-    if (ytId) {
-      let transcriptError = ''
-      try {
-        const transcript = await fetchYouTubeTranscript(ytId)
-        if (transcript && transcript.length > 30) {
-          // Structure raw caption text into a recipe via LLM
-          const structureResponse = await fetch(VISION_URL, {
-            method: 'POST',
-            headers: {
-              Authorization: `Bearer ${apiKey}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              model: VISION_MODEL,
-              messages: [
-                {
-                  role: 'user',
-                  content: `Below is a raw auto-generated caption transcript from a cooking video. Extract and structure it into a recipe. Return ONLY the recipe as plain text with:
-- Title on the first line
-- "Ingredients:" section with each ingredient on its own line, prefixed with "- "
-- "Instructions:" section with numbered steps
-
-If the transcript does not contain a recipe, return an empty string.
-
-Transcript:
-${transcript}`,
-                },
-              ],
-              max_tokens: 2048,
-            }),
-            signal: AbortSignal.timeout(30000),
-          })
-
-          if (structureResponse.ok) {
-            const structureData = await structureResponse.json()
-            const structured = structureData.choices?.[0]?.message?.content ?? ''
-            const cleaned = structured.replace(/```\w*\n?/g, '').replace(/\*\*/g, '').trim()
-            if (cleaned) {
-              return res.status(200).json({ text: cleaned })
-            }
-          }
-
-          // LLM structuring failed — return raw transcript
-          return res.status(200).json({ text: transcript })
-        } else {
-          transcriptError = transcript ? 'Transcript too short' : 'No captions available'
-        }
-      } catch (err) {
-        transcriptError = err instanceof Error ? err.message : 'Caption fetch failed'
-      }
-
-      // YouTube videos can't be captured by Vercel's headless Chrome (no codecs),
-      // so don't fall through to Puppeteer — return error immediately.
-      return res.status(404).json({
-        error: `YouTube transcript unavailable: ${transcriptError}. This video may not have captions.`,
-        debug: transcriptError,
-      })
-    }
+    return res.status(400).json({
+      error: 'Use /api/yt-transcript for YouTube videos',
+    })
   }
 
   let browser

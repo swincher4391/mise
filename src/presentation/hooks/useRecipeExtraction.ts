@@ -11,6 +11,7 @@ import { isInstagramUrl, isTikTokUrl, isYouTubeShortsUrl, toInstagramEmbedUrl, e
 import { parseTextRecipe } from '@application/extraction/parseTextRecipe.ts'
 import { createManualRecipe } from '@application/extraction/createManualRecipe.ts'
 import { transcribeInstagramVideo } from '@infrastructure/video/transcribeInstagramVideo.ts'
+import { transcribeYouTubeVideo } from '@infrastructure/video/transcribeYouTubeVideo.ts'
 import { extractFrameRecipe } from '@infrastructure/video/extractFrameRecipe.ts'
 
 export interface ExtractionStatus {
@@ -52,12 +53,19 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
       const isShortVideo = isTikTokUrl(url) || isYouTubeShortsUrl(url)
       if (isShortVideo) {
         const platform = isTikTokUrl(url) ? 'TikTok' : 'YouTube Short'
-        const totalSteps = 2
+        const isYT = isYouTubeShortsUrl(url)
+        const totalSteps = isYT ? 1 : 2
 
         // Layer 4: Video transcription (recipe spoken in audio)
-        setExtractionStatus({ message: 'Transcribing video audio…', step: 1, totalSteps })
+        setExtractionStatus({
+          message: isYT ? 'Extracting captions…' : 'Transcribing video audio…',
+          step: 1,
+          totalSteps,
+        })
         try {
-          const transcript = await transcribeInstagramVideo(url)
+          const transcript = isYT
+            ? await transcribeYouTubeVideo(url)
+            : await transcribeInstagramVideo(url)
           if (transcript) {
             const parsed = parseTextRecipe(transcript)
             if (parsed.ingredientLines.length > 0 || parsed.stepLines.length > 0) {
@@ -72,20 +80,23 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
         }
 
         // Layer 5: Video frame OCR (text overlaid on video, step by step)
-        setExtractionStatus({ message: 'Reading video frames…', step: 2, totalSteps })
-        try {
-          const frameText = await extractFrameRecipe(url)
-          if (frameText) {
-            const parsed = parseTextRecipe(frameText)
-            if (parsed.ingredientLines.length > 0 || parsed.stepLines.length > 0) {
-              const recipe = createManualRecipe({ ...parsed, sourceUrl: url })
-              recipe.extractionLayer = 'text'
-              setRecipe(recipe)
-              return
+        // Skip for YouTube — Vercel's headless Chrome can't play YouTube videos
+        if (!isYT) {
+          setExtractionStatus({ message: 'Reading video frames…', step: 2, totalSteps })
+          try {
+            const frameText = await extractFrameRecipe(url)
+            if (frameText) {
+              const parsed = parseTextRecipe(frameText)
+              if (parsed.ingredientLines.length > 0 || parsed.stepLines.length > 0) {
+                const recipe = createManualRecipe({ ...parsed, sourceUrl: url })
+                recipe.extractionLayer = 'text'
+                setRecipe(recipe)
+                return
+              }
             }
+          } catch {
+            // Frame OCR failed — fall through to error message
           }
-        } catch {
-          // Frame OCR failed — fall through to error message
         }
 
         setError(`Couldn't extract a recipe from this ${platform}. Try copying the recipe text from the comments and using Paste to import it, or screenshot it and use Photo import.`)
