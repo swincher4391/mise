@@ -109,90 +109,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(500).json({ error: 'HF_API_KEY not configured on server' })
       }
 
-      await page.goto(targetUrl, { waitUntil: 'networkidle2', timeout: 20000 }).catch(() => {})
-
-      // YouTube: extract auto-generated captions directly from page data
-      // This is much faster and more reliable than video capture + Whisper
+      // YouTube never settles on networkidle2 (endless analytics), so use
+      // domcontentloaded + a fixed wait for the player to initialize.
       const isYouTube = /youtube\.com|youtu\.be/i.test(targetUrl)
       if (isYouTube) {
-        const captionText = await page.evaluate(async () => {
-          // Extract caption track URL from ytInitialPlayerResponse
-          const scripts = Array.from(document.querySelectorAll('script'))
-          for (const script of scripts) {
-            const text = script.textContent ?? ''
-            const match = text.match(/captionTracks":\[{"baseUrl":"([^"]+)"/)
-            if (match) {
-              const captionUrl = match[1].replace(/\\u0026/g, '&') + '&fmt=json3'
-              try {
-                const resp = await fetch(captionUrl)
-                if (!resp.ok) continue
-                const data = await resp.json()
-                // json3 format has events[] with segs[] containing utf8 text
-                const events = data.events ?? []
-                return events
-                  .filter((e: any) => e.segs)
-                  .map((e: any) => e.segs.map((s: any) => s.utf8 ?? '').join(''))
-                  .join('')
-                  .replace(/\n/g, ' ')
-                  .replace(/\s+/g, ' ')
-                  .trim()
-              } catch {
-                continue
-              }
-            }
-          }
-          return null
-        }).catch(() => null)
-
-        if (captionText) {
-          // Close browser early
-          await browser.close().catch(() => {})
-          browser = null
-
-          // Structure the caption text via LLM
-          try {
-            const structureResponse = await fetch(VISION_URL, {
-              method: 'POST',
-              headers: {
-                Authorization: `Bearer ${apiKey}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                model: VISION_MODEL,
-                messages: [
-                  {
-                    role: 'user',
-                    content: `Below is a raw transcript from a cooking video. Extract and structure it into a recipe. Return ONLY the recipe as plain text with:
-- Title on the first line
-- "Ingredients:" section with each ingredient on its own line, prefixed with "- "
-- "Instructions:" section with numbered steps
-
-If the transcript does not contain a recipe, return an empty string.
-
-Transcript:
-${captionText}`,
-                  },
-                ],
-                max_tokens: 2048,
-              }),
-              signal: AbortSignal.timeout(30000),
-            })
-
-            if (structureResponse.ok) {
-              const structureData = await structureResponse.json()
-              const structured = structureData.choices?.[0]?.message?.content ?? ''
-              const cleaned = structured.replace(/```\w*\n?/g, '').replace(/\*\*/g, '').trim()
-              if (cleaned) {
-                return res.status(200).json({ text: cleaned })
-              }
-            }
-          } catch {
-            // Structuring failed — return raw captions
-          }
-
-          return res.status(200).json({ text: captionText })
-        }
-        // No captions found — fall through to generic video capture
+        // Resolve shorts/youtu.be to /watch?v= for consistent player loading
+        const ytId = targetUrl.match(/(?:shorts\/|youtu\.be\/|[?&]v=)([^&?/\s]{11})/)?.[1]
+        const watchUrl = ytId ? `https://www.youtube.com/watch?v=${ytId}` : targetUrl
+        await page.goto(watchUrl, { waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {})
+        await new Promise((r) => setTimeout(r, 5000))
+      } else {
+        await page.goto(targetUrl, { waitUntil: 'networkidle2', timeout: 20000 }).catch(() => {})
       }
 
       // Try clicking play to trigger video load
@@ -375,7 +302,15 @@ ${rawTranscript}`,
         return res.status(500).json({ error: 'HF_API_KEY not configured on server' })
       }
 
-      await page.goto(targetUrl, { waitUntil: 'networkidle2', timeout: 20000 }).catch(() => {})
+      const isYT = /youtube\.com|youtu\.be/i.test(targetUrl)
+      if (isYT) {
+        const ytVid = targetUrl.match(/(?:shorts\/|youtu\.be\/|[?&]v=)([^&?/\s]{11})/)?.[1]
+        const watchUrl = ytVid ? `https://www.youtube.com/watch?v=${ytVid}` : targetUrl
+        await page.goto(watchUrl, { waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {})
+        await new Promise((r) => setTimeout(r, 5000))
+      } else {
+        await page.goto(targetUrl, { waitUntil: 'networkidle2', timeout: 20000 }).catch(() => {})
+      }
 
       // Try clicking play to trigger video load
       await page
