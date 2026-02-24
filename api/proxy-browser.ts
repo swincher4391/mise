@@ -49,6 +49,85 @@ const FRAMES_PER_GRID = 9 // 3x3 tile per image
 const NUM_GRIDS = 4 // Qwen max 4 images per request
 const TOTAL_FRAMES = FRAMES_PER_GRID * NUM_GRIDS // 36 frames across the video
 
+/**
+ * Fetch YouTube auto-generated captions via the innertube player API.
+ * Uses Android client impersonation to avoid bot detection.
+ * Returns plain-text transcript or null if unavailable.
+ */
+async function fetchYouTubeTranscript(videoId: string): Promise<string | null> {
+  // Step 1: Get innertube API key from watch page
+  const pageResp = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    },
+    signal: AbortSignal.timeout(10000),
+  })
+  const html = await pageResp.text()
+  const apiKey = html.match(/"INNERTUBE_API_KEY":"([^"]+)"/)?.[1]
+  if (!apiKey) return null
+
+  // Step 2: Call player endpoint with Android client context
+  const playerResp = await fetch(`https://www.youtube.com/youtubei/v1/player?key=${apiKey}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'User-Agent': 'com.google.android.youtube/20.10.38 (Linux; U; Android 14; en_US)',
+    },
+    body: JSON.stringify({
+      context: {
+        client: {
+          clientName: 'ANDROID',
+          clientVersion: '20.10.38',
+          androidSdkVersion: 34,
+          hl: 'en',
+          gl: 'US',
+        },
+      },
+      videoId,
+    }),
+    signal: AbortSignal.timeout(10000),
+  })
+
+  if (!playerResp.ok) return null
+  const playerData = await playerResp.json()
+
+  const tracks = playerData.captions?.playerCaptionsTracklistRenderer?.captionTracks
+  if (!tracks || tracks.length === 0) return null
+
+  // Step 3: Fetch caption text (prefer English, fall back to first track)
+  const enTrack = tracks.find((t: any) => t.languageCode === 'en') ?? tracks[0]
+  const captionResp = await fetch(enTrack.baseUrl, {
+    signal: AbortSignal.timeout(10000),
+  })
+  if (!captionResp.ok) return null
+
+  const captionXml = await captionResp.text()
+
+  // Parse XML: format uses <p> elements with <s> word segments
+  const paragraphs = [...captionXml.matchAll(/<p\s[^>]*>([\s\S]*?)<\/p>/g)]
+  if (paragraphs.length > 0) {
+    const lines = paragraphs.map(p => {
+      const segments = [...p[1].matchAll(/<s[^>]*>([^<]*)<\/s>/g)]
+      return segments.map(s => s[1]).join(' ')
+        .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    }).filter(t => t.trim())
+    return lines.join(' ').replace(/\s+/g, ' ').trim()
+  }
+
+  // Fallback: older XML format uses <text> elements
+  const textMatches = [...captionXml.matchAll(/<text[^>]*>([^<]*)<\/text>/g)]
+  if (textMatches.length > 0) {
+    const lines = textMatches.map(m =>
+      m[1].replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/\n/g, ' ')
+    ).filter(Boolean)
+    return lines.join(' ').replace(/\s+/g, ' ').trim()
+  }
+
+  return null
+}
+
 async function uploadFrameToTempHost(buffer: Buffer, index: number): Promise<string> {
   const boundary = '----MiseBoundary' + Date.now() + index
   const header = `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="frame-${index}.jpg"\r\nContent-Type: image/jpeg\r\n\r\n`
@@ -91,6 +170,65 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   res.setHeader('Access-Control-Allow-Origin', '*')
 
+  // YouTube caption extraction via innertube API (no browser needed)
+  const isYouTube = /youtube\.com|youtu\.be/i.test(targetUrl)
+  if (isYouTube && (mode === 'transcribe' || mode === 'ocr-frames')) {
+    const apiKey = process.env.HF_API_KEY
+    if (!apiKey) {
+      return res.status(500).json({ error: 'HF_API_KEY not configured on server' })
+    }
+
+    const ytId = targetUrl.match(/(?:shorts\/|youtu\.be\/|[?&]v=)([^&?/\s]{11})/)?.[1]
+    if (ytId) {
+      try {
+        const transcript = await fetchYouTubeTranscript(ytId)
+        if (transcript && transcript.length > 30) {
+          // Structure raw caption text into a recipe via LLM
+          const structureResponse = await fetch(VISION_URL, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: VISION_MODEL,
+              messages: [
+                {
+                  role: 'user',
+                  content: `Below is a raw auto-generated caption transcript from a cooking video. Extract and structure it into a recipe. Return ONLY the recipe as plain text with:
+- Title on the first line
+- "Ingredients:" section with each ingredient on its own line, prefixed with "- "
+- "Instructions:" section with numbered steps
+
+If the transcript does not contain a recipe, return an empty string.
+
+Transcript:
+${transcript}`,
+                },
+              ],
+              max_tokens: 2048,
+            }),
+            signal: AbortSignal.timeout(30000),
+          })
+
+          if (structureResponse.ok) {
+            const structureData = await structureResponse.json()
+            const structured = structureData.choices?.[0]?.message?.content ?? ''
+            const cleaned = structured.replace(/```\w*\n?/g, '').replace(/\*\*/g, '').trim()
+            if (cleaned) {
+              return res.status(200).json({ text: cleaned })
+            }
+          }
+
+          // LLM structuring failed — return raw transcript
+          return res.status(200).json({ text: transcript })
+        }
+      } catch {
+        // Caption fetch failed — fall through to Puppeteer approach
+      }
+    }
+  }
+
   let browser
   const tmpFiles: string[] = []
   try {
@@ -111,7 +249,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       // YouTube never settles on networkidle2 (endless analytics), so use
       // domcontentloaded + a fixed wait for the player to initialize.
-      const isYouTube = /youtube\.com|youtu\.be/i.test(targetUrl)
       if (isYouTube) {
         // Resolve shorts/youtu.be to /watch?v= for consistent player loading
         const ytId = targetUrl.match(/(?:shorts\/|youtu\.be\/|[?&]v=)([^&?/\s]{11})/)?.[1]
@@ -306,8 +443,7 @@ ${rawTranscript}`,
         return res.status(500).json({ error: 'HF_API_KEY not configured on server' })
       }
 
-      const isYT = /youtube\.com|youtu\.be/i.test(targetUrl)
-      if (isYT) {
+      if (isYouTube) {
         const ytVid = targetUrl.match(/(?:shorts\/|youtu\.be\/|[?&]v=)([^&?/\s]{11})/)?.[1]
         const watchUrl = ytVid ? `https://www.youtube.com/watch?v=${ytVid}` : targetUrl
         await page.goto(watchUrl, { waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {})
