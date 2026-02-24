@@ -122,15 +122,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         await page.goto(targetUrl, { waitUntil: 'networkidle2', timeout: 20000 }).catch(() => {})
       }
 
-      // Try clicking play to trigger video load
-      await page
-        .evaluate(() => {
-          const playBtn = document.querySelector('[aria-label="Play"]') as HTMLElement | null
-          playBtn?.click()
-        })
-        .catch(() => {})
-
-      await new Promise((r) => setTimeout(r, 2000))
+      // Try clicking play to trigger video load (not needed for YouTube — it auto-plays)
+      if (!isYouTube) {
+        await page
+          .evaluate(() => {
+            const playBtn = document.querySelector('[aria-label="Play"]') as HTMLElement | null
+            playBtn?.click()
+          })
+          .catch(() => {})
+        await new Promise((r) => setTimeout(r, 2000))
+      }
 
       // Extract the video src from the <video> element in the page
       const videoSrc = await page.evaluate(() => {
@@ -142,8 +143,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return null
       })
 
+      // Max recording time: 20s for YouTube Shorts (they're short), 90s for others
+      const maxRecordMs = isYouTube ? 20000 : 90000
+
       // If no direct src, download via the page's fetch context (preserves cookies)
-      const videoBase64 = await page.evaluate(async (src: string | null) => {
+      const videoBase64 = await page.evaluate(async (src: string | null, maxMs: number) => {
         // Strategy 1: If we have a direct (non-blob) src, fetch it
         if (src) {
           try {
@@ -184,14 +188,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
           recorder.start()
 
-          // Record for the video's duration (or max 90s)
-          const duration = (video.duration || 60) * 1000
+          // Record for the video's duration, capped at maxMs
+          const duration = (video.duration || 30) * 1000
           setTimeout(() => {
             recorder.stop()
             video.pause()
-          }, Math.min(duration + 500, 90000))
+          }, Math.min(duration + 500, maxMs))
         })
-      }, videoSrc)
+      }, videoSrc, maxRecordMs)
 
       // Close browser early to free memory
       await browser.close().catch(() => {})
