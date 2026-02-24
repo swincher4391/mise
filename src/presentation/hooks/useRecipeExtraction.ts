@@ -7,7 +7,8 @@ import { extractMicrodata } from '@application/extraction/extractMicrodata.ts'
 import { normalizeRecipe } from '@application/extraction/normalizeRecipe.ts'
 import { extractImageRecipe } from '@infrastructure/ocr/extractImageRecipe.ts'
 import { createImageRecipe } from '@application/extraction/createImageRecipe.ts'
-import { isInstagramUrl, isTikTokUrl, isYouTubeShortsUrl, toInstagramEmbedUrl, extractCaptionFromEmbed, extractCaptionFromMeta } from '@application/extraction/extractInstagramCaption.ts'
+import { isInstagramUrl, isTikTokUrl, isYouTubeShortsUrl, extractCaptionFromJson, extractCaptionFromMeta, toInstagramEmbedUrl, extractCaptionFromEmbed } from '@application/extraction/extractInstagramCaption.ts'
+import { isFacebookUrl, extractFacebookPostText } from '@application/extraction/extractFacebookPost.ts'
 import { parseTextRecipe } from '@application/extraction/parseTextRecipe.ts'
 import { createManualRecipe } from '@application/extraction/createManualRecipe.ts'
 import { transcribeInstagramVideo } from '@infrastructure/video/transcribeInstagramVideo.ts'
@@ -103,6 +104,27 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
         return
       }
 
+      // Facebook posts — fetch HTML and extract post text from embedded JSON
+      if (isFacebookUrl(url)) {
+        setExtractionStatus({ message: 'Fetching Facebook post…', step: 1, totalSteps: 2 })
+        const html = await fetchViaProxy(url)
+
+        setExtractionStatus({ message: 'Extracting recipe text…', step: 2, totalSteps: 2 })
+        const postText = extractFacebookPostText(html)
+        if (postText) {
+          const parsed = parseTextRecipe(postText)
+          if (parsed.ingredientLines.length > 0 || parsed.stepLines.length > 0) {
+            const recipe = createManualRecipe({ ...parsed, sourceUrl: url })
+            recipe.extractionLayer = 'text'
+            setRecipe(recipe)
+            return
+          }
+        }
+
+        setError("Couldn't extract a recipe from this Facebook post. Try copying the recipe text and using Paste to import it, or screenshot it and use Photo import.")
+        return
+      }
+
       const isInstagram = isInstagramUrl(url)
       const totalSteps = isInstagram ? 5 : 2
 
@@ -152,8 +174,21 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
 
       // Layer 3: Instagram caption extraction
       if (isInstagram) {
-        setExtractionStatus({ message: 'Checking Instagram captions…', step: 3, totalSteps })
-        // Try og:description from the main page first (works even when embedding is disabled)
+        setExtractionStatus({ message: 'Extracting caption…', step: 3, totalSteps })
+
+        // Primary: extract full caption from embedded JSON (untruncated)
+        const jsonCaption = extractCaptionFromJson(html)
+        if (jsonCaption) {
+          const parsed = parseTextRecipe(jsonCaption)
+          if (parsed.ingredientLines.length > 0 || parsed.stepLines.length > 0) {
+            const recipe = createManualRecipe({ ...parsed, sourceUrl: url })
+            recipe.extractionLayer = 'text'
+            setRecipe(recipe)
+            return
+          }
+        }
+
+        // Fallback: og:description meta tag (truncated but sometimes sufficient)
         const metaCaption = extractCaptionFromMeta(html)
         if (metaCaption) {
           const parsed = parseTextRecipe(metaCaption)
@@ -165,7 +200,7 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
           }
         }
 
-        // Fall back to captioned embed endpoint
+        // Fallback: captioned embed endpoint (increasingly unreliable)
         const embedUrl = toInstagramEmbedUrl(url)
         if (embedUrl) {
           try {
@@ -181,7 +216,7 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
               }
             }
           } catch {
-            // Embed fetch failed — fall through to error
+            // Embed fetch failed — fall through
           }
         }
         // Layer 4: Video transcription (recipe spoken in reel audio)
