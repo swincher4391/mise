@@ -44,6 +44,10 @@ export async function updateRecipeFavorite(id: string, favorite: boolean): Promi
   await db.recipes.update(id, { favorite, updatedAt: new Date().toISOString() })
 }
 
+export async function updateRecipe(id: string, updates: Partial<Recipe>): Promise<void> {
+  await db.recipes.update(id, { ...updates, updatedAt: new Date().toISOString() })
+}
+
 export async function getAllRecipes(): Promise<SavedRecipe[]> {
   return db.recipes.orderBy('savedAt').reverse().toArray()
 }

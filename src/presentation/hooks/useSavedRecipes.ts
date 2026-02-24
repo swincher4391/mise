@@ -8,6 +8,7 @@ import {
   updateRecipeTags,
   updateRecipeNotes,
   updateRecipeFavorite,
+  updateRecipe,
 } from '@infrastructure/db/recipeRepository.ts'
 import { incrementSaveCount } from '@infrastructure/backup/backupNudge.ts'
 
@@ -31,6 +32,7 @@ export function useSavedRecipes() {
     toggleFavorite: (id: string, current: boolean) => updateRecipeFavorite(id, !current),
     updateNotes: (id: string, notes: string | null) => updateRecipeNotes(id, notes),
     updateTags: (id: string, tags: string[]) => updateRecipeTags(id, tags),
+    updateRecipe: (id: string, updates: Partial<Recipe>) => updateRecipe(id, updates),
   }
 }
 

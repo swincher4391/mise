@@ -7,7 +7,7 @@ import { extractMicrodata } from '@application/extraction/extractMicrodata.ts'
 import { normalizeRecipe } from '@application/extraction/normalizeRecipe.ts'
 import { extractImageRecipe } from '@infrastructure/ocr/extractImageRecipe.ts'
 import { createImageRecipe } from '@application/extraction/createImageRecipe.ts'
-import { isInstagramUrl, toInstagramEmbedUrl, extractCaptionFromEmbed, extractCaptionFromMeta } from '@application/extraction/extractInstagramCaption.ts'
+import { isInstagramUrl, isTikTokUrl, toInstagramEmbedUrl, extractCaptionFromEmbed, extractCaptionFromMeta } from '@application/extraction/extractInstagramCaption.ts'
 import { parseTextRecipe } from '@application/extraction/parseTextRecipe.ts'
 import { createManualRecipe } from '@application/extraction/createManualRecipe.ts'
 import { transcribeInstagramVideo } from '@infrastructure/video/transcribeInstagramVideo.ts'
@@ -37,6 +37,45 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
     setOcrText(null)
 
     try {
+      // TikTok video extraction — skip HTML fetch entirely since TikTok always
+      // blocks proxied requests and never has structured recipe data anyway.
+      if (isTikTokUrl(url)) {
+        // Layer 4: Video transcription (recipe spoken in TikTok audio)
+        try {
+          const transcript = await transcribeInstagramVideo(url)
+          if (transcript) {
+            const parsed = parseTextRecipe(transcript)
+            if (parsed.ingredientLines.length > 0 || parsed.stepLines.length > 0) {
+              const recipe = createManualRecipe({ ...parsed, sourceUrl: url })
+              recipe.extractionLayer = 'text'
+              setRecipe(recipe)
+              return
+            }
+          }
+        } catch {
+          // Transcription failed — fall through to frame OCR
+        }
+
+        // Layer 5: Video frame OCR (text overlaid on video, step by step)
+        try {
+          const frameText = await extractFrameRecipe(url)
+          if (frameText) {
+            const parsed = parseTextRecipe(frameText)
+            if (parsed.ingredientLines.length > 0 || parsed.stepLines.length > 0) {
+              const recipe = createManualRecipe({ ...parsed, sourceUrl: url })
+              recipe.extractionLayer = 'text'
+              setRecipe(recipe)
+              return
+            }
+          }
+        } catch {
+          // Frame OCR failed — fall through to error message
+        }
+
+        setError("Couldn't extract a recipe from this TikTok. Try copying the recipe text from the comments and using Paste to import it, or screenshot it and use Photo import.")
+        return
+      }
+
       let html = await fetchViaProxy(url)
 
       // Detect bot protection / block pages

@@ -50,6 +50,9 @@ export function RecipeEditForm({ recipe, onApply, onCancel }: RecipeEditFormProp
       extractionLayer: recipe.extractionLayer,
       parserVersion: recipe.parserVersion,
       schemaVersion: recipe.schemaVersion,
+      tags: recipe.tags,
+      notes: recipe.notes,
+      favorite: recipe.favorite,
     }
 
     onApply(edited)

@@ -31,7 +31,7 @@ function isSavedRecipe(recipe: Recipe | SavedRecipe): recipe is SavedRecipe {
 export function RecipeDisplay({ recipe, showSaveButton, onDelete, purchase, onSaved }: RecipeDisplayProps) {
   const [currentServings, setCurrentServings] = useState(recipe.servings ?? 4)
   const isSaved = useIsRecipeSaved(recipe.sourceUrl)
-  const { recipes, save, toggleFavorite, updateNotes, updateTags } = useSavedRecipes()
+  const { recipes, save, toggleFavorite, updateNotes, updateTags, updateRecipe } = useSavedRecipes()
   const [editingNotes, setEditingNotes] = useState(false)
   const [notesValue, setNotesValue] = useState('')
   const [cookingMode, setCookingMode] = useState(false)
@@ -79,8 +79,13 @@ export function RecipeDisplay({ recipe, showSaveButton, onDelete, purchase, onSa
     }
   }
 
-  const handleApplyEdit = (edited: Recipe) => {
-    setEditedRecipe(edited)
+  const handleApplyEdit = async (edited: Recipe) => {
+    if (saved) {
+      await updateRecipe(saved.id, edited)
+      setEditedRecipe(null)
+    } else {
+      setEditedRecipe(edited)
+    }
     setEditMode(false)
   }
 
@@ -126,6 +131,11 @@ export function RecipeDisplay({ recipe, showSaveButton, onDelete, purchase, onSa
       {showActions && (
         <div className="recipe-actions">
           {showSaveButton && !isSaved && !editMode && (
+            <button className="nav-btn" onClick={() => setEditMode(true)}>
+              Edit
+            </button>
+          )}
+          {saved && !editMode && (
             <button className="nav-btn" onClick={() => setEditMode(true)}>
               Edit
             </button>

@@ -7,6 +7,7 @@ export {
   updateRecipeTags,
   updateRecipeNotes,
   updateRecipeFavorite,
+  updateRecipe,
   getAllRecipes,
 } from './recipeRepository.ts'
 export {
