@@ -13,7 +13,6 @@ export interface PendingRecipe {
   prepTime: string | null
   cookTime: string | null
   imageUrl: string | null
-  imageCredit: { name: string; link: string } | null
 }
 
 function parseRecipeJson(text: string): PendingRecipe | null {
@@ -34,23 +33,12 @@ function parseRecipeJson(text: string): PendingRecipe | null {
       prepTime: parsed.prepTime ?? null,
       cookTime: parsed.cookTime ?? null,
       imageUrl: null,
-      imageCredit: null,
     }
   } catch {
     return null
   }
 }
 
-async function fetchRecipeImage(title: string): Promise<{ imageUrl: string | null; credit: { name: string; link: string } | null }> {
-  try {
-    const response = await fetch(`/api/recipe-image-search?q=${encodeURIComponent(title)}`)
-    if (!response.ok) return { imageUrl: null, credit: null }
-    const data = await response.json()
-    return { imageUrl: data.imageUrl ?? null, credit: data.credit ?? null }
-  } catch {
-    return { imageUrl: null, credit: null }
-  }
-}
 
 export function useRecipeChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -157,12 +145,6 @@ export function useRecipeChat() {
       const recipe = parseRecipeJson(assistantContent)
       if (recipe) {
         setPendingRecipe(recipe)
-        // Fetch image in background — update pendingRecipe when it arrives
-        fetchRecipeImage(recipe.title).then(({ imageUrl, credit }) => {
-          if (imageUrl) {
-            setPendingRecipe(prev => prev ? { ...prev, imageUrl, imageCredit: credit } : null)
-          }
-        })
       }
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') return

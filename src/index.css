@@ -3158,20 +3158,6 @@ body {
   gap: 0.15rem;
 }
 
-.recipe-chat-credit {
-  font-size: 0.7rem;
-  color: #999;
-}
-
-.recipe-chat-credit a {
-  color: #2d5016;
-  text-decoration: none;
-}
-
-.recipe-chat-credit a:hover {
-  text-decoration: underline;
-}
-
 .recipe-chat-banner-info strong {
   font-size: 0.95rem;
   color: #2d5016;

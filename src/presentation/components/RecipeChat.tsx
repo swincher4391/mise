@@ -181,11 +181,6 @@ export function RecipeChat({ onRecipeReady, initialPrompt }: RecipeChatProps) {
             <div className="recipe-chat-banner-info">
               <strong>{pendingRecipe.title}</strong>
               <span>{pendingRecipe.ingredients.length} ingredients, {pendingRecipe.steps.length} steps</span>
-              {pendingRecipe.imageCredit && (
-                <span className="recipe-chat-credit">
-                  Photo by <a href={pendingRecipe.imageCredit.link} target="_blank" rel="noopener noreferrer">{pendingRecipe.imageCredit.name}</a> on Unsplash
-                </span>
-              )}
             </div>
           </div>
           <div className="recipe-chat-banner-actions">
