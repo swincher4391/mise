@@ -58,6 +58,18 @@ async function enrichResults(
   return enriched.map((r, i) => r.status === 'fulfilled' ? r.value : results[i])
 }
 
+function decodeHtmlEntities(str: string): string {
+  return str
+    .replace(/&#x27;/g, "'")
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 function parseDdgResults(html: string) {
   const results: Array<{
     title: string
@@ -69,36 +81,62 @@ function parseDdgResults(html: string) {
     ratingCount: number | null
   }> = []
 
+  // Try standard html.duckduckgo.com format first
   const blocks = html.split(/class="result\s/)
-  for (const block of blocks.slice(1)) {
-    if (block.includes('result--ad')) continue
+  if (blocks.length > 1) {
+    for (const block of blocks.slice(1)) {
+      if (block.includes('result--ad')) continue
 
-    const titleMatch = block.match(/class="result__a"[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/)
-    if (!titleMatch) continue
+      const titleMatch = block.match(/class="result__a"[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/)
+      if (!titleMatch) continue
 
-    const rawHref = titleMatch[1]
-    const rawTitle = titleMatch[2].replace(/<[^>]*>/g, '').replace(/&#x27;/g, "'").replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/\s+/g, ' ').trim()
+      const rawHref = titleMatch[1]
+      const rawTitle = decodeHtmlEntities(titleMatch[2].replace(/<[^>]*>/g, ''))
+      if (!rawTitle) continue
+
+      let sourceUrl: string
+      const uddgMatch = rawHref.match(/uddg=([^&]+)/)
+      if (uddgMatch) {
+        sourceUrl = decodeURIComponent(uddgMatch[1])
+      } else if (rawHref.startsWith('http')) {
+        sourceUrl = rawHref
+      } else {
+        continue
+      }
+
+      const snippetMatch = block.match(/class="result__snippet"[^>]*>([\s\S]*?)<\/a>/)
+      const description = snippetMatch
+        ? decodeHtmlEntities(snippetMatch[1].replace(/<[^>]*>/g, '')).slice(0, 200)
+        : ''
+
+      const urlMatch = block.match(/class="result__url"[^>]*>([\s\S]*?)</)
+      const sourceName = urlMatch
+        ? urlMatch[1].replace(/<[^>]*>/g, '').replace(/\s+/g, '').split('/')[0]
+        : (() => { try { return new URL(sourceUrl).hostname.replace(/^www\./, '') } catch { return '' } })()
+
+      results.push({ title: rawTitle, sourceUrl, sourceName, description, image: null, rating: null, ratingCount: null })
+      if (results.length >= 12) break
+    }
+    return results
+  }
+
+  // Fallback: lite.duckduckgo.com format
+  const rows = html.split(/<tr>/)
+  for (const row of rows) {
+    const linkMatch = row.match(/<a[^>]*href="([^"]+)"[^>]*class="result-link"[^>]*>([\s\S]*?)<\/a>/)
+    if (!linkMatch) continue
+
+    const sourceUrl = linkMatch[1]
+    if (!sourceUrl.startsWith('http')) continue
+    const rawTitle = decodeHtmlEntities(linkMatch[2].replace(/<[^>]*>/g, ''))
     if (!rawTitle) continue
 
-    let sourceUrl: string
-    const uddgMatch = rawHref.match(/uddg=([^&]+)/)
-    if (uddgMatch) {
-      sourceUrl = decodeURIComponent(uddgMatch[1])
-    } else if (rawHref.startsWith('http')) {
-      sourceUrl = rawHref
-    } else {
-      continue
-    }
-
-    const snippetMatch = block.match(/class="result__snippet"[^>]*>([\s\S]*?)<\/a>/)
+    const snippetMatch = row.match(/class="result-snippet"[^>]*>([\s\S]*?)<\/td>/)
     const description = snippetMatch
-      ? snippetMatch[1].replace(/<[^>]*>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#x27;/g, "'").replace(/&quot;/g, '"').replace(/\s+/g, ' ').trim().slice(0, 200)
+      ? decodeHtmlEntities(snippetMatch[1].replace(/<[^>]*>/g, '')).slice(0, 200)
       : ''
 
-    const urlMatch = block.match(/class="result__url"[^>]*>([\s\S]*?)</)
-    const sourceName = urlMatch
-      ? urlMatch[1].replace(/<[^>]*>/g, '').replace(/\s+/g, '').split('/')[0]
-      : (() => { try { return new URL(sourceUrl).hostname.replace(/^www\./, '') } catch { return '' } })()
+    const sourceName = (() => { try { return new URL(sourceUrl).hostname.replace(/^www\./, '') } catch { return '' } })()
 
     results.push({ title: rawTitle, sourceUrl, sourceName, description, image: null, rating: null, ratingCount: null })
     if (results.length >= 12) break
@@ -126,18 +164,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const searchUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query + ' recipe')}`
-    const response = await fetch(searchUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-      },
+    const searchTerm = query + ' recipe'
+    const ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
+
+    // Try standard HTML endpoint first, fall back to lite
+    let html = ''
+    const htmlRes = await fetch(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(searchTerm)}`, {
+      headers: { 'User-Agent': ua },
     })
 
-    if (!response.ok) {
-      return res.status(502).json({ error: `Search failed (${response.status})` })
+    if (htmlRes.ok) {
+      html = await htmlRes.text()
+    } else {
+      const liteRes = await fetch('https://lite.duckduckgo.com/lite/', {
+        method: 'POST',
+        headers: {
+          'User-Agent': ua,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `q=${encodeURIComponent(searchTerm)}`,
+      })
+      if (!liteRes.ok) {
+        return res.status(502).json({ error: `Search failed (${liteRes.status})` })
+      }
+      html = await liteRes.text()
     }
 
-    const html = await response.text()
     const results = parseDdgResults(html)
     const enriched = await enrichResults(results)
 
