@@ -172,6 +172,24 @@ async function searchViaPuppeteer(searchTerm: string): Promise<string> {
   }
 }
 
+// Domains that block all datacenter IPs — don't show these in results
+const BLOCKED_DOMAINS = [
+  'allrecipes.com',
+  'foodnetwork.com',
+  'food.com',
+  'cookinglight.com',
+  'eatingwell.com',
+  'myrecipes.com',
+  'southernliving.com',
+]
+
+function isBlockedDomain(url: string): boolean {
+  try {
+    const hostname = new URL(url).hostname.toLowerCase()
+    return BLOCKED_DOMAINS.some(d => hostname === d || hostname.endsWith('.' + d))
+  } catch { return false }
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS')
@@ -195,7 +213,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Use Puppeteer to fetch DDG results (bypasses CAPTCHA/bot detection)
     const html = await searchViaPuppeteer(searchTerm)
-    const results = parseDdgResults(html)
+    const results = parseDdgResults(html).filter(r => !isBlockedDomain(r.sourceUrl))
 
     if (results.length === 0) {
       return res.status(200).json({ results: [] })
