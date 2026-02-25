@@ -42,3 +42,7 @@ test-*.mjs
 # Windows artifacts
 nul
 New Text Document.txt
+
+# Dev screenshots and scripts
+screenshots/
+scripts/
