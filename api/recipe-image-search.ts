@@ -1,5 +1,33 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 
+// Remove cooking-method and style qualifiers so the Unsplash search
+// focuses on the actual food (e.g. "Sticky Garlic Chicken Noodles"
+// instead of "Kid-Friendly Air Fryer Sticky Garlic Chicken Noodles").
+const NOISE_WORDS = new Set([
+  'kid-friendly', 'kid friendly', 'family-friendly', 'family friendly',
+  'air fryer', 'instant pot', 'slow cooker', 'crockpot', 'crock-pot',
+  'pressure cooker', 'one-pot', 'one pot', 'one-pan', 'one pan',
+  'sheet pan', 'sheet-pan', 'skillet', 'stovetop', 'stove-top',
+  'oven-baked', 'oven baked', 'no-bake', 'no bake',
+  'easy', 'quick', 'simple', 'healthy', 'light', 'lighter',
+  'best', 'perfect', 'ultimate', 'classic', 'homemade', 'home-made',
+  'vegan', 'vegetarian', 'gluten-free', 'gluten free', 'keto', 'paleo',
+  'low-carb', 'low carb', 'high-protein', 'high protein', 'dairy-free', 'dairy free',
+  'budget', 'budget-friendly', 'weeknight', 'week-night', 'meal-prep', 'meal prep',
+])
+
+function simplifyFoodQuery(title: string): string {
+  let result = title
+  // Remove noise phrases (longest first to catch multi-word phrases)
+  for (const phrase of [...NOISE_WORDS].sort((a, b) => b.length - a.length)) {
+    result = result.replace(new RegExp(`\\b${phrase}\\b`, 'gi'), '')
+  }
+  // Collapse whitespace and trim
+  result = result.replace(/\s+/g, ' ').trim()
+  // If we stripped too much, fall back to the original
+  return result.length >= 3 ? result : title
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS')
@@ -23,9 +51,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Missing ?q= parameter' })
   }
 
+  // Strip non-food qualifiers so Unsplash focuses on the dish itself
+  const foodQuery = simplifyFoodQuery(query)
+
   try {
     const params = new URLSearchParams({
-      query: `${query} food`,
+      query: `${foodQuery} food`,
       per_page: '1',
       orientation: 'landscape',
     })
