@@ -28,6 +28,50 @@ function simplifyFoodQuery(title: string): string {
   return result.length >= 3 ? result : title
 }
 
+// Tags that indicate the photo shows actual plated food
+const FOOD_TAGS = new Set([
+  'food', 'dish', 'plate', 'meal', 'cooking', 'recipe', 'dinner',
+  'lunch', 'breakfast', 'cuisine', 'bowl', 'salad', 'soup', 'pasta',
+  'chicken', 'beef', 'seafood', 'vegetable', 'noodle', 'rice',
+  'appetizer', 'dessert', 'baking', 'homemade', 'delicious',
+])
+
+// Tags that indicate the photo is NOT plated food (storefront, signage, etc.)
+const BAD_TAGS = new Set([
+  'restaurant', 'sign', 'neon', 'storefront', 'building', 'street',
+  'interior', 'menu', 'logo', 'brand', 'shop', 'store', 'window',
+  'architecture', 'night', 'city', 'urban',
+])
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function pickBestFoodPhoto(results: any[]): any {
+  let bestScore = -Infinity
+  let bestPhoto = results[0]
+
+  for (const photo of results) {
+    const tags: string[] = (photo.tags ?? []).map((t: { title?: string }) =>
+      (t.title ?? '').toLowerCase()
+    )
+    const desc = ((photo.description ?? '') + ' ' + (photo.alt_description ?? '')).toLowerCase()
+
+    let score = 0
+    for (const tag of tags) {
+      if (FOOD_TAGS.has(tag)) score += 2
+      if (BAD_TAGS.has(tag)) score -= 3
+    }
+    // Boost if description mentions food-related words
+    if (/plate|dish|bowl|served|cooked|homemade/.test(desc)) score += 1
+    if (/restaurant|sign|store|shop|building|street/.test(desc)) score -= 2
+
+    if (score > bestScore) {
+      bestScore = score
+      bestPhoto = photo
+    }
+  }
+
+  return bestPhoto
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS')
@@ -55,9 +99,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const foodQuery = simplifyFoodQuery(query)
 
   try {
+    // Fetch several candidates so we can pick the most food-relevant one
     const params = new URLSearchParams({
-      query: `${foodQuery} food`,
-      per_page: '1',
+      query: `${foodQuery} dish`,
+      per_page: '8',
       orientation: 'landscape',
     })
 
@@ -70,14 +115,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const data = await response.json()
-    const photo = data.results?.[0]
+    const results = data.results ?? []
 
-    if (!photo) {
+    if (results.length === 0) {
       return res.status(200).json({ imageUrl: null })
     }
 
+    // Pick the best candidate: prefer photos tagged with food/dish/plate
+    // keywords over restaurant storefronts, signage, etc.
+    const photo = pickBestFoodPhoto(results)
+
     // Use the "regular" size (1080px wide) — good for recipe cards
-    // Append Unsplash UTM params per their guidelines
     return res.status(200).json({
       imageUrl: photo.urls?.regular ?? null,
       credit: {
