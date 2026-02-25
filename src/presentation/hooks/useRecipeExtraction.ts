@@ -135,6 +135,7 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
         'eatingwell.com',
         'myrecipes.com',
         'southernliving.com',
+        'thekitchn.com',
       ]
       const urlHostname = (() => { try { return new URL(url).hostname.toLowerCase() } catch { return '' } })()
       const isKnownBlocked = BLOCKED_DOMAINS.some(d => urlHostname === d || urlHostname.endsWith('.' + d))

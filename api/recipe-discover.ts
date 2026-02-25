@@ -181,6 +181,7 @@ const BLOCKED_DOMAINS = [
   'eatingwell.com',
   'myrecipes.com',
   'southernliving.com',
+  'thekitchn.com',
 ]
 
 function isBlockedDomain(url: string): boolean {
