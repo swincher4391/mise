@@ -92,7 +92,7 @@ function App() {
         <InstallBanner onInstall={installPrompt.install} onDismiss={installPrompt.dismiss} />
       )}
       <Analytics />
-      <div className="app-version">v1.0.0</div>
+      <div className="app-version">v1.0.1</div>
     </>
   )
 }

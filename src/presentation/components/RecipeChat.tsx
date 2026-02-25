@@ -1,4 +1,6 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
+import { useLiveQuery } from 'dexie-react-hooks'
+import { db } from '@infrastructure/db/database.ts'
 import { useRecipeChat } from '@presentation/hooks/useRecipeChat.ts'
 import { createManualRecipe } from '@application/extraction/createManualRecipe.ts'
 import type { Recipe } from '@domain/models/Recipe.ts'
@@ -36,8 +38,22 @@ function buildRecipe(pending: PendingRecipe): Recipe {
 export function RecipeChat({ onRecipeReady, initialPrompt }: RecipeChatProps) {
   const { messages, isStreaming, error, pendingRecipe, sendMessage, requestFinalize, dismissRecipe } = useRecipeChat()
   const [input, setInput] = useState('')
+  const [showAutocomplete, setShowAutocomplete] = useState(false)
+  const [autocompleteFilter, setAutocompleteFilter] = useState('')
+  const [autocompleteIndex, setAutocompleteIndex] = useState(0)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
   const initialPromptSent = useRef(false)
+
+  const allRecipes = useLiveQuery(() => db.recipes.orderBy('title').toArray(), []) ?? []
+
+  const filteredRecipes = useMemo(() => {
+    if (!showAutocomplete) return []
+    const q = autocompleteFilter.toLowerCase()
+    return allRecipes
+      .filter(r => r.title.toLowerCase().includes(q))
+      .slice(0, 6)
+  }, [showAutocomplete, autocompleteFilter, allRecipes])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -50,11 +66,64 @@ export function RecipeChat({ onRecipeReady, initialPrompt }: RecipeChatProps) {
     }
   }, [initialPrompt, messages.length, sendMessage])
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value
+    setInput(val)
+
+    const cursor = e.target.selectionStart ?? val.length
+    const before = val.slice(0, cursor)
+    const atIdx = before.lastIndexOf('@')
+
+    if (atIdx !== -1 && (atIdx === 0 || before[atIdx - 1] === ' ')) {
+      const filter = before.slice(atIdx + 1)
+      setAutocompleteFilter(filter)
+      setShowAutocomplete(true)
+      setAutocompleteIndex(0)
+    } else {
+      setShowAutocomplete(false)
+    }
+  }
+
+  const handleSelectRecipe = (recipe: Recipe) => {
+    const cursor = inputRef.current?.selectionStart ?? input.length
+    const before = input.slice(0, cursor)
+    const atIdx = before.lastIndexOf('@')
+    const after = input.slice(cursor)
+
+    const newInput = before.slice(0, atIdx) + '@' + recipe.title + ' ' + after
+    setInput(newInput)
+    setShowAutocomplete(false)
+
+    requestAnimationFrame(() => {
+      const newCursor = atIdx + 1 + recipe.title.length + 1
+      inputRef.current?.setSelectionRange(newCursor, newCursor)
+      inputRef.current?.focus()
+    })
+  }
+
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!showAutocomplete || filteredRecipes.length === 0) return
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setAutocompleteIndex(i => (i + 1) % filteredRecipes.length)
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setAutocompleteIndex(i => (i - 1 + filteredRecipes.length) % filteredRecipes.length)
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      handleSelectRecipe(filteredRecipes[autocompleteIndex])
+    } else if (e.key === 'Escape') {
+      setShowAutocomplete(false)
+    }
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!input.trim() || isStreaming) return
     sendMessage(input)
     setInput('')
+    setShowAutocomplete(false)
   }
 
   const handleSaveRecipe = () => {
@@ -127,11 +196,32 @@ export function RecipeChat({ onRecipeReady, initialPrompt }: RecipeChatProps) {
       )}
 
       <div className="recipe-chat-input-row">
+        {showAutocomplete && filteredRecipes.length > 0 && (
+          <div className="recipe-autocomplete">
+            {filteredRecipes.map((r, i) => (
+              <button
+                key={r.id}
+                className={`recipe-autocomplete-item ${i === autocompleteIndex ? 'active' : ''}`}
+                onMouseDown={(e) => { e.preventDefault(); handleSelectRecipe(r) }}
+              >
+                {r.imageUrl && <img src={r.imageUrl} alt="" />}
+                <div className="recipe-autocomplete-info">
+                  <span className="recipe-autocomplete-title">{r.title}</span>
+                  <span className="recipe-autocomplete-meta">
+                    {r.ingredients.length} ingredients
+                  </span>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
         <form onSubmit={handleSubmit} className="recipe-chat-form">
           <input
+            ref={inputRef}
             type="text"
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={handleInputChange}
+            onKeyDown={handleInputKeyDown}
             placeholder="Describe your recipe idea..."
             disabled={isStreaming}
             autoFocus
