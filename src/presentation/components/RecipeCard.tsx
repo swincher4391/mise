@@ -6,6 +6,23 @@ interface RecipeCardProps {
   onRemove: (id: string) => void
 }
 
+const PLACEHOLDER_COLORS = [
+  '#2d5016', '#8b5c2a', '#5b3a6b', '#1a5276', '#6b3a3a',
+  '#3a6b5b', '#6b5a3a', '#3a4f6b', '#6b3a5a', '#4a6b3a',
+]
+
+function getInitials(title: string): string {
+  const words = title.trim().split(/\s+/)
+  if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase()
+  return title.slice(0, 2).toUpperCase()
+}
+
+function getTitleColor(title: string): string {
+  let hash = 0
+  for (let i = 0; i < title.length; i++) hash = (hash * 31 + title.charCodeAt(i)) | 0
+  return PLACEHOLDER_COLORS[Math.abs(hash) % PLACEHOLDER_COLORS.length]
+}
+
 function formatTime(minutes: number): string {
   if (minutes < 60) return `${minutes}m`
   const h = Math.floor(minutes / 60)
@@ -19,7 +36,9 @@ export function RecipeCard({ recipe, onSelect, onRemove }: RecipeCardProps) {
       {recipe.imageUrl ? (
         <img className="recipe-card-image" src={recipe.imageUrl} alt="" />
       ) : (
-        <div className="recipe-card-image recipe-card-placeholder" />
+        <div className="recipe-card-image recipe-card-placeholder" style={{ background: getTitleColor(recipe.title) }}>
+          <span className="recipe-card-initials">{getInitials(recipe.title)}</span>
+        </div>
       )}
       <div className="recipe-card-info">
         <span className="recipe-card-title">
