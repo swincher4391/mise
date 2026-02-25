@@ -12,6 +12,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@huggingface/inference": "^4.13.13",
     "@sparticuz/chromium": "^143.0.4",
     "@vercel/analytics": "^1.6.1",
     "dexie": "^4.3.0",

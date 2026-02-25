@@ -1,17 +1,17 @@
 /**
  * Extract recipe text from an Instagram reel/post caption.
  * Instagram doesn't include structured recipe data (JSON-LD, microdata).
- * The captioned embed endpoint returns the post caption as HTML text.
  *
- * Embed HTML structure:
- *   <div class="Caption">
- *     <a class="CaptionUsername">username</a>
- *     <br><br>
- *     Caption text with <br> line breaks...
- *     <a>#hashtag</a>
- *     <div class="CaptionComments">...</div>   ← stop here
- *   </div>
+ * Primary strategy: extract full caption from embedded JSON in server-rendered
+ * HTML (`"caption":{"text":"..."}` or `"text":"..."`). This returns the
+ * complete, untruncated caption — unlike og:description which is cut off.
+ *
+ * Fallback strategies:
+ * - og:description meta tag (truncated but sometimes sufficient)
+ * - Captioned embed endpoint (increasingly unreliable)
  */
+
+import { extractSocialPostText } from './extractSocialPostText.ts'
 
 /** Convert an Instagram URL to its captioned embed URL */
 export function toInstagramEmbedUrl(url: string): string | null {
@@ -34,6 +34,17 @@ export function isTikTokUrl(url: string): boolean {
 /** Check if a URL is a YouTube Short */
 export function isYouTubeShortsUrl(url: string): boolean {
   return /youtube\.com\/shorts\//i.test(url) || /youtu\.be\//i.test(url)
+}
+
+/**
+ * Extract full caption from Instagram's embedded JSON (primary method).
+ * Instagram includes `"caption":{"text":"..."}` in Relay-style JSON blobs
+ * within <script> tags. This returns the complete, untruncated caption.
+ */
+export function extractCaptionFromJson(html: string): string | null {
+  const text = extractSocialPostText(html)
+  if (!text) return null
+  return cleanSocialCaption(text)
 }
 
 /** Extract caption from og:description meta tag on the main Instagram page */
@@ -108,6 +119,23 @@ function cleanCaption(html: string): string {
     .trim()
 
   return text
+}
+
+/** Clean social media caption text (strip hashtags, engagement prompts, etc.) */
+function cleanSocialCaption(text: string): string {
+  return text
+    .replace(/#\w+/g, '')
+    .replace(/\bcomment\s+\w+\s+and\s+I['']ll\b.*$/gim, '')
+    .replace(/\bcomment\s+\w+\b.*send\b.*$/gim, '')
+    .replace(/^follow\s+(for|me|us)\b.*$/gim, '')
+    // Remove decorative Unicode text (bold/italic math symbols used for "Follow @...")
+    .replace(/[\u{1D400}-\u{1D7FF}]+/gu, '')
+    // Remove emoji-only lines
+    .replace(/^[\s\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE00}-\u{FEFF}]+$/gmu, '')
+    // Remove decorative separator lines (•••, ───, ===, etc.)
+    .replace(/^[•\-=─━·\s]{5,}$/gm, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
 }
 
 /** Decode all HTML entities (named and numeric) */

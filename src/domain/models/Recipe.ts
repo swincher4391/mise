@@ -25,7 +25,7 @@ export interface Recipe {
   notes: string | null
   favorite: boolean
   extractedAt: string
-  extractionLayer: 'json-ld' | 'microdata' | 'manual' | 'image' | 'text'
+  extractionLayer: 'json-ld' | 'microdata' | 'manual' | 'image' | 'text' | 'chat'
   parserVersion: string
   schemaVersion: number
 }
