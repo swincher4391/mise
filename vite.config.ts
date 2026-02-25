@@ -482,6 +482,420 @@ function isBlockedUrl(raw: string): boolean {
   return false
 }
 
+function recipeChatPlugin(): Plugin {
+  return {
+    name: 'recipe-chat-proxy',
+    configureServer(server) {
+      const env = loadEnv('development', process.cwd(), '')
+
+      server.middlewares.use('/api/recipe-chat', (req, res) => {
+        if (req.method === 'OPTIONS') {
+          res.writeHead(204, {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type',
+          })
+          res.end()
+          return
+        }
+
+        if (req.method !== 'POST') {
+          res.writeHead(405, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Method not allowed' }))
+          return
+        }
+
+        let body = ''
+        req.on('data', (chunk: Buffer) => {
+          body += chunk.toString()
+        })
+        req.on('end', async () => {
+          const apiKey = env.HF_API_KEY
+          if (!apiKey) {
+            res.writeHead(500, { 'Content-Type': 'application/json' })
+            res.end(JSON.stringify({ error: 'HF_API_KEY not configured. Add it to .env file.' }))
+            return
+          }
+
+          let parsed: { messages?: Array<{ role: string; content: string }> }
+          try {
+            parsed = JSON.parse(body)
+          } catch {
+            res.writeHead(400, { 'Content-Type': 'application/json' })
+            res.end(JSON.stringify({ error: 'Invalid JSON body' }))
+            return
+          }
+
+          if (!Array.isArray(parsed.messages) || parsed.messages.length === 0) {
+            res.writeHead(400, { 'Content-Type': 'application/json' })
+            res.end(JSON.stringify({ error: 'Missing messages array' }))
+            return
+          }
+
+          const systemPrompt = `You are a skilled home cook and recipe developer for Mise, a recipe app. Help users create delicious, well-tested recipes through conversation.
+
+Conversation guidelines:
+- Ask clarifying questions about cuisine preferences, dietary restrictions, serving size, and skill level
+- Strictly respect dietary restrictions mentioned at any point (vegetarian, vegan, gluten-free, etc.) — never suggest ingredients that violate them
+- Suggest ingredient substitutions when asked
+- Keep responses concise and conversational
+- Do NOT write out a full recipe during conversation. Discuss ideas, suggest directions, and refine — save the structured recipe for the finalize step.
+
+Recipe quality standards (apply these when generating the final recipe):
+- Write recipes from scratch — never rely on store-bought shortcuts like frozen meatballs, canned soup, or jarred sauce unless the user specifically asks for a shortcut version
+- Use realistic quantities that match the serving count (e.g., 4 servings of meatballs needs ~16-20 meatballs, not 4)
+- Include proper seasoning — salt, pepper, herbs, spices. Bland recipes are bad recipes.
+- Write clear, detailed steps. Each step should be one logical action. Avoid cramming multiple techniques into a single step.
+- Include sensory cues: "until golden brown", "until onions are translucent", "until internal temp reaches 165F"
+- Ingredients should be listed in the order they're used, with prep notes (diced, minced, etc.)
+- Prep and cook times should be realistic for the steps described
+
+When the user explicitly asks to finalize or build the recipe, output ONLY a \`\`\`recipe-json code block with no other text before or after it.
+
+The recipe-json block must contain valid JSON with this exact structure:
+\`\`\`recipe-json
+{
+  "title": "Recipe Name",
+  "ingredients": ["2 cups all-purpose flour", "3 large eggs, beaten"],
+  "steps": ["Preheat oven to 375°F.", "In a large bowl, combine flour and salt.", "Add eggs and mix until a shaggy dough forms."],
+  "servings": "4",
+  "prepTime": "20 min",
+  "cookTime": "35 min"
+}
+\`\`\`
+
+IMPORTANT: Never include the recipe-json block unless the user explicitly asks to finalize. During conversation, only discuss the recipe in plain text.`
+
+          const recentMessages = parsed.messages.slice(-10)
+          const fullMessages = [
+            { role: 'system', content: systemPrompt },
+            ...recentMessages,
+          ]
+
+          try {
+            const response = await fetch('https://router.huggingface.co/v1/chat/completions', {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${apiKey}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                model: 'Qwen/Qwen3-14B',
+                messages: fullMessages,
+                max_tokens: 2048,
+                temperature: 0.7,
+                stream: true,
+              }),
+            })
+
+            if (!response.ok) {
+              const errorText = await response.text()
+              res.writeHead(502, {
+                'Content-Type': 'text/event-stream',
+                'Cache-Control': 'no-cache',
+                'Connection': 'keep-alive',
+                'Access-Control-Allow-Origin': '*',
+              })
+              res.write(`data: ${JSON.stringify({ error: `HF API error (${response.status}): ${errorText.slice(0, 200)}` })}\n\n`)
+              res.write('data: [DONE]\n\n')
+              res.end()
+              return
+            }
+
+            // Stream SSE response
+            res.writeHead(200, {
+              'Content-Type': 'text/event-stream',
+              'Cache-Control': 'no-cache',
+              'Connection': 'keep-alive',
+              'Access-Control-Allow-Origin': '*',
+            })
+
+            const reader = (response.body as any).getReader()
+            const decoder = new TextDecoder()
+            let buffer = ''
+
+            while (true) {
+              const { done, value } = await reader.read()
+              if (done) break
+
+              buffer += decoder.decode(value, { stream: true })
+              const lines = buffer.split('\n')
+              buffer = lines.pop() ?? ''
+
+              for (const line of lines) {
+                const trimmed = line.trim()
+                if (!trimmed || !trimmed.startsWith('data: ')) continue
+
+                const data = trimmed.slice(6)
+                if (data === '[DONE]') {
+                  res.write('data: [DONE]\n\n')
+                  continue
+                }
+
+                try {
+                  const chunk = JSON.parse(data)
+                  const content = chunk.choices?.[0]?.delta?.content
+                  if (content) {
+                    res.write(`data: ${JSON.stringify({ content })}\n\n`)
+                  }
+                } catch {
+                  // skip unparseable
+                }
+              }
+            }
+
+            res.write('data: [DONE]\n\n')
+            res.end()
+          } catch (err: any) {
+            res.writeHead(502, {
+              'Content-Type': 'text/event-stream',
+              'Cache-Control': 'no-cache',
+              'Access-Control-Allow-Origin': '*',
+            })
+            res.write(`data: ${JSON.stringify({ error: `Chat failed: ${err.message}` })}\n\n`)
+            res.write('data: [DONE]\n\n')
+            res.end()
+          }
+        })
+      })
+    },
+  }
+}
+
+function recipeImageSearchPlugin(): Plugin {
+  return {
+    name: 'recipe-image-search-proxy',
+    configureServer(server) {
+      const env = loadEnv('development', process.cwd(), '')
+
+      server.middlewares.use('/api/recipe-image-search', async (req, res) => {
+        res.setHeader('Access-Control-Allow-Origin', '*')
+
+        if (req.method === 'OPTIONS') {
+          res.writeHead(204)
+          res.end()
+          return
+        }
+
+        const apiKey = env.UNSPLASH_ACCESS_KEY
+        if (!apiKey) {
+          res.writeHead(200, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ imageUrl: null }))
+          return
+        }
+
+        const reqUrl = new URL(req.url!, `http://${req.headers.host}`)
+        const query = reqUrl.searchParams.get('q')
+        if (!query) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Missing ?q= parameter' }))
+          return
+        }
+
+        try {
+          const params = new URLSearchParams({
+            query: `${query} food`,
+            per_page: '1',
+            orientation: 'landscape',
+          })
+
+          const response = await fetch(`https://api.unsplash.com/search/photos?${params}`, {
+            headers: { Authorization: `Client-ID ${apiKey}` },
+          })
+
+          if (!response.ok) {
+            res.writeHead(200, { 'Content-Type': 'application/json' })
+            res.end(JSON.stringify({ imageUrl: null }))
+            return
+          }
+
+          const data: any = await response.json()
+          const photo = data.results?.[0]
+
+          res.writeHead(200, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({
+            imageUrl: photo?.urls?.regular ?? null,
+            credit: photo ? {
+              name: photo.user?.name ?? null,
+              link: photo.user?.links?.html ?? null,
+            } : null,
+          }))
+        } catch {
+          res.writeHead(200, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ imageUrl: null }))
+        }
+      })
+    },
+  }
+}
+
+async function enrichResults(
+  results: Array<{ title: string; sourceUrl: string; sourceName: string; description: string; image: string | null; rating: number | null; ratingCount: number | null }>
+) {
+  const enriched = await Promise.allSettled(
+    results.map(async (r) => {
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 5000)
+      try {
+        const res = await fetch(r.sourceUrl, {
+          signal: controller.signal,
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+            'Accept': 'text/html',
+          },
+          redirect: 'follow',
+        })
+        // Read only first 100KB to find JSON-LD quickly
+        const text = await res.text()
+        const chunk = text.slice(0, 100_000)
+
+        // Extract all JSON-LD blocks
+        const ldBlocks = [...chunk.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)]
+        for (const match of ldBlocks) {
+          try {
+            const ld = JSON.parse(match[1])
+            const recipes = Array.isArray(ld) ? ld : ld['@graph'] ? ld['@graph'] : [ld]
+            for (const item of recipes) {
+              if (item['@type'] === 'Recipe' || (Array.isArray(item['@type']) && item['@type'].includes('Recipe'))) {
+                // Image
+                if (!r.image && item.image) {
+                  const img = Array.isArray(item.image) ? item.image[0] : item.image
+                  r.image = typeof img === 'string' ? img : img?.url ?? null
+                }
+                // Rating
+                if (item.aggregateRating) {
+                  const ar = item.aggregateRating
+                  r.rating = parseFloat(ar.ratingValue) || null
+                  r.ratingCount = parseInt(ar.ratingCount || ar.reviewCount, 10) || null
+                }
+                break
+              }
+            }
+          } catch { /* skip bad JSON-LD */ }
+        }
+
+        // Fallback: og:image if no recipe image found
+        if (!r.image) {
+          const ogMatch = chunk.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i)
+            ?? chunk.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i)
+          if (ogMatch) r.image = ogMatch[1]
+        }
+      } catch { /* timeout or fetch error — leave defaults */ } finally {
+        clearTimeout(timeout)
+      }
+      return r
+    })
+  )
+
+  return enriched.map((r, i) => r.status === 'fulfilled' ? r.value : results[i])
+}
+
+function parseDdgResults(html: string) {
+  const results: Array<{
+    title: string
+    sourceUrl: string
+    sourceName: string
+    description: string
+    image: string | null
+    rating: number | null
+    ratingCount: number | null
+  }> = []
+
+  // Split on result blocks — each organic result is in a div.result
+  const blocks = html.split(/class="result\s/)
+  for (const block of blocks.slice(1)) {
+    // Skip ads
+    if (block.includes('result--ad')) continue
+
+    // Extract title + href from result__a link
+    const titleMatch = block.match(/class="result__a"[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/)
+    if (!titleMatch) continue
+
+    const rawHref = titleMatch[1]
+    const rawTitle = titleMatch[2].replace(/<[^>]*>/g, '').replace(/&#x27;/g, "'").replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/\s+/g, ' ').trim()
+    if (!rawTitle) continue
+
+    // Extract actual URL from DDG redirect
+    let sourceUrl: string
+    const uddgMatch = rawHref.match(/uddg=([^&]+)/)
+    if (uddgMatch) {
+      sourceUrl = decodeURIComponent(uddgMatch[1])
+    } else if (rawHref.startsWith('http')) {
+      sourceUrl = rawHref
+    } else {
+      continue
+    }
+
+    // Extract snippet
+    const snippetMatch = block.match(/class="result__snippet"[^>]*>([\s\S]*?)<\/a>/)
+    const description = snippetMatch
+      ? snippetMatch[1].replace(/<[^>]*>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#x27;/g, "'").replace(/&quot;/g, '"').replace(/\s+/g, ' ').trim().slice(0, 200)
+      : ''
+
+    // Extract source name from displayed URL
+    const urlMatch = block.match(/class="result__url"[^>]*>([\s\S]*?)</)
+    const sourceName = urlMatch
+      ? urlMatch[1].replace(/<[^>]*>/g, '').replace(/\s+/g, '').split('/')[0]
+      : new URL(sourceUrl).hostname.replace(/^www\./, '')
+
+    results.push({ title: rawTitle, sourceUrl, sourceName, description, image: null, rating: null, ratingCount: null })
+    if (results.length >= 12) break
+  }
+
+  return results
+}
+
+function recipeDiscoverPlugin(): Plugin {
+  return {
+    name: 'recipe-discover-proxy',
+    configureServer(server) {
+      server.middlewares.use('/api/recipe-discover', async (req, res) => {
+        res.setHeader('Access-Control-Allow-Origin', '*')
+
+        if (req.method === 'OPTIONS') {
+          res.writeHead(204)
+          res.end()
+          return
+        }
+
+        const reqUrl = new URL(req.url!, `http://${req.headers.host}`)
+        const query = reqUrl.searchParams.get('q')
+        if (!query) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Missing ?q= parameter' }))
+          return
+        }
+
+        try {
+          const searchUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query + ' recipe')}`
+          const response = await fetch(searchUrl, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+            },
+          })
+
+          if (!response.ok) {
+            res.writeHead(502, { 'Content-Type': 'application/json' })
+            res.end(JSON.stringify({ error: `Search failed (${response.status})` }))
+            return
+          }
+
+          const html = await response.text()
+          const results = parseDdgResults(html)
+          const enriched = await enrichResults(results)
+
+          res.writeHead(200, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ results: enriched }))
+        } catch (err) {
+          const message = err instanceof Error ? err.message : 'Unknown error'
+          res.writeHead(502, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: `Recipe search failed: ${message}` }))
+        }
+      })
+    },
+  }
+}
+
 function corsProxyPlugin(): Plugin {
   return {
     name: 'cors-proxy',
@@ -537,6 +951,9 @@ function corsProxyPlugin(): Plugin {
 export default defineConfig({
   plugins: [
     imageExtractPlugin(),
+    recipeChatPlugin(),
+    recipeImageSearchPlugin(),
+    recipeDiscoverPlugin(),
     corsProxyPlugin(),
     browserProxyPlugin(),
     instacartPlugin(),
