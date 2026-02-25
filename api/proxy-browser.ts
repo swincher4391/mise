@@ -517,13 +517,19 @@ If no recipe text is visible in any frame, return an empty string.`,
     }
 
     // Default mode: return rendered HTML
-    await page.goto(targetUrl, { waitUntil: 'networkidle2', timeout: 20000 })
+    // Use domcontentloaded instead of networkidle2 — ad-heavy recipe sites
+    // (allrecipes, food network, etc.) never reach network idle within timeout.
+    await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 20000 })
 
+    // Wait for JSON-LD to appear (most recipe sites inject it early)
     await page
       .waitForFunction('!!document.querySelector(\'script[type="application/ld+json"]\')', {
         timeout: 10000,
       })
       .catch(() => {})
+
+    // Extra settle time for late-loading JSON-LD or client-rendered content
+    await new Promise((r) => setTimeout(r, 2000))
 
     const html = await page.evaluate(() => document.documentElement.outerHTML)
 
