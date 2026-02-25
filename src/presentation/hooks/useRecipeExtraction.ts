@@ -125,6 +125,25 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
         return
       }
 
+      // Domains that block all datacenter IPs (both fetch and headless browser).
+      // Skip server-side fetch entirely and direct the user to client-side alternatives.
+      const BLOCKED_DOMAINS = [
+        'allrecipes.com',
+        'foodnetwork.com',
+        'food.com',
+        'cookinglight.com',
+        'eatingwell.com',
+        'myrecipes.com',
+        'southernliving.com',
+      ]
+      const urlHostname = (() => { try { return new URL(url).hostname.toLowerCase() } catch { return '' } })()
+      const isKnownBlocked = BLOCKED_DOMAINS.some(d => urlHostname === d || urlHostname.endsWith('.' + d))
+
+      if (isKnownBlocked) {
+        setError(`${urlHostname.replace(/^www\./, '')} blocks automated access. Open the recipe in your browser and use the Paste tab to copy the recipe text, or use the Mise bookmarklet to import directly.`)
+        return
+      }
+
       const isInstagram = isInstagramUrl(url)
       const totalSteps = isInstagram ? 5 : 2
 
