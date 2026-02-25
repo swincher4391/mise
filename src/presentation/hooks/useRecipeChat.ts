@@ -100,45 +100,57 @@ export function useRecipeChat() {
       const reader = response.body.getReader()
       const decoder = new TextDecoder()
       let assistantContent = ''
+      let lineBuf = ''
+      const processSseLine = (rawLine: string) => {
+        const line = rawLine.trim()
+        if (!line.startsWith('data: ')) return
+
+        const data = line.slice(6).trim()
+        if (!data || data === '[DONE]') return
+
+        let parsed: any
+        try {
+          parsed = JSON.parse(data)
+        } catch {
+          // Ignore malformed JSON frames and keep streaming
+          return
+        }
+
+        if (parsed.error) {
+          throw new Error(parsed.error)
+        }
+
+        if (parsed.content) {
+          assistantContent += parsed.content
+          setMessages(prev => {
+            const copy = [...prev]
+            const lastIdx = copy.length - 1
+            if (lastIdx >= 0 && copy[lastIdx].role === 'assistant') {
+              copy[lastIdx] = { role: 'assistant', content: assistantContent }
+            } else {
+              copy.push({ role: 'assistant', content: assistantContent })
+            }
+            return copy
+          })
+        }
+      }
 
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
 
-        const chunk = decoder.decode(value, { stream: true })
-        const lines = chunk.split('\n')
+        lineBuf += decoder.decode(value, { stream: true })
+        const lines = lineBuf.split('\n')
+        // Keep the last (potentially incomplete) line in the buffer
+        lineBuf = lines.pop() ?? ''
 
         for (const line of lines) {
-          if (!line.startsWith('data: ')) continue
-          const data = line.slice(6)
-
-          if (data === '[DONE]') continue
-
-          try {
-            const parsed = JSON.parse(data)
-            if (parsed.error) {
-              throw new Error(parsed.error)
-            }
-            if (parsed.content) {
-              assistantContent += parsed.content
-              // Update messages with streaming content
-              setMessages(prev => {
-                const copy = [...prev]
-                const lastIdx = copy.length - 1
-                if (lastIdx >= 0 && copy[lastIdx].role === 'assistant') {
-                  copy[lastIdx] = { role: 'assistant', content: assistantContent }
-                } else {
-                  copy.push({ role: 'assistant', content: assistantContent })
-                }
-                return copy
-              })
-            }
-          } catch (e) {
-            if (e instanceof Error && e.message !== 'Failed to get response') {
-              // JSON parse errors are expected for partial chunks
-            }
-          }
+          processSseLine(line)
         }
+      }
+
+      if (lineBuf.trim()) {
+        processSseLine(lineBuf)
       }
 
       // After streaming complete, check for recipe-json block

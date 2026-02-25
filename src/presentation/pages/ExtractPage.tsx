@@ -138,7 +138,7 @@ export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRec
           <button
             key={tab}
             className={`extract-tab ${activeTab === tab ? 'active' : ''}`}
-            onClick={() => setActiveTab(tab)}
+            onClick={() => { setActiveTab(tab); if (tab !== 'describe') setChatInitialPrompt('') }}
           >
             {tab.charAt(0).toUpperCase() + tab.slice(1)}
           </button>
