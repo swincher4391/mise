@@ -7,7 +7,7 @@ import { extractMicrodata } from '@application/extraction/extractMicrodata.ts'
 import { normalizeRecipe } from '@application/extraction/normalizeRecipe.ts'
 import { extractImageRecipe } from '@infrastructure/ocr/extractImageRecipe.ts'
 import { createImageRecipe } from '@application/extraction/createImageRecipe.ts'
-import { isInstagramUrl, isTikTokUrl, isYouTubeShortsUrl, extractCaptionFromJson, extractCaptionFromMeta, toInstagramEmbedUrl, extractCaptionFromEmbed } from '@application/extraction/extractInstagramCaption.ts'
+import { isInstagramUrl, isTikTokUrl, isYouTubeShortsUrl, extractInstagramShortcode, extractCaptionFromJson, extractCaptionFromMeta, toInstagramEmbedUrl, extractCaptionFromEmbed } from '@application/extraction/extractInstagramCaption.ts'
 import { isFacebookUrl, extractFacebookPostText } from '@application/extraction/extractFacebookPost.ts'
 import { parseTextRecipe } from '@application/extraction/parseTextRecipe.ts'
 import { createManualRecipe } from '@application/extraction/createManualRecipe.ts'
@@ -195,9 +195,11 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
       // Layer 3: Instagram caption extraction
       if (isInstagram) {
         setExtractionStatus({ message: 'Extracting caption…', step: 3, totalSteps })
+        const shortcode = extractInstagramShortcode(url)
 
         // Primary: extract full caption from embedded JSON (untruncated)
-        const jsonCaption = extractCaptionFromJson(html)
+        // Pass shortcode to target the specific post, not related posts
+        const jsonCaption = extractCaptionFromJson(html, shortcode ?? undefined)
         if (jsonCaption) {
           const parsed = parseTextRecipe(jsonCaption)
           if (parsed.ingredientLines.length > 0 || parsed.stepLines.length > 0) {

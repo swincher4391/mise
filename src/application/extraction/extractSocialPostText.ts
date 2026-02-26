@@ -59,11 +59,65 @@ export function extractCaptionTextValues(html: string): string[] {
 }
 
 /**
+ * Extract the caption for a specific Instagram post by its shortcode.
+ * Instagram's JSON blobs include `"shortcode":"ABC123"` or `"code":"ABC123"`
+ * near the post's caption data. We search for <script> blocks containing
+ * the shortcode and extract captions only from those blocks.
+ * Falls back to the longest caption if shortcode matching fails.
+ */
+export function extractCaptionByShortcode(html: string, shortcode: string): string | null {
+  if (!shortcode) return null
+
+  // Find all <script> blocks in the HTML
+  const scriptBlocks = [...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)]
+
+  for (const [, scriptContent] of scriptBlocks) {
+    // Check if this block contains the target shortcode
+    const hasShortcode =
+      scriptContent.includes(`"shortcode":"${shortcode}"`) ||
+      scriptContent.includes(`"code":"${shortcode}"`)
+    if (!hasShortcode) continue
+
+    // Extract captions from this specific block
+    const captions = extractCaptionTextValues(scriptContent)
+    if (captions.length > 0) return captions[0]
+  }
+
+  // Shortcode not found in script blocks — try searching the entire HTML
+  // in case the JSON spans non-script areas (inline JSON, data attributes, etc.)
+  const shortcodePattern = new RegExp(
+    `"(?:shortcode|code)"\\s*:\\s*"${escapeRegExp(shortcode)}"`,
+  )
+  const shortcodeMatch = shortcodePattern.exec(html)
+  if (shortcodeMatch) {
+    // Extract a window around the shortcode match and look for captions
+    const start = Math.max(0, shortcodeMatch.index - 5000)
+    const end = Math.min(html.length, shortcodeMatch.index + 5000)
+    const window = html.slice(start, end)
+    const captions = extractCaptionTextValues(window)
+    if (captions.length > 0) return captions[0]
+  }
+
+  return null
+}
+
+/** Escape special regex characters in a string */
+function escapeRegExp(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+/**
  * Extract the longest meaningful post text from social media HTML.
  * Tries caption-specific extraction first, then falls back to generic text.
  */
-export function extractSocialPostText(html: string): string | null {
-  // Try caption-specific path first (Instagram)
+export function extractSocialPostText(html: string, shortcode?: string): string | null {
+  // If we have a shortcode, try targeted extraction first
+  if (shortcode) {
+    const targeted = extractCaptionByShortcode(html, shortcode)
+    if (targeted) return targeted
+  }
+
+  // Try caption-specific path (Instagram) — longest caption
   const captions = extractCaptionTextValues(html)
   if (captions.length > 0) return captions[0]
 

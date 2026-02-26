@@ -21,6 +21,12 @@ export function toInstagramEmbedUrl(url: string): string | null {
   return `https://www.instagram.com/reel/${match[1]}/embed/captioned/`
 }
 
+/** Extract the shortcode from an Instagram URL */
+export function extractInstagramShortcode(url: string): string | null {
+  const match = url.match(/instagram\.com\/(?:reels?|p)\/([\w-]+)/)
+  return match?.[1] ?? null
+}
+
 /** Check if a URL is an Instagram post/reel */
 export function isInstagramUrl(url: string): boolean {
   return /instagram\.com\/(reels?|p)\//i.test(url)
@@ -40,9 +46,12 @@ export function isYouTubeShortsUrl(url: string): boolean {
  * Extract full caption from Instagram's embedded JSON (primary method).
  * Instagram includes `"caption":{"text":"..."}` in Relay-style JSON blobs
  * within <script> tags. This returns the complete, untruncated caption.
+ *
+ * When a shortcode is provided, targets the specific post's caption rather
+ * than taking the longest caption (which may belong to a related post).
  */
-export function extractCaptionFromJson(html: string): string | null {
-  const text = extractSocialPostText(html)
+export function extractCaptionFromJson(html: string, shortcode?: string): string | null {
+  const text = extractSocialPostText(html, shortcode)
   if (!text) return null
   return cleanSocialCaption(text)
 }
