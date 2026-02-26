@@ -115,6 +115,10 @@ export function extractSocialPostText(html: string, shortcode?: string): string 
   if (shortcode) {
     const targeted = extractCaptionByShortcode(html, shortcode)
     if (targeted) return targeted
+    // Shortcode was provided but not found in the HTML — return null so the
+    // caller can try other extraction methods (e.g. og:description meta tag)
+    // rather than returning an unrelated post's caption.
+    return null
   }
 
   // Try caption-specific path (Instagram) — longest caption
