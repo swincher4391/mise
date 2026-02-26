@@ -8,6 +8,9 @@ import { UpgradePrompt } from '@presentation/components/UpgradePrompt.tsx'
 import { BatchImportPage } from '@presentation/pages/BatchImportPage.tsx'
 import { RecipeChat } from '@presentation/components/RecipeChat.tsx'
 import { RecipeDiscover } from '@presentation/components/RecipeDiscover.tsx'
+import { isTikTokUrl, isYouTubeShortsUrl, isInstagramUrl } from '@application/extraction/extractInstagramCaption.ts'
+import { useVideoExtractionLimit } from '@presentation/hooks/useVideoExtractionLimit.ts'
+import type { VideoPlatform } from '@infrastructure/usage/videoExtractionStore.ts'
 import { createManualRecipe } from '@application/extraction/createManualRecipe.ts'
 import { parseTextRecipe } from '@application/extraction/parseTextRecipe.ts'
 import { compressImage } from '@infrastructure/imageProcessing.ts'
@@ -30,6 +33,8 @@ interface ExtractPageProps {
 
 export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRecipeConsumed, sharedUrl, onSharedUrlConsumed, purchase, onRecipeExtracted }: ExtractPageProps) {
   const { recipe, isLoading, error, ocrText, extractionStatus, extract, extractFromImage, setRecipe, clearOcrText } = useRecipeExtraction()
+  const { canExtract: canExtractVideo, recordExtraction } = useVideoExtractionLimit(purchase.isPaid)
+  const [pendingVideoPlatform, setPendingVideoPlatform] = useState<VideoPlatform | null>(null)
   const [editableOcrText, setEditableOcrText] = useState('')
   const [showUpgrade, setShowUpgrade] = useState(false)
   const [upgradeFeature, setUpgradeFeature] = useState('')
@@ -50,14 +55,20 @@ export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRec
 
   useEffect(() => {
     if (sharedUrl && !isLoading) {
-      extract(sharedUrl)
+      handleGatedExtract(sharedUrl)
       onSharedUrlConsumed?.()
     }
   }, [sharedUrl]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (recipe) onRecipeExtracted?.()
-  }, [recipe, onRecipeExtracted])
+    if (recipe) {
+      if (pendingVideoPlatform) {
+        recordExtraction(pendingVideoPlatform)
+        setPendingVideoPlatform(null)
+      }
+      onRecipeExtracted?.()
+    }
+  }, [recipe, onRecipeExtracted, pendingVideoPlatform, recordExtraction])
 
   useEffect(() => {
     if (ocrText) {
@@ -72,6 +83,33 @@ export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRec
       return
     }
     setShowBatchImport(true)
+  }
+
+  const detectVideoPlatform = (url: string): VideoPlatform | null => {
+    if (isTikTokUrl(url)) return 'tiktok'
+    if (isYouTubeShortsUrl(url)) return 'youtube'
+    if (isInstagramUrl(url)) return 'instagram'
+    return null
+  }
+
+  const platformLabels: Record<VideoPlatform, string> = {
+    tiktok: 'TikTok',
+    youtube: 'YouTube Shorts',
+    instagram: 'Instagram',
+  }
+
+  const handleGatedExtract = (url: string) => {
+    const platform = detectVideoPlatform(url)
+    if (platform && !canExtractVideo(platform)) {
+      setUpgradeFeature(
+        `You've used your 3 free ${platformLabels[platform]} imports. Upgrade to Mise Pro for unlimited video imports — just $4.99, one time.`
+      )
+      setShowUpgrade(true)
+      return
+    }
+    if (platform) setPendingVideoPlatform(platform)
+    else setPendingVideoPlatform(null)
+    extract(url)
   }
 
   const handleOcrParse = () => {
@@ -147,7 +185,7 @@ export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRec
 
       {activeTab === 'extract' && (
         <>
-          <UrlInput onExtract={extract} isLoading={isLoading} extractionStatus={extractionStatus} />
+          <UrlInput onExtract={handleGatedExtract} isLoading={isLoading} extractionStatus={extractionStatus} />
           {isLoading && (
             <div className="extraction-status" role="status" aria-live="polite">
               {extractionStatus ? (
@@ -300,7 +338,7 @@ export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRec
 
       {activeTab === 'discover' && (
         <RecipeDiscover
-          onSelectRecipe={(sourceUrl) => { extract(sourceUrl); setActiveTab('extract') }}
+          onSelectRecipe={(sourceUrl) => { handleGatedExtract(sourceUrl); setActiveTab('extract') }}
           onDescribe={(prompt) => { setActiveTab('describe'); setChatInitialPrompt(prompt) }}
         />
       )}
