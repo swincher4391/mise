@@ -31,7 +31,7 @@ export function parseTextRecipe(text: string): ParsedTextRecipe {
     const lower = line.toLowerCase().trim()
 
     // Detect section headers
-    if (/^(=\s*)?ingredients\s*:?$/i.test(lower) || lower === '= ingredients:') {
+    if (/^(=\s*)?(ingredients|grocery\s*list)\s*:?$/i.test(lower) || lower === '= ingredients:') {
       section = 'ingredients'
       continue
     }
