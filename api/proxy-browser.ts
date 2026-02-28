@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-// @ts-expect-error -- @sparticuz/chromium default export typing mismatch
+// @ts-ignore -- @sparticuz/chromium default export typing mismatch
 import chromium from '@sparticuz/chromium'
 import puppeteer from 'puppeteer-core'
 import { unlinkSync } from 'fs'
@@ -58,7 +58,7 @@ async function runAudioPipeline(
       Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'audio/wav',
     },
-    body: wavBuffer,
+    body: new Uint8Array(wavBuffer),
     signal: AbortSignal.timeout(30000),
   })
 

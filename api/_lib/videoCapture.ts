@@ -1,4 +1,4 @@
-// @ts-expect-error -- @sparticuz/chromium default export typing mismatch
+// @ts-ignore -- @sparticuz/chromium default export typing mismatch
 import chromium from '@sparticuz/chromium'
 import puppeteer from 'puppeteer-core'
 

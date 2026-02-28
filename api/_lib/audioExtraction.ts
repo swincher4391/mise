@@ -1,7 +1,7 @@
 import { execFileSync } from 'child_process'
 import { writeFileSync, readFileSync } from 'fs'
 import path from 'path'
-// @ts-expect-error -- ffmpeg-static exports a string path
+// @ts-ignore -- ffmpeg-static exports a string path
 import ffmpegPath from 'ffmpeg-static'
 
 /**
@@ -20,7 +20,7 @@ export function extractWavFromVideo(
 
   writeFileSync(tmpVideo, videoBuffer)
 
-  execFileSync(ffmpegPath as string, [
+  execFileSync(ffmpegPath as unknown as string, [
     '-y', '-i', tmpVideo,
     '-vn', '-ac', '1', '-ar', '16000', '-f', 'wav',
     tmpWav,

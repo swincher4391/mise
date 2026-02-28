@@ -1,7 +1,7 @@
 import { execFileSync } from 'child_process'
 import { writeFileSync, readFileSync } from 'fs'
 import path from 'path'
-// @ts-expect-error -- ffmpeg-static exports a string path
+// @ts-ignore -- ffmpeg-static exports a string path
 import ffmpegPath from 'ffmpeg-static'
 
 const FRAMES_PER_GRID = 9 // 3x3 tile per image
@@ -53,7 +53,7 @@ export function extractFrameGrids(
   // Probe total frame count
   let totalFrames = 300
   try {
-    execFileSync(ffmpegPath as string, [
+    execFileSync(ffmpegPath as unknown as string, [
       '-i', tmpVideo,
       '-map', '0:v:0', '-c', 'copy', '-f', 'null', '-',
     ], { timeout: 10000, stdio: ['pipe', 'pipe', 'pipe'] })
@@ -67,7 +67,7 @@ export function extractFrameGrids(
   const interval = Math.max(1, Math.floor(totalFrames / TOTAL_FRAMES))
   const gridPattern = path.join('/tmp', `ocr-grid-${ts}-%03d.jpg`)
 
-  execFileSync(ffmpegPath as string, [
+  execFileSync(ffmpegPath as unknown as string, [
     '-y', '-i', tmpVideo,
     '-vf', `select='not(mod(n\\,${interval}))',setpts=N/FRAME_RATE/TB,tile=3x3`,
     '-frames:v', String(NUM_GRIDS),
