@@ -11,14 +11,16 @@ import { isInstagramUrl, isTikTokUrl, isYouTubeShortsUrl, extractInstagramShortc
 import { isFacebookUrl, extractFacebookPostText } from '@application/extraction/extractFacebookPost.ts'
 import { parseTextRecipe } from '@application/extraction/parseTextRecipe.ts'
 import { createManualRecipe } from '@application/extraction/createManualRecipe.ts'
-import { transcribeInstagramVideo } from '@infrastructure/video/transcribeInstagramVideo.ts'
 import { transcribeYouTubeVideo } from '@infrastructure/video/transcribeYouTubeVideo.ts'
-import { extractFrameRecipe } from '@infrastructure/video/extractFrameRecipe.ts'
+import { analyzeVideo } from '@infrastructure/video/analyzeVideo.ts'
+import { getCachedExtraction, cacheExtraction } from '@infrastructure/db/extractionCacheRepository.ts'
 
 export interface ExtractionStatus {
   message: string
   step: number
   totalSteps: number
+  /** When true, the UI should show a timed progress bar instead of step-based */
+  timed?: boolean
 }
 
 interface UseRecipeExtractionResult {
@@ -31,6 +33,24 @@ interface UseRecipeExtractionResult {
   extractFromImage: (imageBase64: string) => Promise<void>
   setRecipe: (recipe: Recipe | null) => void
   clearOcrText: () => void
+}
+
+/**
+ * Try to parse a recipe from the transcript or OCR text.
+ * Returns the recipe if found, null otherwise.
+ */
+function tryParseVideoResult(
+  text: string | null,
+  sourceUrl: string
+): Recipe | null {
+  if (!text) return null
+  const parsed = parseTextRecipe(text)
+  if (parsed.ingredientLines.length > 0 || parsed.stepLines.length > 0) {
+    const recipe = createManualRecipe({ ...parsed, sourceUrl })
+    recipe.extractionLayer = 'text'
+    return recipe
+  }
+  return null
 }
 
 export function useRecipeExtraction(): UseRecipeExtractionResult {
@@ -49,54 +69,47 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
 
     try {
       // Short-form video platforms — skip HTML fetch entirely and go straight
-      // to video transcription + OCR since these sites block proxied requests
+      // to video analysis since these sites block proxied requests
       // and never have structured recipe data.
       const isShortVideo = isTikTokUrl(url) || isYouTubeShortsUrl(url)
       if (isShortVideo) {
         const platform = isTikTokUrl(url) ? 'TikTok' : 'YouTube Short'
         const isYT = isYouTubeShortsUrl(url)
-        const totalSteps = isYT ? 1 : 2
 
-        // Layer 4: Video transcription (recipe spoken in audio)
-        setExtractionStatus({
-          message: isYT ? 'Extracting captions…' : 'Transcribing video audio…',
-          step: 1,
-          totalSteps,
-        })
-        try {
-          const transcript = isYT
-            ? await transcribeYouTubeVideo(url)
-            : await transcribeInstagramVideo(url)
-          if (transcript) {
-            const parsed = parseTextRecipe(transcript)
-            if (parsed.ingredientLines.length > 0 || parsed.stepLines.length > 0) {
-              const recipe = createManualRecipe({ ...parsed, sourceUrl: url })
-              recipe.extractionLayer = 'text'
-              setRecipe(recipe)
-              return
-            }
-          }
-        } catch {
-          // Transcription failed — fall through to frame OCR
-        }
-
-        // Layer 5: Video frame OCR (text overlaid on video, step by step)
-        // Skip for YouTube — Vercel's headless Chrome can't play YouTube videos
-        if (!isYT) {
-          setExtractionStatus({ message: 'Reading video frames…', step: 2, totalSteps })
+        if (isYT) {
+          // YouTube Shorts: use dedicated transcript endpoint
+          setExtractionStatus({ message: 'Extracting captions…', step: 1, totalSteps: 1 })
           try {
-            const frameText = await extractFrameRecipe(url)
-            if (frameText) {
-              const parsed = parseTextRecipe(frameText)
-              if (parsed.ingredientLines.length > 0 || parsed.stepLines.length > 0) {
-                const recipe = createManualRecipe({ ...parsed, sourceUrl: url })
-                recipe.extractionLayer = 'text'
-                setRecipe(recipe)
-                return
-              }
-            }
+            const transcript = await transcribeYouTubeVideo(url)
+            const found = tryParseVideoResult(transcript, url)
+            if (found) { setRecipe(found); return }
           } catch {
-            // Frame OCR failed — fall through to error message
+            // Transcription failed
+          }
+        } else {
+          // TikTok: use unified analyze-video (single capture, parallel pipelines)
+          setExtractionStatus({ message: 'Analyzing video…', step: 1, totalSteps: 1, timed: true })
+
+          // Check cache first
+          const cached = await getCachedExtraction(url).catch(() => null)
+          if (cached) {
+            const found = tryParseVideoResult(cached.transcript, url)
+              ?? tryParseVideoResult(cached.ocrText, url)
+            if (found) { setRecipe(found); return }
+          }
+
+          try {
+            const result = await analyzeVideo(url)
+
+            // Cache the result for future use
+            cacheExtraction(url, result).catch(() => {})
+
+            // Try transcript first, fall back to OCR
+            const found = tryParseVideoResult(result.transcript, url)
+              ?? tryParseVideoResult(result.ocrText, url)
+            if (found) { setRecipe(found); return }
+          } catch {
+            // Video analysis failed
           }
         }
 
@@ -112,13 +125,8 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
         setExtractionStatus({ message: 'Extracting recipe text…', step: 2, totalSteps: 2 })
         const postText = extractFacebookPostText(html)
         if (postText) {
-          const parsed = parseTextRecipe(postText)
-          if (parsed.ingredientLines.length > 0 || parsed.stepLines.length > 0) {
-            const recipe = createManualRecipe({ ...parsed, sourceUrl: url })
-            recipe.extractionLayer = 'text'
-            setRecipe(recipe)
-            return
-          }
+          const found = tryParseVideoResult(postText, url)
+          if (found) { setRecipe(found); return }
         }
 
         setError("Couldn't extract a recipe from this Facebook post. Try copying the recipe text and using Paste to import it, or screenshot it and use Photo import.")
@@ -126,7 +134,6 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
       }
 
       // Domains that block all datacenter IPs (both fetch and headless browser).
-      // Skip server-side fetch entirely and direct the user to client-side alternatives.
       const BLOCKED_DOMAINS = [
         'allrecipes.com',
         'foodnetwork.com',
@@ -146,7 +153,7 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
       }
 
       const isInstagram = isInstagramUrl(url)
-      const totalSteps = isInstagram ? 5 : 2
+      const totalSteps = isInstagram ? 4 : 2
 
       setExtractionStatus({ message: 'Fetching page…', step: 1, totalSteps })
       let html = await fetchViaProxy(url)
@@ -198,28 +205,17 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
         const shortcode = extractInstagramShortcode(url)
 
         // Primary: extract full caption from embedded JSON (untruncated)
-        // Pass shortcode to target the specific post, not related posts
         const jsonCaption = extractCaptionFromJson(html, shortcode ?? undefined)
         if (jsonCaption) {
-          const parsed = parseTextRecipe(jsonCaption)
-          if (parsed.ingredientLines.length > 0 || parsed.stepLines.length > 0) {
-            const recipe = createManualRecipe({ ...parsed, sourceUrl: url })
-            recipe.extractionLayer = 'text'
-            setRecipe(recipe)
-            return
-          }
+          const found = tryParseVideoResult(jsonCaption, url)
+          if (found) { setRecipe(found); return }
         }
 
         // Fallback: og:description meta tag (truncated but sometimes sufficient)
         const metaCaption = extractCaptionFromMeta(html)
         if (metaCaption) {
-          const parsed = parseTextRecipe(metaCaption)
-          if (parsed.ingredientLines.length > 0 || parsed.stepLines.length > 0) {
-            const recipe = createManualRecipe({ ...parsed, sourceUrl: url })
-            recipe.extractionLayer = 'text'
-            setRecipe(recipe)
-            return
-          }
+          const found = tryParseVideoResult(metaCaption, url)
+          if (found) { setRecipe(found); return }
         }
 
         // Fallback: captioned embed endpoint (increasingly unreliable)
@@ -229,50 +225,37 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
             const embedHtml = await fetchViaProxy(embedUrl)
             const caption = extractCaptionFromEmbed(embedHtml)
             if (caption) {
-              const parsed = parseTextRecipe(caption)
-              if (parsed.ingredientLines.length > 0 || parsed.stepLines.length > 0) {
-                const recipe = createManualRecipe({ ...parsed, sourceUrl: url })
-                recipe.extractionLayer = 'text'
-                setRecipe(recipe)
-                return
-              }
+              const found = tryParseVideoResult(caption, url)
+              if (found) { setRecipe(found); return }
             }
           } catch {
             // Embed fetch failed — fall through
           }
         }
-        // Layer 4: Video transcription (recipe spoken in reel audio)
-        setExtractionStatus({ message: 'Transcribing video audio…', step: 4, totalSteps })
-        try {
-          const transcript = await transcribeInstagramVideo(url)
-          if (transcript) {
-            const parsed = parseTextRecipe(transcript)
-            if (parsed.ingredientLines.length > 0 || parsed.stepLines.length > 0) {
-              const recipe = createManualRecipe({ ...parsed, sourceUrl: url })
-              recipe.extractionLayer = 'text'
-              setRecipe(recipe)
-              return
-            }
-          }
-        } catch {
-          // Transcription failed — fall through to frame OCR
+
+        // Layer 4: Unified video analysis (single capture, parallel audio + OCR)
+        setExtractionStatus({ message: 'Analyzing video…', step: 4, totalSteps })
+
+        // Check cache first
+        const cached = await getCachedExtraction(url).catch(() => null)
+        if (cached) {
+          const found = tryParseVideoResult(cached.transcript, url)
+            ?? tryParseVideoResult(cached.ocrText, url)
+          if (found) { setRecipe(found); return }
         }
 
-        // Layer 5: Video frame OCR (text overlaid on video, step by step)
-        setExtractionStatus({ message: 'Reading video frames…', step: 5, totalSteps })
         try {
-          const frameText = await extractFrameRecipe(url)
-          if (frameText) {
-            const parsed = parseTextRecipe(frameText)
-            if (parsed.ingredientLines.length > 0 || parsed.stepLines.length > 0) {
-              const recipe = createManualRecipe({ ...parsed, sourceUrl: url })
-              recipe.extractionLayer = 'text'
-              setRecipe(recipe)
-              return
-            }
-          }
+          const result = await analyzeVideo(url)
+
+          // Cache the result for future use
+          cacheExtraction(url, result).catch(() => {})
+
+          // Try transcript first, fall back to OCR
+          const found = tryParseVideoResult(result.transcript, url)
+            ?? tryParseVideoResult(result.ocrText, url)
+          if (found) { setRecipe(found); return }
         } catch {
-          // Frame OCR failed — fall through to error message
+          // Video analysis failed
         }
 
         setError("Couldn't extract a recipe from this Instagram post. The recipe may be in the comments — try copying the recipe text from the caption or comments and using Paste to import it, or screenshot it and use Photo import.")

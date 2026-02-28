@@ -16,6 +16,8 @@ import { parseTextRecipe } from '@application/extraction/parseTextRecipe.ts'
 import { compressImage } from '@infrastructure/imageProcessing.ts'
 import type { Recipe } from '@domain/models/Recipe.ts'
 import type { PurchaseState } from '@presentation/hooks/usePurchase.ts'
+import { trackEvent } from '@infrastructure/analytics/track.ts'
+import { VideoProgressBar } from '@presentation/components/VideoProgressBar.tsx'
 
 type TabId = 'extract' | 'photo' | 'paste' | 'describe' | 'discover'
 
@@ -67,8 +69,25 @@ export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRec
         setPendingVideoPlatform(null)
       }
       onRecipeExtracted?.()
+      const method = activeTab === 'extract' ? 'url'
+        : activeTab === 'photo' ? 'photo'
+        : activeTab === 'paste' ? 'paste'
+        : activeTab === 'describe' ? 'chat'
+        : 'discover'
+      trackEvent('recipe_extracted', {
+        method,
+        source_domain: recipe.sourceUrl ? (() => { try { return new URL(recipe.sourceUrl).hostname } catch { return 'unknown' } })() : 'manual',
+        extraction_layer: recipe.extractionLayer ?? 'unknown',
+      })
     }
-  }, [recipe, onRecipeExtracted, pendingVideoPlatform, recordExtraction])
+  }, [recipe, onRecipeExtracted, pendingVideoPlatform, recordExtraction]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (error) {
+      const method = activeTab === 'extract' ? 'url' : activeTab === 'photo' ? 'photo' : activeTab
+      trackEvent('extraction_failed', { method, error })
+    }
+  }, [error]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (ocrText) {
@@ -101,6 +120,7 @@ export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRec
   const handleGatedExtract = (url: string) => {
     const platform = detectVideoPlatform(url)
     if (platform && !canExtractVideo(platform)) {
+      trackEvent('video_limit_reached', { platform })
       setUpgradeFeature(
         `You've used your 3 free ${platformLabels[platform]} imports. Upgrade to Mise Pro for unlimited video imports — just $4.99, one time.`
       )
@@ -176,7 +196,7 @@ export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRec
           <button
             key={tab}
             className={`extract-tab ${activeTab === tab ? 'active' : ''}`}
-            onClick={() => { setActiveTab(tab); if (tab !== 'describe') setChatInitialPrompt('') }}
+            onClick={() => { setActiveTab(tab); if (tab !== 'describe') setChatInitialPrompt(''); trackEvent('tab_switched', { tab }) }}
           >
             {tab.charAt(0).toUpperCase() + tab.slice(1)}
           </button>
@@ -189,20 +209,24 @@ export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRec
           {isLoading && (
             <div className="extraction-status" role="status" aria-live="polite">
               {extractionStatus ? (
-                <>
-                  <div className="extraction-status-bar">
-                    <div
-                      className="extraction-status-bar-fill"
-                      style={{ width: `${(extractionStatus.step / extractionStatus.totalSteps) * 100}%` }}
-                    />
-                  </div>
-                  <p className="extraction-status-message">
-                    {extractionStatus.message}
-                    <span className="extraction-status-step">
-                      {' '}Step {extractionStatus.step} of {extractionStatus.totalSteps}
-                    </span>
-                  </p>
-                </>
+                extractionStatus.timed ? (
+                  <VideoProgressBar />
+                ) : (
+                  <>
+                    <div className="extraction-status-bar">
+                      <div
+                        className="extraction-status-bar-fill"
+                        style={{ width: `${(extractionStatus.step / extractionStatus.totalSteps) * 100}%` }}
+                      />
+                    </div>
+                    <p className="extraction-status-message">
+                      {extractionStatus.message}
+                      <span className="extraction-status-step">
+                        {' '}Step {extractionStatus.step} of {extractionStatus.totalSteps}
+                      </span>
+                    </p>
+                  </>
+                )
               ) : (
                 <p>Extracting recipe…</p>
               )}
@@ -260,20 +284,24 @@ export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRec
           {isLoading && (
             <div className="extraction-status" role="status" aria-live="polite">
               {extractionStatus ? (
-                <>
-                  <div className="extraction-status-bar">
-                    <div
-                      className="extraction-status-bar-fill"
-                      style={{ width: `${(extractionStatus.step / extractionStatus.totalSteps) * 100}%` }}
-                    />
-                  </div>
-                  <p className="extraction-status-message">
-                    {extractionStatus.message}
-                    <span className="extraction-status-step">
-                      {' '}Step {extractionStatus.step} of {extractionStatus.totalSteps}
-                    </span>
-                  </p>
-                </>
+                extractionStatus.timed ? (
+                  <VideoProgressBar />
+                ) : (
+                  <>
+                    <div className="extraction-status-bar">
+                      <div
+                        className="extraction-status-bar-fill"
+                        style={{ width: `${(extractionStatus.step / extractionStatus.totalSteps) * 100}%` }}
+                      />
+                    </div>
+                    <p className="extraction-status-message">
+                      {extractionStatus.message}
+                      <span className="extraction-status-step">
+                        {' '}Step {extractionStatus.step} of {extractionStatus.totalSteps}
+                      </span>
+                    </p>
+                  </>
+                )
               ) : (
                 <p>Processing image…</p>
               )}
