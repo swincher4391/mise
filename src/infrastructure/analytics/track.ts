@@ -12,8 +12,7 @@ export function initAnalytics() {
     capture_pageview: true,
     capture_pageleave: true,
     persistence: 'localStorage',
-    person_profiles: 'identified_only',
-    advanced_disable_decide: true,
+    person_profiles: 'always',
   })
 }
 
