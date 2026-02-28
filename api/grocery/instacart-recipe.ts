@@ -59,7 +59,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (typeof url !== 'string' || !url.startsWith('https://')) {
       return res.status(502).json({ error: 'Invalid URL returned from Instacart' })
     }
-    return res.status(200).json({ url })
+
+    const partnerId = process.env.IMPACT_PARTNER_ID
+    const finalUrl = partnerId
+      ? `${url}${url.includes('?') ? '&' : '?'}utm_campaign=instacart-idp&utm_medium=affiliate&utm_source=instacart_idp&utm_term=partnertype-mediapartner&utm_content=campaignid-20313_partnerid-${partnerId}`
+      : url
+
+    return res.status(200).json({ url: finalUrl })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'
     return res.status(502).json({ error: `Instacart request failed: ${message}` })
