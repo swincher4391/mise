@@ -19,6 +19,8 @@ export interface ExtractionStatus {
   message: string
   step: number
   totalSteps: number
+  /** When true, the UI should show a timed progress bar instead of step-based */
+  timed?: boolean
 }
 
 interface UseRecipeExtractionResult {
@@ -86,7 +88,7 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
           }
         } else {
           // TikTok: use unified analyze-video (single capture, parallel pipelines)
-          setExtractionStatus({ message: 'Analyzing video…', step: 1, totalSteps: 1 })
+          setExtractionStatus({ message: 'Analyzing video…', step: 1, totalSteps: 1, timed: true })
 
           // Check cache first
           const cached = await getCachedExtraction(url).catch(() => null)
