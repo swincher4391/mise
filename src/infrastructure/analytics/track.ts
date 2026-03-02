@@ -8,7 +8,7 @@ export function initAnalytics() {
   posthog.init(POSTHOG_KEY, {
     api_host: POSTHOG_HOST,
     ui_host: 'https://us.posthog.com',
-    autocapture: false,
+    autocapture: true,
     capture_pageview: true,
     capture_pageleave: true,
     persistence: 'localStorage',

@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react'
 import { Analytics } from '@vercel/analytics/react'
+import { initAnalytics, trackEvent } from '@infrastructure/analytics/track.ts'
 import { MealPlanPage } from '@presentation/pages/MealPlanPage.tsx'
 import { ExtractPage } from '@presentation/pages/ExtractPage.tsx'
 import { LibraryPage } from '@presentation/pages/LibraryPage.tsx'
@@ -18,6 +19,8 @@ type View = 'plan' | 'extract' | 'library' | 'grocery'
 // These were stored client-side before the migration to encrypted HttpOnly cookies.
 const LEGACY_KEYS = ['kroger_access_token', 'kroger_refresh_token', 'kroger_token_expiry', 'kroger_selected_store']
 LEGACY_KEYS.forEach((key) => localStorage.removeItem(key))
+
+initAnalytics()
 
 function App() {
   const [view, setView] = useState<View>('extract')
@@ -86,7 +89,7 @@ function App() {
 
   return (
     <>
-      <TopNav current={view} onChange={setView} />
+      <TopNav current={view} onChange={(v) => { trackEvent('nav_switched', { view: v }); setView(v) }} />
       {renderPage()}
       {installPrompt.showInstallBanner && (
         <InstallBanner onInstall={installPrompt.install} onDismiss={installPrompt.dismiss} />

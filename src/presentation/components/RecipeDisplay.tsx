@@ -15,6 +15,7 @@ import { TagManager } from './TagManager.tsx'
 import { CookingMode } from './CookingMode.tsx'
 import { RecipeEditForm } from './RecipeEditForm.tsx'
 import { FREE_RECIPE_LIMIT, type PurchaseState } from '@presentation/hooks/usePurchase.ts'
+import { trackEvent } from '@infrastructure/analytics/track.ts'
 
 interface RecipeDisplayProps {
   recipe: Recipe | SavedRecipe
@@ -63,10 +64,19 @@ export function RecipeDisplay({ recipe, showSaveButton, onDelete, purchase, onSa
       return
     }
     await save(effective)
+    trackEvent('recipe_saved', {
+      source_domain: effective.sourceUrl ? (() => { try { return new URL(effective.sourceUrl).hostname } catch { return 'unknown' } })() : 'manual',
+      extraction_layer: effective.extractionLayer ?? 'unknown',
+      ingredient_count: effective.ingredients?.length ?? 0,
+    })
     onSaved?.()
   }
 
   const handleShopInstacart = async () => {
+    trackEvent('instacart_recipe_click', {
+      recipe_title: effective.title ?? 'unknown',
+      ingredient_count: effective.ingredients?.length ?? 0,
+    })
     setInstacartLoading(true)
     try {
       const result = await createRecipePage(effective)
@@ -92,6 +102,7 @@ export function RecipeDisplay({ recipe, showSaveButton, onDelete, purchase, onSa
   const handleShare = async () => {
     const result = await shareRecipe(effective)
     if (result) {
+      trackEvent('recipe_shared', { method: result === 'shared' ? 'native' : 'link' })
       setShareStatus(result)
       setTimeout(() => setShareStatus('idle'), 2000)
     }
@@ -152,7 +163,7 @@ export function RecipeDisplay({ recipe, showSaveButton, onDelete, purchase, onSa
           {saved && (
             <button
               className={`favorite-btn ${saved.favorite ? 'favorited' : ''}`}
-              onClick={() => toggleFavorite(saved.id, saved.favorite)}
+              onClick={() => { trackEvent('recipe_favorited', { action: saved.favorite ? 'unfavorited' : 'favorited' }); toggleFavorite(saved.id, saved.favorite) }}
               aria-label={saved.favorite ? 'Remove from favorites' : 'Add to favorites'}
             >
               {saved.favorite ? '\u2605' : '\u2606'}
@@ -209,7 +220,7 @@ export function RecipeDisplay({ recipe, showSaveButton, onDelete, purchase, onSa
       {hasSteps && (
         <button
           className="cook-mode-btn"
-          onClick={() => setCookingMode(true)}
+          onClick={() => { trackEvent('cooking_mode_started', { recipe_title: effective.title ?? 'unknown' }); setCookingMode(true) }}
         >
           Start Cooking
         </button>
