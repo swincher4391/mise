@@ -104,7 +104,7 @@ export function RecipeDisplay({ recipe, showSaveButton, onDelete, purchase, onSa
 
   const handleShare = async () => {
     // On mobile with Web Share API, use native share sheet
-    if (navigator.share) {
+    if ('share' in navigator) {
       const result = await shareRecipe(effective)
       if (result) {
         trackEvent('recipe_shared', { method: 'native' })
