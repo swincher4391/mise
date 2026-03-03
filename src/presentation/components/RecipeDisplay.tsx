@@ -1,10 +1,12 @@
 import { useState, useMemo } from 'react'
+import { QRCodeSVG } from 'qrcode.react'
 import type { Recipe } from '@domain/models/Recipe.ts'
 import type { SavedRecipe } from '@domain/models/SavedRecipe.ts'
 import { scaleIngredients } from '@application/scaler/scaleIngredients.ts'
 import { useIsRecipeSaved, useSavedRecipes } from '@presentation/hooks/useSavedRecipes.ts'
 import { downloadSingleRecipe } from '@application/export/exportRecipes.ts'
 import { shareRecipe } from '@application/share/shareRecipe.ts'
+import { buildQrShareUrl } from '@application/share/compressRecipe.ts'
 import { createRecipePage } from '@infrastructure/instacart/instacartApi.ts'
 import { UpgradePrompt } from './UpgradePrompt.tsx'
 import { RecipeHeader } from './RecipeHeader.tsx'
@@ -41,6 +43,7 @@ export function RecipeDisplay({ recipe, showSaveButton, onDelete, purchase, onSa
   const [editedRecipe, setEditedRecipe] = useState<Recipe | null>(null)
   const [instacartLoading, setInstacartLoading] = useState(false)
   const [shareStatus, setShareStatus] = useState<'idle' | 'copied' | 'shared'>('idle')
+  const [qrModal, setQrModal] = useState<{ url: string } | 'too-large' | null>(null)
 
   const saved = isSavedRecipe(recipe) ? recipe : null
   const effective = editedRecipe ?? recipe
@@ -100,12 +103,31 @@ export function RecipeDisplay({ recipe, showSaveButton, onDelete, purchase, onSa
   }
 
   const handleShare = async () => {
+    // On mobile with Web Share API, use native share sheet
+    if (navigator.share) {
+      const result = await shareRecipe(effective)
+      if (result) {
+        trackEvent('recipe_shared', { method: 'native' })
+        setShareStatus(result)
+        setTimeout(() => setShareStatus('idle'), 2000)
+      }
+      return
+    }
+
+    // On desktop, show QR modal
+    const qrUrl = await buildQrShareUrl(effective)
+    trackEvent('recipe_shared', { method: 'qr' })
+    setQrModal(qrUrl ? { url: qrUrl } : 'too-large')
+  }
+
+  const handleCopyLink = async () => {
     const result = await shareRecipe(effective)
     if (result) {
-      trackEvent('recipe_shared', { method: result === 'shared' ? 'native' : 'link' })
+      trackEvent('recipe_shared', { method: 'link' })
       setShareStatus(result)
       setTimeout(() => setShareStatus('idle'), 2000)
     }
+    setQrModal(null)
   }
 
   const handleStartEditNotes = () => {
@@ -266,6 +288,30 @@ export function RecipeDisplay({ recipe, showSaveButton, onDelete, purchase, onSa
           onRestore={purchase.restore}
           onClose={() => setShowUpgrade(false)}
         />
+      )}
+
+      {qrModal && (
+        <div className="qr-modal-overlay" onClick={() => setQrModal(null)}>
+          <div className="qr-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>{effective.title}</h3>
+            {qrModal === 'too-large' ? (
+              <p className="qr-too-large">This recipe is too large for a QR code. Use the link instead.</p>
+            ) : (
+              <div className="qr-code-container">
+                <QRCodeSVG value={qrModal.url} size={200} level="L" />
+                <p className="qr-hint">Scan to open this recipe</p>
+              </div>
+            )}
+            <div className="qr-modal-actions">
+              <button className="save-btn" onClick={handleCopyLink}>
+                {shareStatus === 'copied' ? 'Copied!' : 'Copy Link'}
+              </button>
+              <button className="nav-btn" onClick={() => setQrModal(null)}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </article>
   )

@@ -24,6 +24,7 @@
     "puppeteer-core": "^24.37.3",
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "qrcode.react": "^4.2.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "stripe": "^20.3.1",

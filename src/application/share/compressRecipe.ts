@@ -146,3 +146,40 @@ export async function buildShareUrl(recipe: Recipe | SavedRecipe): Promise<strin
   url = `${SHARE_BASE}?d=${encoded}`
   return url
 }
+
+const MAX_QR_URL_LENGTH = 2900
+
+/**
+ * Build a share URL that fits within QR code capacity (~2,953 alphanumeric chars).
+ * Strips fields more aggressively than buildShareUrl.
+ * Returns null if the recipe is too large even after full stripping.
+ */
+export async function buildQrShareUrl(recipe: Recipe | SavedRecipe): Promise<string | null> {
+  const payload = recipeToSharePayload(recipe)
+
+  // Fields to strip in order of least importance
+  const stripSteps: Array<() => void> = [
+    () => { delete payload.d },
+    () => { delete payload.n },
+    () => { delete payload.img },
+    () => { delete payload.kw },
+    () => { delete payload.cu },
+    () => { delete payload.cat },
+    () => { delete payload.src },
+    () => { delete payload.a },
+  ]
+
+  let encoded = await compressPayload(payload)
+  let url = `${SHARE_BASE}?d=${encoded}`
+  if (url.length <= MAX_QR_URL_LENGTH) return url
+
+  for (const strip of stripSteps) {
+    strip()
+    encoded = await compressPayload(payload)
+    url = `${SHARE_BASE}?d=${encoded}`
+    if (url.length <= MAX_QR_URL_LENGTH) return url
+  }
+
+  // Still too long — recipe can't fit in a QR code
+  return null
+}
