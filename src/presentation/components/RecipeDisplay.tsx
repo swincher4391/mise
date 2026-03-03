@@ -103,18 +103,6 @@ export function RecipeDisplay({ recipe, showSaveButton, onDelete, purchase, onSa
   }
 
   const handleShare = async () => {
-    // On mobile with Web Share API, use native share sheet
-    if ('share' in navigator) {
-      const result = await shareRecipe(effective)
-      if (result) {
-        trackEvent('recipe_shared', { method: 'native' })
-        setShareStatus(result)
-        setTimeout(() => setShareStatus('idle'), 2000)
-      }
-      return
-    }
-
-    // On desktop, show QR modal
     const qrUrl = await buildQrShareUrl(effective)
     trackEvent('recipe_shared', { method: 'qr' })
     setQrModal(qrUrl ? { url: qrUrl } : 'too-large')
@@ -124,6 +112,16 @@ export function RecipeDisplay({ recipe, showSaveButton, onDelete, purchase, onSa
     const result = await shareRecipe(effective)
     if (result) {
       trackEvent('recipe_shared', { method: 'link' })
+      setShareStatus(result)
+      setTimeout(() => setShareStatus('idle'), 2000)
+    }
+    setQrModal(null)
+  }
+
+  const handleNativeShare = async () => {
+    const result = await shareRecipe(effective)
+    if (result) {
+      trackEvent('recipe_shared', { method: 'native' })
       setShareStatus(result)
       setTimeout(() => setShareStatus('idle'), 2000)
     }
@@ -303,7 +301,12 @@ export function RecipeDisplay({ recipe, showSaveButton, onDelete, purchase, onSa
               </div>
             )}
             <div className="qr-modal-actions">
-              <button className="save-btn" onClick={handleCopyLink}>
+              {'share' in navigator && (
+                <button className="save-btn" onClick={handleNativeShare}>
+                  Share
+                </button>
+              )}
+              <button className="nav-btn" onClick={handleCopyLink}>
                 {shareStatus === 'copied' ? 'Copied!' : 'Copy Link'}
               </button>
               <button className="nav-btn" onClick={() => setQrModal(null)}>
