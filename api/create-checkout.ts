@@ -20,6 +20,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'successUrl and cancelUrl are required' })
   }
 
+  // CWE-601: Validate redirect URLs against allowed origins
+  const allowedOrigins = ['https://mise.swinch.dev', 'https://mise-recipe.vercel.app']
+  const isAllowed = (url: string) => {
+    try {
+      const parsed = new URL(url)
+      return allowedOrigins.includes(parsed.origin)
+    } catch {
+      return false
+    }
+  }
+  if (!isAllowed(successUrl) || !isAllowed(cancelUrl)) {
+    return res.status(400).json({ error: 'Redirect URLs must point to mise.swinch.dev' })
+  }
+
   try {
     const stripe = new Stripe(secretKey)
     const session = await stripe.checkout.sessions.create({

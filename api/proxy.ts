@@ -25,6 +25,8 @@ function isBlockedUrl(raw: string): boolean {
     /^169\.254\./,              // link-local / cloud metadata
     /^0\./,                     // current network
     /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./, // CGN
+    /^(22[4-9]|23\d)\./,       // multicast (224-239)
+    /^(24\d|25[0-5])\./,       // reserved (240-255)
   ]
   if (ipPatterns.some((p) => p.test(hostname))) return true
 

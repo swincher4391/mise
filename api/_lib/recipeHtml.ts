@@ -42,6 +42,19 @@ function esc(text: string): string {
     .replace(/"/g, '&quot;')
 }
 
+/** Only allow http/https URLs — blocks javascript:, data:, vbscript:, etc. */
+function safeUrl(url: string): string | null {
+  try {
+    const parsed = new URL(url)
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+      return url
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
 function escJson(text: string): string {
   return JSON.stringify(text).slice(1, -1)
 }
@@ -62,8 +75,11 @@ export function buildRecipeHtml(payload: SharePayload, shareUrl?: string): strin
     name: payload.t,
   }
 
+  const safeImg = payload.img ? safeUrl(payload.img) : null
+  const safeSrc = payload.src ? safeUrl(payload.src) : null
+
   if (payload.d) jsonLd.description = payload.d
-  if (payload.img) jsonLd.image = payload.img
+  if (safeImg) jsonLd.image = safeImg
   if (payload.a) jsonLd.author = { '@type': 'Person', name: payload.a }
   if (payload.sv) jsonLd.recipeYield = String(payload.sv)
   if (payload.pt) jsonLd.prepTime = minutesToIso8601(payload.pt)
@@ -95,9 +111,10 @@ export function buildRecipeHtml(payload: SharePayload, shareUrl?: string): strin
     jsonLd.nutrition = nutrition
   }
 
-  if (payload.src) jsonLd.url = payload.src
+  if (safeSrc) jsonLd.url = safeSrc
 
-  const jsonLdStr = JSON.stringify(jsonLd, null, 2)
+  // Prevent </script> breakout inside JSON-LD (CWE-79)
+  const jsonLdStr = JSON.stringify(jsonLd, null, 2).replace(/<\//g, '<\\/')
 
   // Build HTML
   const title = esc(payload.t)
@@ -109,11 +126,11 @@ export function buildRecipeHtml(payload: SharePayload, shareUrl?: string): strin
   if (payload.tt) timeParts.push(`Total: ${formatTime(payload.tt)}`)
 
   const ingredientsHtml = payload.ig
-    .map((ig) => `        <li>${esc(ig)}</li>`)
+    .map((ig) => `        <li>${esc(String(ig ?? ''))}</li>`)
     .join('\n')
 
   const stepsHtml = payload.st
-    .map((s, i) => `        <li><span class="step-num">${i + 1}</span>${esc(s)}</li>`)
+    .map((s, i) => `        <li><span class="step-num">${i + 1}</span>${esc(String(s ?? ''))}</li>`)
     .join('\n')
 
   const nutritionHtml = payload.n
@@ -129,7 +146,7 @@ export function buildRecipeHtml(payload: SharePayload, shareUrl?: string): strin
   <meta property="og:title" content="${esc(payload.t)}">
   <meta property="og:description" content="${desc || `Recipe with ${payload.ig.length} ingredients`}">
   <meta property="og:type" content="article">
-  ${payload.img ? `<meta property="og:image" content="${esc(payload.img)}">` : ''}
+  ${safeImg ? `<meta property="og:image" content="${esc(safeImg)}">` : ''}
   <script type="application/ld+json">
 ${jsonLdStr}
   </script>
@@ -166,7 +183,7 @@ ${jsonLdStr}
     .cta:hover { background: #4e5a34; }
     .footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #e8e5d8; color: #999; font-size: 0.8rem; }
     .footer a { color: #5d6a3f; }
-    ${payload.src ? `.source-link { color: #5d6a3f; font-size: 0.85rem; }` : ''}
+    ${safeSrc ? `.source-link { color: #5d6a3f; font-size: 0.85rem; }` : ''}
   </style>
 </head>
 <body>
@@ -178,10 +195,10 @@ ${jsonLdStr}
       ${timeParts.map((p) => `<span>${p}</span>`).join(' ')}
     </div>
     ${desc ? `<p class="description">${desc}</p>` : ''}
-    ${payload.src ? `<a class="source-link" href="${esc(payload.src)}">Original recipe</a>` : ''}
+    ${safeSrc ? `<a class="source-link" href="${esc(safeSrc)}">Original recipe</a>` : ''}
   </div>
 
-  ${payload.img ? `<img class="recipe-img" src="${esc(payload.img)}" alt="${title}">` : ''}
+  ${safeImg ? `<img class="recipe-img" src="${esc(safeImg)}" alt="${title}">` : ''}
 
   <h2>Ingredients</h2>
   <ul class="ingredients">
@@ -204,15 +221,20 @@ ${nutritionHtml}
 </html>`
 }
 
+function safeNum(v: unknown): string {
+  const n = Number(v)
+  return Number.isFinite(n) ? String(n) : '0'
+}
+
 function buildNutritionHtml(n: NonNullable<SharePayload['n']>): string {
   const items: string[] = []
-  if (n.cal != null) items.push(`<div class="nutrition-item"><div class="nutrition-label">Calories</div>${n.cal}</div>`)
-  if (n.protein != null) items.push(`<div class="nutrition-item"><div class="nutrition-label">Protein</div>${n.protein}g</div>`)
-  if (n.carb != null) items.push(`<div class="nutrition-item"><div class="nutrition-label">Carbs</div>${n.carb}g</div>`)
-  if (n.fat != null) items.push(`<div class="nutrition-item"><div class="nutrition-label">Fat</div>${n.fat}g</div>`)
-  if (n.fiber != null) items.push(`<div class="nutrition-item"><div class="nutrition-label">Fiber</div>${n.fiber}g</div>`)
-  if (n.sugar != null) items.push(`<div class="nutrition-item"><div class="nutrition-label">Sugar</div>${n.sugar}g</div>`)
-  if (n.sodium != null) items.push(`<div class="nutrition-item"><div class="nutrition-label">Sodium</div>${n.sodium}mg</div>`)
+  if (n.cal != null) items.push(`<div class="nutrition-item"><div class="nutrition-label">Calories</div>${safeNum(n.cal)}</div>`)
+  if (n.protein != null) items.push(`<div class="nutrition-item"><div class="nutrition-label">Protein</div>${safeNum(n.protein)}g</div>`)
+  if (n.carb != null) items.push(`<div class="nutrition-item"><div class="nutrition-label">Carbs</div>${safeNum(n.carb)}g</div>`)
+  if (n.fat != null) items.push(`<div class="nutrition-item"><div class="nutrition-label">Fat</div>${safeNum(n.fat)}g</div>`)
+  if (n.fiber != null) items.push(`<div class="nutrition-item"><div class="nutrition-label">Fiber</div>${safeNum(n.fiber)}g</div>`)
+  if (n.sugar != null) items.push(`<div class="nutrition-item"><div class="nutrition-label">Sugar</div>${safeNum(n.sugar)}g</div>`)
+  if (n.sodium != null) items.push(`<div class="nutrition-item"><div class="nutrition-label">Sodium</div>${safeNum(n.sodium)}mg</div>`)
 
   if (items.length === 0) return ''
   return `

@@ -117,7 +117,8 @@ ${transcript}`,
  * most datacenter IPs (returns LOGIN_REQUIRED).
  */
 async function fetchYouTubeTranscriptDirect(videoId: string): Promise<string | null> {
-  const apiKey = 'AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8'
+  const apiKey = process.env.YOUTUBE_INNERTUBE_KEY ?? ''
+  if (!apiKey) return null
 
   // Fetch watch page to establish session cookies
   const pageResp = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
