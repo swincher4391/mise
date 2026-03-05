@@ -6,7 +6,7 @@ import { scaleIngredients } from '@application/scaler/scaleIngredients.ts'
 import { useIsRecipeSaved, useSavedRecipes } from '@presentation/hooks/useSavedRecipes.ts'
 import { downloadSingleRecipe } from '@application/export/exportRecipes.ts'
 import { shareRecipe } from '@application/share/shareRecipe.ts'
-import { buildQrShareUrl } from '@application/share/compressRecipe.ts'
+import { buildShareUrl, buildQrShareUrl } from '@application/share/compressRecipe.ts'
 import { createRecipePage } from '@infrastructure/instacart/instacartApi.ts'
 import { UpgradePrompt } from './UpgradePrompt.tsx'
 import { RecipeHeader } from './RecipeHeader.tsx'
@@ -125,6 +125,17 @@ export function RecipeDisplay({ recipe, showSaveButton, onDelete, purchase, onSa
       setShareStatus(result)
       setTimeout(() => setShareStatus('idle'), 2000)
     }
+    setQrModal(null)
+  }
+
+  const handlePinIt = async () => {
+    const shareUrl = await buildShareUrl(effective)
+    const description = encodeURIComponent(
+      `${effective.title}${effective.description ? ' — ' + effective.description : ''} | Get the recipe on Mise`
+    )
+    const pinterestUrl = `https://pinterest.com/pin/create/button/?url=${encodeURIComponent(shareUrl)}&description=${description}`
+    trackEvent('recipe_shared', { method: 'pinterest' })
+    window.open(pinterestUrl, '_blank', 'noopener')
     setQrModal(null)
   }
 
@@ -306,6 +317,9 @@ export function RecipeDisplay({ recipe, showSaveButton, onDelete, purchase, onSa
                   Share
                 </button>
               )}
+              <button className="nav-btn" onClick={handlePinIt}>
+                Pin It
+              </button>
               <button className="nav-btn" onClick={handleCopyLink}>
                 {shareStatus === 'copied' ? 'Copied!' : 'Copy Link'}
               </button>

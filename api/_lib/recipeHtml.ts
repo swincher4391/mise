@@ -146,7 +146,9 @@ export function buildRecipeHtml(payload: SharePayload, shareUrl?: string): strin
   <meta property="og:title" content="${esc(payload.t)}">
   <meta property="og:description" content="${desc || `Recipe with ${payload.ig.length} ingredients`}">
   <meta property="og:type" content="article">
+  ${shareUrl ? `<meta property="og:url" content="${esc(shareUrl)}">` : ''}
   ${safeImg ? `<meta property="og:image" content="${esc(safeImg)}">` : ''}
+  <meta name="pinterest-rich-pin" content="true">
   <script type="application/ld+json">
 ${jsonLdStr}
   </script>
