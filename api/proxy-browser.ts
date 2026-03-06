@@ -6,7 +6,7 @@ import { unlinkSync } from 'fs'
 import { launchAndCaptureVideo } from './_lib/videoCapture.js'
 import { extractWavFromVideo } from './_lib/audioExtraction.js'
 import { extractFrameGrids, uploadFramesInParallel } from './_lib/frameExtraction.js'
-import { isBlockedUrl } from './_lib/ssrf.js'
+import { isBlockedUrl, isBlockedAfterResolve } from './_lib/ssrf.js'
 
 export const maxDuration = 60
 
@@ -158,6 +158,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (isBlockedUrl(targetUrl)) {
     return res.status(403).json({ error: 'URL not allowed' })
+  }
+
+  if (await isBlockedAfterResolve(targetUrl)) {
+    return res.status(403).json({ error: 'URL resolves to a blocked address' })
   }
 
   const mode = req.query.mode

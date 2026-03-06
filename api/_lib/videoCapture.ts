@@ -1,7 +1,7 @@
 // @ts-ignore -- @sparticuz/chromium default export typing mismatch
 import chromium from '@sparticuz/chromium'
 import puppeteer from 'puppeteer-core'
-import { isBlockedUrl } from './ssrf.js'
+import { isBlockedUrl, isBlockedAfterResolve } from './ssrf.js'
 
 export interface CaptureOptions {
   maxRecordMs?: number
@@ -22,6 +22,10 @@ export async function launchAndCaptureVideo(
 ): Promise<CaptureResult> {
   const maxRecordMs = opts?.maxRecordMs ?? 90000
   const isYouTube = /youtube\.com|youtu\.be/i.test(url)
+
+  if (await isBlockedAfterResolve(url)) {
+    throw new Error('URL resolves to a blocked address')
+  }
 
   const browser = await puppeteer.launch({
     args: chromium.args,

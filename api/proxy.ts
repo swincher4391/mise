@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { isBlockedUrl } from './_lib/ssrf.js'
+import { isBlockedUrl, isBlockedAfterResolve } from './_lib/ssrf.js'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const targetUrl = req.query.url
@@ -9,6 +9,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (isBlockedUrl(targetUrl)) {
     return res.status(403).json({ error: 'URL not allowed' })
+  }
+
+  if (await isBlockedAfterResolve(targetUrl)) {
+    return res.status(403).json({ error: 'URL resolves to a blocked address' })
   }
 
   try {
