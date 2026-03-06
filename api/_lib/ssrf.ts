@@ -16,7 +16,12 @@ export function isBlockedUrl(raw: string): boolean {
   const hostname = parsed.hostname.toLowerCase()
 
   // Block localhost variants
-  if (hostname === 'localhost' || hostname === '[::1]') return true
+  if (hostname === 'localhost') return true
+
+  // Block all IPv6 literal addresses — covers [::1], [::ffff:127.0.0.1],
+  // [::ffff:a9fe:a9fe] (169.254.x), and all other mapped/embedded bypasses.
+  // Recipe sites never serve content over IPv6 literals.
+  if (hostname.startsWith('[')) return true
 
   // Block private/reserved IPv4 ranges and metadata IPs
   const ipPatterns = [
