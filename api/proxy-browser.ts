@@ -6,41 +6,9 @@ import { unlinkSync } from 'fs'
 import { launchAndCaptureVideo } from './_lib/videoCapture.js'
 import { extractWavFromVideo } from './_lib/audioExtraction.js'
 import { extractFrameGrids, uploadFramesInParallel } from './_lib/frameExtraction.js'
+import { isBlockedUrl } from './_lib/ssrf.js'
 
 export const maxDuration = 60
-
-function isBlockedUrl(raw: string): boolean {
-  let parsed: URL
-  try {
-    parsed = new URL(raw)
-  } catch {
-    return true
-  }
-
-  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return true
-
-  const hostname = parsed.hostname.toLowerCase()
-
-  if (hostname === 'localhost' || hostname === '[::1]') return true
-
-  const ipPatterns = [
-    /^127\./,
-    /^10\./,
-    /^172\.(1[6-9]|2\d|3[01])\./,
-    /^192\.168\./,
-    /^169\.254\./,
-    /^0\./,
-    /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./,
-    /^(22[4-9]|23\d)\./,       // multicast (224-239)
-    /^(24\d|25[0-5])\./,       // reserved (240-255)
-  ]
-  if (ipPatterns.some((p) => p.test(hostname))) return true
-
-  if (['metadata.google.internal', 'metadata.google', 'instance-data'].includes(hostname))
-    return true
-
-  return false
-}
 
 const WHISPER_URL = 'https://router.huggingface.co/hf-inference/models/openai/whisper-large-v3'
 const VISION_URL = 'https://router.huggingface.co/v1/chat/completions'
@@ -291,6 +259,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Use domcontentloaded instead of networkidle2 — ad-heavy recipe sites
       // (allrecipes, food network, etc.) never reach network idle within timeout.
       await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 20000 })
+
+      if (isBlockedUrl(page.url())) {
+        return res.status(403).json({ error: 'Redirect target URL not allowed' })
+      }
 
       // Wait for JSON-LD to appear (most recipe sites inject it early)
       await page

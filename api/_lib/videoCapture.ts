@@ -1,6 +1,7 @@
 // @ts-ignore -- @sparticuz/chromium default export typing mismatch
 import chromium from '@sparticuz/chromium'
 import puppeteer from 'puppeteer-core'
+import { isBlockedUrl } from './ssrf.js'
 
 export interface CaptureOptions {
   maxRecordMs?: number
@@ -36,9 +37,11 @@ export async function launchAndCaptureVideo(
       const ytId = url.match(/(?:shorts\/|youtu\.be\/|[?&]v=)([^&?/\s]{11})/)?.[1]
       const watchUrl = ytId ? `https://www.youtube.com/watch?v=${ytId}` : url
       await page.goto(watchUrl, { waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {})
+      if (isBlockedUrl(page.url())) throw new Error('Redirect target URL not allowed')
       await new Promise((r) => setTimeout(r, 5000))
     } else {
       await page.goto(url, { waitUntil: 'networkidle2', timeout: 20000 }).catch(() => {})
+      if (isBlockedUrl(page.url())) throw new Error('Redirect target URL not allowed')
     }
 
     // Try clicking play to trigger video load (YouTube auto-plays)
