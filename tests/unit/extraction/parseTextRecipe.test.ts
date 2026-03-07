@@ -154,6 +154,29 @@ Instructions:
     expect(result.stepLines).toEqual([])
   })
 
+  it('should handle text starting with a section header (no title line)', () => {
+    const text = `Ingredients
+
+Bacon trimmings/end pieces (diced) - 1/2 pound
+Vidalia Onions - 2
+Smoked sausage (diced) - 1 1/2 pounds
+Chicken breast & thighs - usually 5 thighs and two breasts.
+Parboiled rice - 5 cups
+
+Instructions
+
+1. Get a pot big enough to fix this amount of food.
+2. Start by frying up your bacon trimmings until crispy.
+3. Add in smoked sausage, and brown.`
+
+    const result = parseTextRecipe(text)
+    expect(result.title).toBe('Pasted Recipe')
+    expect(result.ingredientLines).toHaveLength(5)
+    expect(result.ingredientLines[0]).toBe('Bacon trimmings/end pieces (diced) - 1/2 pound')
+    expect(result.stepLines).toHaveLength(3)
+    expect(result.stepLines[0]).toBe('Get a pot big enough to fix this amount of food.')
+  })
+
   it('should skip UI artifacts from OCR output', () => {
     const text = `My Recipe
 ®Some artifact

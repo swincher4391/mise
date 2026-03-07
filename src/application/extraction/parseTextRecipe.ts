@@ -20,19 +20,32 @@ export function parseTextRecipe(text: string): ParsedTextRecipe {
   let lines = text.split('\n').filter((l) => l.trim())
   if (lines.length === 0) return { title: '', ingredientLines: [], stepLines: [] }
 
+  // If the first line is a section header (e.g. "Ingredients"), don't consume it
+  // as the title — start parsing from line 0 so the header is detected properly.
+  const firstLower = lines[0].toLowerCase().trim()
+  const firstIsHeader = /^(=\s*)?(ingredients|grocery\s*list|instructions|steps|directions|method)\s*:?$/i.test(firstLower)
 
-  // First line is the title — strip leading symbols, list markers, prefixes, etc.
-  const title = lines[0]
-    .replace(/^[<\u00ae=\-[\]0-9.]+\s*/, '')
-    .replace(/^Title:\s*/i, '')
-    .trim()
+  let title: string
+  let startIndex: number
+
+  if (firstIsHeader) {
+    title = 'Pasted Recipe'
+    startIndex = 0
+  } else {
+    // First line is the title — strip leading symbols, list markers, prefixes, etc.
+    title = lines[0]
+      .replace(/^[<\u00ae=\-[\]0-9.]+\s*/, '')
+      .replace(/^Title:\s*/i, '')
+      .trim()
+    startIndex = 1
+  }
 
   const ingredientLines: string[] = []
   const stepLines: string[] = []
 
   let section: 'unknown' | 'ingredients' | 'steps' = 'unknown'
 
-  for (let i = 1; i < lines.length; i++) {
+  for (let i = startIndex; i < lines.length; i++) {
     const line = lines[i]
     const lower = line.toLowerCase().trim()
 
