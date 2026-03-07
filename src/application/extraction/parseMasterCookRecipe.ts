@@ -23,42 +23,45 @@ export function parseMasterCookRecipe(text: string): ParsedTextRecipe {
     }
   }
 
-  // Skip metadata lines until we hit the dashed ingredient separator
-  let ingredientStart = -1
+  // Collect all remaining non-blank, non-skip lines
+  const contentLines: string[] = []
   for (; cursor < lines.length; cursor++) {
     const trimmed = lines[cursor].trim()
-    if (/^-{4,}/.test(trimmed)) {
-      ingredientStart = cursor + 1
-      cursor = ingredientStart
-      break
+    if (isEndMarker(trimmed)) break
+    if (!trimmed || isSkipLine(trimmed)) continue
+    contentLines.push(trimmed)
+  }
+
+  // Split content into ingredients vs steps.
+  // Ingredients are short tabular lines; steps are long free-form paragraphs.
+  // The transition point is the first line that looks like a sentence/paragraph
+  // (long enough, starts with a capital letter, contains cooking verbs or is >80 chars).
+  const ingredientLines: string[] = []
+  const stepLines: string[] = []
+  let foundSteps = false
+
+  for (const line of contentLines) {
+    if (!foundSteps && isIngredientLine(line)) {
+      const parsed = parseIngredientLine(line)
+      if (parsed) ingredientLines.push(parsed)
+    } else {
+      foundSteps = true
+      if (!isAttribution(line)) {
+        stepLines.push(line)
+      }
     }
   }
 
-  if (ingredientStart === -1) return { title, ingredientLines: [], stepLines: [] }
-
-  // Parse ingredient lines until a blank line gap (signals end of ingredients)
-  const ingredientLines: string[] = []
-  for (; cursor < lines.length; cursor++) {
-    const trimmed = lines[cursor].trim()
-    if (!trimmed) break // blank line ends ingredient block
-    if (isSkipLine(trimmed)) continue
-
-    const ingredient = parseIngredientLine(trimmed)
-    if (ingredient) ingredientLines.push(ingredient)
-  }
-
-  // Steps: free-form paragraphs after the blank line, before nutrition/divider
-  const stepLines: string[] = []
-  for (; cursor < lines.length; cursor++) {
-    const trimmed = lines[cursor].trim()
-    if (!trimmed) continue
-    if (isEndMarker(trimmed)) break
-    if (isSkipLine(trimmed)) continue
-    if (isAttribution(trimmed)) continue
-    stepLines.push(trimmed)
-  }
-
   return { title, ingredientLines, stepLines }
+}
+
+/** Detect lines that look like MasterCook tabular ingredients (short, no sentence structure) */
+function isIngredientLine(line: string): boolean {
+  // Ingredient lines are typically short and don't start with sentence-like structure
+  // Step lines are long paragraphs (>80 chars) or start with cooking verbs
+  if (line.length > 80) return false
+  if (/^(pour|cook|bake|heat|preheat|mix|combine|stir|add|place|remove|bring|let|set|cut|slice|chop|drain|boil|simmer|melt|whisk|fold|blend|saut[eé]|fry|roast|grill|steam|broil|braise|brown|toss|season|marinate|spread|serve|refrigerat|chill|freeze|transfer|arrange|slip|peel)\b/i.test(line)) return false
+  return true
 }
 
 /** Lines to skip entirely */
@@ -70,13 +73,13 @@ function isSkipLine(line: string): boolean {
     /^Serving Size\s*:/i.test(line) ||
     /^Preparation Time\s*:/i.test(line) ||
     /^Amount\s+Measure\s+Ingredient/i.test(line) ||
-    /^-{4,}\s+-{4,}/.test(line) ||
+    /^-{4,}/.test(line) ||
     /^Nutr\.\s*Assoc/i.test(line) ||
     /^Exchanges\s*:/i.test(line)
   )
 }
 
-/** Markers that signal end of recipe steps */
+/** Markers that signal end of recipe content */
 function isEndMarker(line: string): boolean {
   return (
     /^-\s+-\s+-\s+-/.test(line) || // - - - - divider
@@ -88,21 +91,18 @@ function isEndMarker(line: string): boolean {
 
 /** Detect source attribution lines like "The Woman's World Cook Book, 1961" */
 function isAttribution(line: string): boolean {
-  // Short line ending with a 4-digit year, or "Recipe from ..." / "Source: ..."
   return (
-    /,?\s*\d{4}\s*$/.test(line) && line.length < 80 ||
+    (/,?\s*\d{4}\s*$/.test(line) && line.length < 80) ||
     /^(recipe\s+(from|by|source)|source\s*:|from\s+the\s+kitchen\s+of)/i.test(line)
   )
 }
 
 /** Parse a tabular MasterCook ingredient line into a readable string */
 function parseIngredientLine(line: string): string | null {
-  // MasterCook format: columns are amount, measure, ingredient (separated by whitespace)
-  // The `--` in the ingredient field means ", " (prep method separator)
   const trimmed = line.trim()
   if (!trimmed || /^-+$/.test(trimmed)) return null
 
-  // Normalize whitespace, then replace ` -- ` with `, ` for prep methods
+  // Normalize whitespace, then replace `--` with `, ` for prep methods
   const cleaned = trimmed
     .replace(/\s+/g, ' ')
     .replace(/\s*\u2014\s*/g, ', ')   // em-dash
