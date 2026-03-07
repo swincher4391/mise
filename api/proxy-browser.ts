@@ -281,6 +281,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const html = await page.evaluate(() => document.documentElement.outerHTML)
 
       res.setHeader('Content-Type', 'text/html; charset=utf-8')
+      res.setHeader('Content-Security-Policy', 'sandbox')
+      res.setHeader('X-Content-Type-Options', 'nosniff')
       return res.status(200).send(html)
     } finally {
       await browser.close().catch(() => {})

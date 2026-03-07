@@ -5,50 +5,23 @@
  *   CWE-918  Server-Side Request Forgery (OWASP A01:2025)
  *   CWE-20   Improper Input Validation
  *   CWE-601  Open Redirect
+ *   CWE-350  DNS Rebinding
  *
- * These tests validate the isBlockedUrl function directly.
- * DNS rebinding (CWE-350) is noted but can't be tested in unit tests.
+ * Tests validate isBlockedUrl and isBlockedAfterResolve from the shared
+ * ssrf module used by proxy.ts, proxy-browser.ts, and videoCapture.ts.
+ *
+ * @vitest-environment node
  */
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { lookup } from 'dns/promises'
 
-// Extract and test the blocking logic directly
-// We re-implement isBlockedUrl here to test it since it's not exported
-function isBlockedUrl(raw: string): boolean {
-  let parsed: URL
-  try {
-    parsed = new URL(raw)
-  } catch {
-    return true
-  }
+vi.mock('dns/promises', () => ({
+  lookup: vi.fn(),
+}))
 
-  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return true
+const mockLookup = vi.mocked(lookup)
 
-  const hostname = parsed.hostname.toLowerCase()
-
-  if (hostname === 'localhost' || hostname === '[::1]') return true
-
-  const ipPatterns = [
-    /^127\./,
-    /^10\./,
-    /^172\.(1[6-9]|2\d|3[01])\./,
-    /^192\.168\./,
-    /^169\.254\./,
-    /^0\./,
-    /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./,
-    /^(22[4-9]|23\d)\./,             // multicast 224-239
-    /^(24\d|25[0-5])\./,             // reserved 240-255
-  ]
-  if (ipPatterns.some((p) => p.test(hostname))) return true
-
-  const blockedHosts = [
-    'metadata.google.internal',
-    'metadata.google',
-    'instance-data',
-  ]
-  if (blockedHosts.includes(hostname)) return true
-
-  return false
-}
+import { isBlockedUrl, isBlockedAfterResolve } from '../../api/_lib/ssrf.js'
 
 describe('CWE-918: SSRF protection — private IP ranges', () => {
   it('blocks localhost', () => {
@@ -115,6 +88,29 @@ describe('CWE-918: SSRF protection — private IP ranges', () => {
   })
 })
 
+describe('CWE-918: SSRF protection — IPv6-mapped address bypass', () => {
+  it('blocks IPv6-mapped 169.254.x (cloud metadata)', () => {
+    expect(isBlockedUrl('http://[::ffff:a9fe:a9fe]/')).toBe(true)
+  })
+
+  it('blocks IPv6-mapped 127.0.0.1 (loopback)', () => {
+    expect(isBlockedUrl('http://[::ffff:7f00:1]/')).toBe(true)
+  })
+
+  it('blocks IPv6-mapped 10.x (private class A)', () => {
+    expect(isBlockedUrl('http://[::ffff:a00:1]/')).toBe(true)
+  })
+
+  it('blocks IPv6-mapped 192.168.x (private class C)', () => {
+    expect(isBlockedUrl('http://[::ffff:c0a8:1]/')).toBe(true)
+  })
+
+  it('blocks arbitrary IPv6 literal addresses', () => {
+    expect(isBlockedUrl('http://[fe80::1]/')).toBe(true)
+    expect(isBlockedUrl('http://[2001:db8::1]/')).toBe(true)
+  })
+})
+
 describe('CWE-918: SSRF protection — cloud metadata', () => {
   it('blocks GCP metadata', () => {
     expect(isBlockedUrl('http://metadata.google.internal/computeMetadata/v1/')).toBe(true)
@@ -165,5 +161,55 @@ describe('CWE-20: Protocol validation', () => {
 describe('CWE-601: Open redirect via proxy', () => {
   it('allows legitimate external URLs', () => {
     expect(isBlockedUrl('https://www.allrecipes.com/recipe/123')).toBe(false)
+  })
+})
+
+describe('CWE-350: DNS rebinding protection — isBlockedAfterResolve', () => {
+  beforeEach(() => {
+    mockLookup.mockReset()
+  })
+
+  it('blocks domain resolving to loopback', async () => {
+    mockLookup.mockResolvedValueOnce({ address: '127.0.0.1', family: 4 })
+    expect(await isBlockedAfterResolve('http://evil.com/')).toBe(true)
+  })
+
+  it('blocks domain resolving to cloud metadata IP', async () => {
+    mockLookup.mockResolvedValueOnce({ address: '169.254.169.254', family: 4 })
+    expect(await isBlockedAfterResolve('http://evil.com/')).toBe(true)
+  })
+
+  it('blocks domain resolving to private class A', async () => {
+    mockLookup.mockResolvedValueOnce({ address: '10.0.0.1', family: 4 })
+    expect(await isBlockedAfterResolve('http://evil.com/')).toBe(true)
+  })
+
+  it('blocks domain resolving to private class B', async () => {
+    mockLookup.mockResolvedValueOnce({ address: '172.16.0.1', family: 4 })
+    expect(await isBlockedAfterResolve('http://evil.com/')).toBe(true)
+  })
+
+  it('blocks domain resolving to private class C', async () => {
+    mockLookup.mockResolvedValueOnce({ address: '192.168.1.1', family: 4 })
+    expect(await isBlockedAfterResolve('http://evil.com/')).toBe(true)
+  })
+
+  it('blocks when DNS resolution fails', async () => {
+    mockLookup.mockRejectedValueOnce(new Error('ENOTFOUND'))
+    expect(await isBlockedAfterResolve('http://nonexistent.invalid/')).toBe(true)
+  })
+
+  it('allows domain resolving to public IP', async () => {
+    mockLookup.mockResolvedValueOnce({ address: '142.250.80.46', family: 4 })
+    expect(await isBlockedAfterResolve('https://www.allrecipes.com/')).toBe(false)
+  })
+
+  it('skips DNS resolution for literal IPs (already checked by isBlockedUrl)', async () => {
+    await isBlockedAfterResolve('http://8.8.8.8/')
+    expect(mockLookup).not.toHaveBeenCalled()
+  })
+
+  it('blocks malformed URLs', async () => {
+    expect(await isBlockedAfterResolve('not-a-url')).toBe(true)
   })
 })

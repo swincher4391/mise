@@ -41,6 +41,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.setHeader('Content-Type', 'text/html; charset=utf-8')
     res.setHeader('Access-Control-Allow-Origin', '*')
     res.setHeader('X-Upstream-Status', String(response.status))
+    res.setHeader('Content-Security-Policy', 'sandbox')
+    res.setHeader('X-Content-Type-Options', 'nosniff')
     return res.status(200).send(html)
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'
