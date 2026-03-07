@@ -165,4 +165,28 @@ Ingredients:
     const result = parseTextRecipe(text)
     expect(result.ingredientLines).toEqual(['flour', 'sugar'])
   })
+
+  it('should split paragraph instructions into sentences and filter attribution', () => {
+    const text = `Spaghetti Casserole
+Ingredients
+1 package spaghetti (8 oz.)
+1 pound beef, ground
+1 can tomato soup
+1/4 cup chopped onion
+1/4 cup chopped green pepper
+2 teaspoon fat
+Instructions
+Brown onion, peppers and meat in hot fat. Add tomato soup. Pour over cooked spaghetti and pour entire mixture into a buttered casserole. This dish may be prepared and store in Kelvinator food compartment before baking. Bake in moderate oven 350 degrees F 30 to 45 minutes.
+The Kelvinator Book of Recipes, date unknown`
+
+    const result = parseTextRecipe(text)
+    expect(result.title).toBe('Spaghetti Casserole')
+    expect(result.ingredientLines).toHaveLength(6)
+    expect(result.stepLines).toContainEqual(expect.stringContaining('Brown onion'))
+    expect(result.stepLines).toContainEqual(expect.stringContaining('Add tomato soup'))
+    expect(result.stepLines).toContainEqual(expect.stringContaining('Pour over cooked spaghetti'))
+    expect(result.stepLines).toContainEqual(expect.stringContaining('Bake in moderate oven'))
+    // Attribution line should be filtered
+    expect(result.stepLines.join(' ')).not.toContain('Kelvinator Book')
+  })
 })

@@ -55,10 +55,18 @@ export function parseTextRecipe(text: string): ParsedTextRecipe {
     const cleaned = line.replace(/^[-*\u2022]\s*/, '').replace(/^\d+\.\s*/, '').trim()
     if (!cleaned) continue
 
+    const isNumbered = /^\d+\.\s/.test(line.trim())
+
     if (section === 'ingredients') {
       ingredientLines.push(cleaned)
     } else if (section === 'steps') {
-      splitSentences(cleaned).forEach(s => stepLines.push(s))
+      if (isNumbered) {
+        // Numbered steps are explicitly structured — trust them
+        stepLines.push(cleaned)
+      } else {
+        // Paragraph text — split into sentences, keep only cooking steps
+        splitSentences(cleaned).filter(s => COOKING_VERBS.test(s)).forEach(s => stepLines.push(s))
+      }
     } else {
       // Before any section header — try to detect by format
       if (/^[-*\u2022]\s/.test(line.trim()) || /^\d+[a-z]*\s*(cups?|tbsps?|tsps?|tablespoons?|teaspoons?|oz|lbs?|g|kg|ml)\b/i.test(cleaned)) {
@@ -66,7 +74,7 @@ export function parseTextRecipe(text: string): ParsedTextRecipe {
       } else if (/^\d+\.\s/.test(line.trim())) {
         stepLines.push(cleaned)
       } else if (hasCookingVerbs(cleaned)) {
-        splitSentences(cleaned).forEach(s => stepLines.push(s))
+        splitSentences(cleaned).filter(s => COOKING_VERBS.test(s)).forEach(s => stepLines.push(s))
       }
     }
   }
@@ -85,7 +93,7 @@ function splitSentences(text: string): string[] {
 }
 
 /** Detect lines that read like cooking instructions based on action verbs */
-const COOKING_VERBS = /\b(cook|bake|roast|grill|saut[eé]|fry|simmer|boil|steam|broil|braise|stir|mix|combine|whisk|fold|blend|chop|dice|slice|mince|peel|drain|heat|preheat|melt|pour|add|toss|season|marinate|spread|serve|refrigerat|chill|freeze|let\s+sit|set\s+aside|bring\s+to|stir\s+in|fold\s+in|top\s+with|remove\s+from|place\s+in|transfer|arrange)\b/i
+const COOKING_VERBS = /\b(cook|bake|roast|grill|saut[eé]|fry|simmer|boil|steam|broil|braise|brown|stir|mix|combine|whisk|fold|blend|chop|dice|slice|mince|peel|drain|heat|preheat|melt|pour|add|toss|season|marinate|spread|serve|refrigerat|chill|freeze|let\s+sit|set\s+aside|bring\s+to|stir\s+in|fold\s+in|top\s+with|remove\s+from|place\s+in|transfer|arrange)\b/i
 
 function hasCookingVerbs(line: string): boolean {
   // Must be long enough to be an instruction (not just "serve" as a noun)
