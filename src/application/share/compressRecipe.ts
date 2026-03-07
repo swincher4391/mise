@@ -98,8 +98,10 @@ export async function compressPayload(payload: SharePayload): Promise<string> {
 
   const cs = new CompressionStream('gzip')
   const writer = cs.writable.getWriter()
-  await writer.write(bytes)
-  await writer.close()
+  // Don't await write/close — they block until the readable side drains.
+  // Fire them, then read output. close() ensures the stream finishes.
+  writer.write(bytes)
+  writer.close()
 
   const chunks: Uint8Array[] = []
   const reader = cs.readable.getReader()
