@@ -219,6 +219,11 @@ ${nutritionHtml}
   <div class="footer">
     Shared from <a href="https://mise.swinch.dev">Mise</a> — recipe extraction for any URL.
   </div>
+  <script>
+    // Auto-redirect real users (in-app browsers matched as bots).
+    // Crawlers don't execute JS so OG tags and JSON-LD are still parsed.
+    setTimeout(function(){window.location.href=document.getElementById('open-cta').href},800);
+  </script>
 </body>
 </html>`
 }
