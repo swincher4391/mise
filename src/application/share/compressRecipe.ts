@@ -98,8 +98,8 @@ export async function compressPayload(payload: SharePayload): Promise<string> {
 
   const cs = new CompressionStream('gzip')
   const writer = cs.writable.getWriter()
-  writer.write(bytes)
-  writer.close()
+  await writer.write(bytes)
+  await writer.close()
 
   const chunks: Uint8Array[] = []
   const reader = cs.readable.getReader()
@@ -116,8 +116,20 @@ export async function compressPayload(payload: SharePayload): Promise<string> {
     offset += chunk.length
   }
 
-  // base64url encode (no padding)
-  const base64 = btoa(String.fromCharCode(...compressed))
+  // base64url encode (no padding) — chunked to avoid call stack limits
+  return uint8ToBase64url(compressed)
+}
+
+/** Convert Uint8Array to base64url string without padding. */
+function uint8ToBase64url(bytes: Uint8Array): string {
+  // Build binary string in chunks to avoid call stack limits with spread
+  const chunkSize = 8192
+  let binaryStr = ''
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const slice = bytes.subarray(i, Math.min(i + chunkSize, bytes.length))
+    binaryStr += String.fromCharCode.apply(null, slice as unknown as number[])
+  }
+  const base64 = btoa(binaryStr)
   return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 }
 
