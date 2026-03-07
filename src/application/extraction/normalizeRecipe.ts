@@ -77,6 +77,19 @@ function extractOgImage(html: string): string | null {
 }
 
 /**
+ * Exclusion pattern for non-instruction steps (commentary, attribution, notes).
+ * Steps starting with these patterns are filtered out.
+ */
+const NON_INSTRUCTION_START = /^(I\b|just\b|this\b|note[:\b]|the\b|my\b|we\b|you\b|it\b|these\b|those\b|here\b|there\b|please\b|also\b|btw\b|fyi\b|disclaimer|adapted|originally|inspired|source|credit|photo|image|video|recipe\s+by|recipe\s+from|serves?\b(?!\s+immediately))/i
+
+/** Returns true if the text looks like an actual cooking instruction. */
+export function isInstructionStep(text: string): boolean {
+  const trimmed = text.trim()
+  if (!trimmed || trimmed.length < 5) return false
+  return !NON_INSTRUCTION_START.test(trimmed)
+}
+
+/**
  * Normalize recipeInstructions to Step[].
  * Handles: string[], HowToStep[], HowToSection[], single string.
  */
@@ -137,6 +150,8 @@ function normalizeSteps(raw: any): Step[] {
   }
 
   return steps
+    .filter(s => isInstructionStep(s.text))
+    .map((s, i) => ({ ...s, id: `step_${i + 1}`, order: i + 1 }))
 }
 
 /** Extract nutrition if available. */

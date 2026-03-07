@@ -185,9 +185,18 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
       setExtractionStatus({ message: 'Scanning for recipe data…', step: 2, totalSteps })
       const recipes = extractJsonLd(html)
       if (recipes.length > 0) {
-        const normalized = normalizeRecipe(recipes[0], url, html)
-        setRecipe(normalized)
-        return
+        const raw = recipes[0]
+        const hasIngredients = Array.isArray(raw.recipeIngredient) && raw.recipeIngredient.length > 0
+        const hasSteps = raw.recipeInstructions != null &&
+          (typeof raw.recipeInstructions === 'string' ||
+           (Array.isArray(raw.recipeInstructions) && raw.recipeInstructions.length > 0))
+
+        if (hasIngredients || hasSteps) {
+          const normalized = normalizeRecipe(raw, url, html)
+          setRecipe(normalized)
+          return
+        }
+        // Stub JSON-LD — fall through to microdata
       }
 
       // Layer 2: Microdata/RDFa
