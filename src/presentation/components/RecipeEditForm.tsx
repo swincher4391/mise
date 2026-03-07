@@ -10,6 +10,7 @@ interface RecipeEditFormProps {
 
 export function RecipeEditForm({ recipe, onApply, onCancel }: RecipeEditFormProps) {
   const [title, setTitle] = useState(recipe.title)
+  const [imageUrl, setImageUrl] = useState(recipe.imageUrl || '')
   const [ingredients, setIngredients] = useState(
     recipe.ingredients.map((i) => i.raw).join('\n'),
   )
@@ -36,7 +37,7 @@ export function RecipeEditForm({ recipe, onApply, onCancel }: RecipeEditFormProp
       id: recipe.id,
       author: recipe.author,
       description: recipe.description,
-      imageUrl: recipe.imageUrl,
+      imageUrl: imageUrl.trim() || null,
       servings: recipe.servings,
       servingsText: recipe.servingsText,
       prepTimeMinutes: recipe.prepTimeMinutes,
@@ -71,6 +72,25 @@ export function RecipeEditForm({ recipe, onApply, onCancel }: RecipeEditFormProp
           required
         />
       </label>
+
+      <label className="form-label">
+        Image URL
+        <input
+          className="form-input"
+          type="url"
+          value={imageUrl}
+          onChange={(e) => setImageUrl(e.target.value)}
+          placeholder="https://example.com/photo.jpg"
+        />
+      </label>
+      {imageUrl.trim() && (
+        <img
+          src={imageUrl}
+          alt="Preview"
+          style={{ maxHeight: 120, borderRadius: 8, objectFit: 'cover', width: '100%' }}
+          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+        />
+      )}
 
       <label className="form-label">
         Ingredients * <span className="form-hint">(one per line)</span>
