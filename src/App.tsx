@@ -40,8 +40,13 @@ function App() {
     setView('extract')
   }, [])
 
+  const handleShareImport = useCallback((recipe: Recipe) => {
+    setImportedRecipe(recipe)
+    setView('extract')
+  }, [])
+
   useExtensionImport(handleExtensionRecipe)
-  useShareTarget(handleShareTarget)
+  useShareTarget(handleShareTarget, handleShareImport)
 
   const renderPage = () => {
     switch (view) {

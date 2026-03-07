@@ -1,13 +1,38 @@
 import { useEffect } from 'react'
+import { decompressToRecipe } from '@application/share/compressRecipe.ts'
+import type { Recipe } from '@domain/models/Recipe.ts'
 
 /**
  * Handles incoming URLs from the Web Share Target API.
  * When the PWA is shared to from another app, the browser navigates to
  * /?url=...&text=...&title=... — this hook extracts the URL and triggers extraction.
+ *
+ * Also handles ?import={compressed} for direct share link imports (no extraction round-trip).
  */
-export function useShareTarget(onUrlReceived: (url: string) => void) {
+export function useShareTarget(
+  onUrlReceived: (url: string) => void,
+  onRecipeImported?: (recipe: Recipe) => void,
+) {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
+
+    // Direct import: ?import={compressed_data} — skip extraction entirely
+    const importData = params.get('import')
+    if (importData && onRecipeImported) {
+      decompressToRecipe(importData)
+        .then((recipe) => {
+          onRecipeImported(recipe)
+        })
+        .catch((err) => {
+          console.error('Failed to decompress share import:', err)
+        })
+        .finally(() => {
+          history.replaceState(null, '', window.location.pathname)
+        })
+      return
+    }
+
+    // Existing share target: ?url=... or ?text=...
     const sharedUrl = params.get('url') || ''
     const sharedText = params.get('text') || ''
 
@@ -19,7 +44,7 @@ export function useShareTarget(onUrlReceived: (url: string) => void) {
       // Clean up query params so a refresh doesn't re-trigger
       history.replaceState(null, '', window.location.pathname)
     }
-  }, [onUrlReceived])
+  }, [onUrlReceived, onRecipeImported])
 }
 
 /** Extract first URL from a string (handles text that contains a URL among other text) */

@@ -39,9 +39,9 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
       payload.st = []
     }
 
-    // Build the full share URL so the CTA can deep-link back into Mise
+    // Build the full share URL for OG meta tags, pass raw encoded data for CTA import
     const shareUrl = `https://mise.swinch.dev/api/r?d=${encodeURIComponent(encoded)}`
-    const html = buildRecipeHtml(payload, shareUrl)
+    const html = buildRecipeHtml(payload, shareUrl, encoded)
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8')
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
