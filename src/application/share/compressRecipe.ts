@@ -1,5 +1,7 @@
 import type { Recipe } from '@domain/models/Recipe.ts'
 import type { SavedRecipe } from '@domain/models/SavedRecipe.ts'
+import type { Nutrition } from '@domain/models/Nutrition.ts'
+import { parseIngredients } from '@application/parser/IngredientParser.ts'
 
 const SHARE_BASE = 'https://mise.swinch.dev/api/r'
 const MAX_URL_LENGTH = 6000
@@ -182,4 +184,109 @@ export async function buildQrShareUrl(recipe: Recipe | SavedRecipe): Promise<str
 
   // Still too long — recipe can't fit in a QR code
   return null
+}
+
+/** base64url → base64 → gunzip → JSON parse */
+export async function decompressPayload(encoded: string): Promise<SharePayload> {
+  const base64 = encoded.replace(/-/g, '+').replace(/_/g, '/')
+  const binaryStr = atob(base64)
+  const compressed = new Uint8Array(binaryStr.length)
+  for (let i = 0; i < binaryStr.length; i++) {
+    compressed[i] = binaryStr.charCodeAt(i)
+  }
+
+  const ds = new DecompressionStream('gzip')
+  const writer = ds.writable.getWriter()
+  writer.write(compressed)
+  writer.close()
+
+  const chunks: Uint8Array[] = []
+  const reader = ds.readable.getReader()
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    chunks.push(value)
+  }
+
+  const totalLength = chunks.reduce((acc, c) => acc + c.length, 0)
+  const decompressed = new Uint8Array(totalLength)
+  let offset = 0
+  for (const chunk of chunks) {
+    decompressed.set(chunk, offset)
+    offset += chunk.length
+  }
+
+  const json = new TextDecoder().decode(decompressed)
+  return JSON.parse(json) as SharePayload
+}
+
+function extractDomain(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '')
+  } catch {
+    return ''
+  }
+}
+
+/** Reconstruct a full Recipe from a SharePayload. */
+export function sharePayloadToRecipe(payload: SharePayload): Recipe {
+  const id = `recipe_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
+
+  const steps = payload.st.map((text, i) => ({
+    id: `step_${i + 1}`,
+    order: i + 1,
+    text,
+    timerSeconds: null,
+    ingredientRefs: [],
+  }))
+
+  let nutrition: Nutrition | null = null
+  if (payload.n) {
+    const n = payload.n
+    nutrition = {
+      calories: n.cal ?? null,
+      fatG: n.fat ?? null,
+      saturatedFatG: n.satFat ?? null,
+      carbohydrateG: n.carb ?? null,
+      fiberG: n.fiber ?? null,
+      sugarG: n.sugar ?? null,
+      proteinG: n.protein ?? null,
+      cholesterolMg: n.chol ?? null,
+      sodiumMg: n.sodium ?? null,
+    }
+  }
+
+  return {
+    id,
+    title: payload.t,
+    sourceUrl: payload.src ?? '',
+    sourceDomain: payload.src ? extractDomain(payload.src) : '',
+    author: payload.a ?? null,
+    description: payload.d ?? null,
+    imageUrl: payload.img ?? null,
+    servings: payload.sv ?? null,
+    servingsText: payload.sv ? String(payload.sv) : null,
+    prepTimeMinutes: payload.pt ?? null,
+    cookTimeMinutes: payload.ct ?? null,
+    totalTimeMinutes: payload.tt ?? null,
+    ingredients: parseIngredients(payload.ig.filter((l) => l.trim())),
+    steps,
+    nutrition,
+    keywords: payload.kw ?? [],
+    cuisines: payload.cu ?? [],
+    categories: payload.cat ?? [],
+    tags: [],
+    notes: null,
+    favorite: false,
+    extractedAt: new Date().toISOString(),
+    extractionLayer: 'json-ld',
+    parserVersion: '1.0.0',
+    schemaVersion: 1,
+  }
+}
+
+/** Decompress an encoded share string directly into a Recipe. */
+export async function decompressToRecipe(encoded: string): Promise<Recipe> {
+  const payload = await decompressPayload(encoded)
+  return sharePayloadToRecipe(payload)
 }
