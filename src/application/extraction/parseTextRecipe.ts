@@ -1,3 +1,5 @@
+import { parseMasterCookRecipe } from './parseMasterCookRecipe.ts'
+
 export interface ParsedTextRecipe {
   title: string
   ingredientLines: string[]
@@ -11,6 +13,10 @@ export interface ParsedTextRecipe {
  * by format (bullets → ingredients, numbered → steps).
  */
 export function parseTextRecipe(text: string): ParsedTextRecipe {
+  if (text.includes('* Exported from MasterCook *')) {
+    return parseMasterCookRecipe(text)
+  }
+
   let lines = text.split('\n').filter((l) => l.trim())
   if (lines.length === 0) return { title: '', ingredientLines: [], stepLines: [] }
 
