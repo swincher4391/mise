@@ -54,6 +54,7 @@ export function parseMasterCookRecipe(text: string): ParsedTextRecipe {
     if (!trimmed) continue
     if (isEndMarker(trimmed)) break
     if (isSkipLine(trimmed)) continue
+    if (isAttribution(trimmed)) continue
     stepLines.push(trimmed)
   }
 
@@ -85,6 +86,15 @@ function isEndMarker(line: string): boolean {
   )
 }
 
+/** Detect source attribution lines like "The Woman's World Cook Book, 1961" */
+function isAttribution(line: string): boolean {
+  // Short line ending with a 4-digit year, or "Recipe from ..." / "Source: ..."
+  return (
+    /,?\s*\d{4}\s*$/.test(line) && line.length < 80 ||
+    /^(recipe\s+(from|by|source)|source\s*:|from\s+the\s+kitchen\s+of)/i.test(line)
+  )
+}
+
 /** Parse a tabular MasterCook ingredient line into a readable string */
 function parseIngredientLine(line: string): string | null {
   // MasterCook format: columns are amount, measure, ingredient (separated by whitespace)
@@ -92,9 +102,11 @@ function parseIngredientLine(line: string): string | null {
   const trimmed = line.trim()
   if (!trimmed || /^-+$/.test(trimmed)) return null
 
-  // Replace ` -- ` with `, ` for prep methods
+  // Normalize whitespace, then replace ` -- ` with `, ` for prep methods
   const cleaned = trimmed
     .replace(/\s+/g, ' ')
+    .replace(/\s*\u2014\s*/g, ', ')   // em-dash
+    .replace(/\s*\u2013\s*/g, ', ')   // en-dash
     .replace(/\s*--\s*/g, ', ')
 
   return cleaned || null

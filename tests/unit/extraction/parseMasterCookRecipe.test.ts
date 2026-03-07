@@ -63,6 +63,13 @@ describe('parseMasterCookRecipe (via parseTextRecipe)', () => {
     expect(allSteps).not.toContain('Nutr. Assoc')
   })
 
+  it('should filter out source attribution lines from steps', () => {
+    const result = parseTextRecipe(FULL_EXAMPLE)
+    const allSteps = result.stepLines.join(' ')
+    expect(allSteps).not.toContain("Woman's World Cook Book")
+    expect(allSteps).not.toContain('1961')
+  })
+
   it('should not include metadata lines in output', () => {
     const result = parseTextRecipe(FULL_EXAMPLE)
     const all = [...result.ingredientLines, ...result.stepLines].join(' ')
