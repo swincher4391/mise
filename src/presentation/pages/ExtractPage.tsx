@@ -52,6 +52,12 @@ export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRec
     if (importedRecipe) {
       setRecipe(importedRecipe)
       onImportedRecipeConsumed?.()
+      // Clean ?import= from URL now that the recipe is consumed.
+      // Done here (not in useShareTarget) so SW auto-update reloads
+      // don't lose the import data before it's consumed.
+      if (window.location.search.includes('import=')) {
+        history.replaceState(null, '', window.location.pathname)
+      }
     }
   }, [importedRecipe, setRecipe, onImportedRecipeConsumed])
 

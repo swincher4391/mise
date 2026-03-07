@@ -15,19 +15,22 @@ export function useShareTarget(
 ) {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
+    console.log('[Mise:ShareTarget] effect fired, search:', window.location.search.slice(0, 80))
 
     // Direct import: ?import={compressed_data} — skip extraction entirely
+    // NOTE: We do NOT clean the URL here. ExtractPage cleans it after consuming
+    // the recipe. This prevents a race condition where the SW auto-update reloads
+    // the page before the recipe is consumed, losing the import data.
     const importData = params.get('import')
     if (importData && onRecipeImported) {
+      console.log('[Mise:ShareTarget] found import data, decompressing...')
       decompressToRecipe(importData)
         .then((recipe) => {
+          console.log('[Mise:ShareTarget] decompressed, calling onRecipeImported:', recipe.title)
           onRecipeImported(recipe)
         })
         .catch((err) => {
-          console.error('Failed to decompress share import:', err)
-        })
-        .finally(() => {
-          history.replaceState(null, '', window.location.pathname)
+          console.error('[Mise:ShareTarget] decompress failed:', err)
         })
       return
     }
@@ -40,9 +43,12 @@ export function useShareTarget(
     const url = extractUrl(sharedUrl) || extractUrl(sharedText)
 
     if (url) {
+      console.log('[Mise:ShareTarget] found shared URL:', url)
       onUrlReceived(url)
       // Clean up query params so a refresh doesn't re-trigger
       history.replaceState(null, '', window.location.pathname)
+    } else {
+      console.log('[Mise:ShareTarget] no import or URL params found')
     }
   }, [onUrlReceived, onRecipeImported])
 }
