@@ -122,12 +122,12 @@ export async function compressPayload(payload: SharePayload): Promise<string> {
 
 /** Convert Uint8Array to base64url string without padding. */
 function uint8ToBase64url(bytes: Uint8Array): string {
-  // Build binary string in chunks to avoid call stack limits with spread
+  // Build binary string in chunks to avoid call stack limits
   const chunkSize = 8192
   let binaryStr = ''
   for (let i = 0; i < bytes.length; i += chunkSize) {
     const slice = bytes.subarray(i, Math.min(i + chunkSize, bytes.length))
-    binaryStr += String.fromCharCode.apply(null, slice as unknown as number[])
+    binaryStr += String.fromCharCode.apply(null, Array.from(slice))
   }
   const base64 = btoa(binaryStr)
   return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
