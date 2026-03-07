@@ -4,6 +4,7 @@ import { fetchViaProxy } from '@infrastructure/proxy/fetchViaProxy.ts'
 import { fetchViaBrowser } from '@infrastructure/proxy/fetchViaBrowser.ts'
 import { extractJsonLd } from '@application/extraction/extractJsonLd.ts'
 import { extractMicrodata } from '@application/extraction/extractMicrodata.ts'
+import { extractHeuristic } from '@application/extraction/extractHeuristic.ts'
 import { normalizeRecipe } from '@application/extraction/normalizeRecipe.ts'
 import { extractImageRecipe } from '@infrastructure/ocr/extractImageRecipe.ts'
 import { createImageRecipe } from '@application/extraction/createImageRecipe.ts'
@@ -208,7 +209,16 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
         return
       }
 
-      // Layer 3: Instagram caption extraction
+      // Layer 3: Heuristic HTML extraction
+      const heuristicRecipe = extractHeuristic(html)
+      if (heuristicRecipe) {
+        const normalized = normalizeRecipe(heuristicRecipe, url, html)
+        normalized.extractionLayer = 'heuristic'
+        setRecipe(normalized)
+        return
+      }
+
+      // Layer 4: Instagram caption extraction
       if (isInstagram) {
         setExtractionStatus({ message: 'Extracting caption…', step: 3, totalSteps })
         const shortcode = extractInstagramShortcode(url)
