@@ -47,10 +47,8 @@ export function parseMasterCookRecipe(text: string): ParsedTextRecipe {
     } else {
       foundSteps = true
       if (!isAttribution(line)) {
-        // Split paragraphs into sentences, keep only those with cooking verbs
-        splitSentences(line)
-          .filter(s => COOKING_VERBS.test(s))
-          .forEach(s => stepLines.push(s))
+        // Split paragraphs into individual sentences
+        splitSentences(line).forEach(s => stepLines.push(s))
       }
     }
   }
@@ -100,8 +98,6 @@ function isAttribution(line: string): boolean {
     /\bbook\s+of\s+recipes\b/i.test(line)
   )
 }
-
-const COOKING_VERBS = /\b(cook|bake|roast|grill|saut[eé]|fry|simmer|boil|steam|broil|braise|brown|stir|mix|combine|whisk|fold|blend|chop|dice|slice|mince|peel|drain|heat|preheat|melt|pour|add|toss|season|marinate|spread|serve|refrigerat|chill|freeze|let\s+sit|set\s+aside|bring\s+to|stir\s+in|fold\s+in|top\s+with|remove\s+from|place\s+in|transfer|arrange)\b/i
 
 /** Split a paragraph into individual sentences on period boundaries */
 function splitSentences(text: string): string[] {
