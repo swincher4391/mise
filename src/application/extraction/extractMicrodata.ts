@@ -40,11 +40,14 @@ function extractItemScope(root: Element): any {
     for (const child of parent.children) {
       if (processed.has(child)) continue
 
-      const prop = child.getAttribute('itemprop')
+      const propAttr = child.getAttribute('itemprop')
       const isScope = child.hasAttribute('itemscope')
 
-      if (prop) {
+      if (propAttr) {
         processed.add(child)
+
+        // itemprop is a space-separated list of property names per the HTML spec
+        const propNames = propAttr.split(/\s+/).filter(Boolean)
 
         if (isScope) {
           // Nested itemscope — recurse
@@ -54,10 +57,14 @@ function extractItemScope(root: Element): any {
             const typeName = nestedType.split('/').pop() || ''
             nested['@type'] = typeName
           }
-          addValue(result, prop, nested)
+          for (const prop of propNames) {
+            addValue(result, prop, nested)
+          }
         } else {
           const value = getPropertyValue(child)
-          addValue(result, prop, value)
+          for (const prop of propNames) {
+            addValue(result, prop, value)
+          }
         }
       } else if (!isScope) {
         // Not an itemprop, not a nested scope — keep walking
