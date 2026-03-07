@@ -152,7 +152,7 @@ function extractSteps(heading: Element, allHeadings: Element[]): string[] {
 }
 
 /** Check if an element should stop section collection. */
-function isStopElement(el: Element, sectionHeading: Element, allHeadings: Element[]): boolean {
+function isStopElement(el: Element, sectionHeading: Element, _allHeadings: Element[]): boolean {
   const tag = el.tagName
   if (!tag.match(/^H[1-4]$/)) return false
 

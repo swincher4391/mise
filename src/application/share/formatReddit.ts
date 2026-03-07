@@ -42,7 +42,7 @@ function formatRecipeAsReddit(recipe: Recipe | SavedRecipe, shareUrl: string): s
     lines.push('**Ingredients**')
     lines.push('')
     for (const ing of recipe.ingredients) {
-      lines.push(`* ${ing.original}`)
+      lines.push(`* ${ing.raw}`)
     }
     lines.push('')
   }
