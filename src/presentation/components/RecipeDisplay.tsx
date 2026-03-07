@@ -206,7 +206,7 @@ export function RecipeDisplay({ recipe, showSaveButton, onDelete, purchase, onSa
                 {isSaved ? 'Saved' : 'Save Recipe'}
               </button>
               {!isSaved && !editMode && (
-                <span className="save-hint">Cooking mode, meal planning &amp; grocery lists</span>
+                <span className="save-hint">Cooking mode, meal planning, grocery lists &amp; offline access</span>
               )}
             </div>
           )}
