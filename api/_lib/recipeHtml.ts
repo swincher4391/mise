@@ -214,11 +214,17 @@ ${stepsHtml}
 
 ${nutritionHtml}
 
-  <a class="cta" href="https://mise.swinch.dev${encodedData ? `?import=${encodeURIComponent(encodedData)}` : shareUrl ? `?url=${encodeURIComponent(shareUrl)}` : ''}">Open in Mise</a>
+  <a class="cta" id="open-cta" href="https://mise.swinch.dev${encodedData ? `?import=${encodeURIComponent(encodedData)}` : shareUrl ? `?url=${encodeURIComponent(shareUrl)}` : ''}">Open in Mise</a>
 
   <div class="footer">
     Shared from <a href="https://mise.swinch.dev">Mise</a> — recipe extraction for any URL.
   </div>
+  <script>
+    // Auto-redirect real users to the app; crawlers won't execute JS
+    // so OG tags and JSON-LD remain accessible for social previews.
+    var cta = document.getElementById('open-cta');
+    if (cta) window.location.href = cta.href;
+  </script>
 </body>
 </html>`
 }
