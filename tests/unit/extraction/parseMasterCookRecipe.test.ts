@@ -52,10 +52,12 @@ describe('parseMasterCookRecipe (via parseTextRecipe)', () => {
     expect(tomato).toContain(', ')
   })
 
-  it('should extract steps and stop before nutrition', () => {
+  it('should split steps into sentences and filter by cooking verbs', () => {
     const result = parseTextRecipe(FULL_EXAMPLE)
-    expect(result.stepLines.length).toBeGreaterThanOrEqual(1)
+    expect(result.stepLines.length).toBeGreaterThan(1)
     expect(result.stepLines[0]).toContain('Pour boiling water')
+    expect(result.stepLines).toContainEqual(expect.stringContaining('Cook them'))
+    expect(result.stepLines).toContainEqual(expect.stringContaining('add butter'))
     // Should not include nutrition
     const allSteps = result.stepLines.join(' ')
     expect(allSteps).not.toContain('Calories')

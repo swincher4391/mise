@@ -47,7 +47,10 @@ export function parseMasterCookRecipe(text: string): ParsedTextRecipe {
     } else {
       foundSteps = true
       if (!isAttribution(line)) {
-        stepLines.push(line)
+        // Split paragraphs into sentences, keep only those with cooking verbs
+        splitSentences(line)
+          .filter(s => COOKING_VERBS.test(s))
+          .forEach(s => stepLines.push(s))
       }
     }
   }
@@ -92,9 +95,20 @@ function isEndMarker(line: string): boolean {
 /** Detect source attribution lines like "The Woman's World Cook Book, 1961" */
 function isAttribution(line: string): boolean {
   return (
-    (/,?\s*\d{4}\s*$/.test(line) && line.length < 80) ||
-    /^(recipe\s+(from|by|source)|source\s*:|from\s+the\s+kitchen\s+of)/i.test(line)
+    (/,?\s*(\d{4}|date\s+unknown)\s*$/.test(line) && line.length < 80) ||
+    /^(recipe\s+(from|by|source)|source\s*:|from\s+the\s+kitchen\s+of)/i.test(line) ||
+    /\bbook\s+of\s+recipes\b/i.test(line)
   )
+}
+
+const COOKING_VERBS = /\b(cook|bake|roast|grill|saut[eé]|fry|simmer|boil|steam|broil|braise|brown|stir|mix|combine|whisk|fold|blend|chop|dice|slice|mince|peel|drain|heat|preheat|melt|pour|add|toss|season|marinate|spread|serve|refrigerat|chill|freeze|let\s+sit|set\s+aside|bring\s+to|stir\s+in|fold\s+in|top\s+with|remove\s+from|place\s+in|transfer|arrange)\b/i
+
+/** Split a paragraph into individual sentences on period boundaries */
+function splitSentences(text: string): string[] {
+  const sentences = text.split(/\.(?:\s+)(?=[A-Z])/)
+    .map(s => s.trim().replace(/\.$/, '').trim())
+    .filter(s => s.length > 0)
+  return sentences.length > 0 ? sentences : [text]
 }
 
 /** Parse a tabular MasterCook ingredient line into a readable string */
