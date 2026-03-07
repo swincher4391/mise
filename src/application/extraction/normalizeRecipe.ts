@@ -90,6 +90,29 @@ export function isInstructionStep(text: string): boolean {
 }
 
 /**
+ * Split a block of text into individual instruction sentences.
+ * Used when structured data delivers all steps as a single string
+ * instead of separate HowToStep objects.
+ *
+ * Splits on period/exclamation/question mark followed by a space and
+ * an uppercase letter — preserving abbreviations, decimals, and mid-sentence periods.
+ */
+function splitIntoSentences(text: string): string[] {
+  // First try newlines — if the text has them, honour that structure
+  const byNewline = text.split(/\n+/).map(l => l.trim()).filter(Boolean)
+  if (byNewline.length > 1) {
+    return byNewline.map(l => l.replace(/^\d+\.\s*/, ''))
+  }
+
+  // Single block — split on sentence boundaries:
+  // period/!/? followed by a space and an uppercase letter
+  return text
+    .split(/(?<=[.!?])\s+(?=[A-Z])/)
+    .map(s => s.trim().replace(/^\d+\.\s*/, ''))
+    .filter(Boolean)
+}
+
+/**
  * Normalize recipeInstructions to Step[].
  * Handles: string[], HowToStep[], HowToSection[], single string.
  */
@@ -114,19 +137,29 @@ function normalizeSteps(raw: any): Step[] {
 
   // Single string
   if (typeof raw === 'string') {
-    // Split on newlines or numbered lines
-    const lines = raw.split(/\n+/).filter((l: string) => l.trim())
-    for (const line of lines) {
-      addStep(line.replace(/^\d+\.\s*/, ''))
+    for (const sentence of splitIntoSentences(raw)) {
+      addStep(sentence)
     }
     return steps
+      .filter(s => isInstructionStep(s.text))
+      .map((s, i) => ({ ...s, id: `step_${i + 1}`, order: i + 1 }))
   }
 
   if (!Array.isArray(raw)) return steps
 
+  // If the array has a single string element, it's likely a blob — split it.
+  // If there are multiple string elements, they're already individual steps.
+  const isSingleStringBlob = raw.length === 1 && typeof raw[0] === 'string'
+
   for (const item of raw) {
     if (typeof item === 'string') {
-      addStep(item)
+      if (isSingleStringBlob) {
+        for (const sentence of splitIntoSentences(item)) {
+          addStep(sentence)
+        }
+      } else {
+        addStep(item)
+      }
     } else if (item && typeof item === 'object') {
       const type = item['@type'] || ''
 

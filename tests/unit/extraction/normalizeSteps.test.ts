@@ -43,6 +43,63 @@ describe('isInstructionStep', () => {
   })
 })
 
+describe('sentence splitting for single-string blobs', () => {
+  it('splits a single blob string into individual steps', () => {
+    const raw = {
+      name: 'Blob Recipe',
+      recipeIngredient: ['1 cup flour'],
+      recipeInstructions: 'Preheat oven to 350°F. Mix dry ingredients. Bake for 25 minutes.',
+    }
+
+    const recipe = normalizeRecipe(raw, 'https://example.com', '')
+    expect(recipe.steps).toHaveLength(3)
+    expect(recipe.steps[0].text).toBe('Preheat oven to 350°F.')
+    expect(recipe.steps[1].text).toBe('Mix dry ingredients.')
+    expect(recipe.steps[2].text).toBe('Bake for 25 minutes.')
+  })
+
+  it('splits a single-element array blob into sentences', () => {
+    const raw = {
+      name: 'Blob Recipe',
+      recipeIngredient: ['1 cup flour'],
+      recipeInstructions: [
+        'Preheat oven to 350°F. Mix dry ingredients. Bake for 25 minutes.',
+      ],
+    }
+
+    const recipe = normalizeRecipe(raw, 'https://example.com', '')
+    expect(recipe.steps).toHaveLength(3)
+  })
+
+  it('does NOT split multi-element string arrays', () => {
+    const raw = {
+      name: 'Normal Recipe',
+      recipeIngredient: ['1 cup flour'],
+      recipeInstructions: [
+        'Preheat oven to 350°F. Let it warm up.',
+        'Mix dry ingredients. Stir well.',
+      ],
+    }
+
+    const recipe = normalizeRecipe(raw, 'https://example.com', '')
+    expect(recipe.steps).toHaveLength(2)
+    expect(recipe.steps[0].text).toBe('Preheat oven to 350°F. Let it warm up.')
+  })
+
+  it('filters commentary from split blob and renumbers', () => {
+    const raw = {
+      name: 'Blob Recipe',
+      recipeIngredient: ['1 cup flour'],
+      recipeInstructions: 'Preheat oven to 350°F. I recommend using convection. Bake for 25 minutes.',
+    }
+
+    const recipe = normalizeRecipe(raw, 'https://example.com', '')
+    expect(recipe.steps).toHaveLength(2)
+    expect(recipe.steps[0].order).toBe(1)
+    expect(recipe.steps[1].order).toBe(2)
+  })
+})
+
 describe('normalizeSteps filtering', () => {
   it('filters non-instruction steps and renumbers', () => {
     const raw = {
