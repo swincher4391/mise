@@ -45,12 +45,15 @@ export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRec
   const [pasteText, setPasteText] = useState('')
   const [chatInitialPrompt, setChatInitialPrompt] = useState('')
   const [shortcutDismissed, setShortcutDismissed] = useState(() => localStorage.getItem('mise_shortcut_dismissed') === 'true')
+  const [cameFromImport, setCameFromImport] = useState(false)
+  const [showTryOwn, setShowTryOwn] = useState(false)
   const isIos = useMemo(() => /iP(hone|ad|od)/i.test(navigator.userAgent), [])
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (importedRecipe) {
       setRecipe(importedRecipe)
+      setCameFromImport(true)
       onImportedRecipeConsumed?.()
       // Clean ?import= from URL now that the recipe is consumed.
       // Done here (not in useShareTarget) so SW auto-update reloads
@@ -377,7 +380,21 @@ export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRec
         />
       )}
 
-      {recipe && <RecipeDisplay recipe={recipe} showSaveButton purchase={purchase} onSaved={onNavigateToLibrary} />}
+      {showTryOwn && (
+        <div className="try-own-nudge">
+          <p>Recipe saved! Paste any recipe URL above to try it yourself.</p>
+          <div className="try-own-actions">
+            <button className="nav-btn" onClick={() => { setShowTryOwn(false); setRecipe(null as any); setCameFromImport(false) }}>
+              Try a Recipe
+            </button>
+            <button className="nav-btn" onClick={() => { setShowTryOwn(false); setCameFromImport(false); onNavigateToLibrary() }}>
+              Go to Library
+            </button>
+          </div>
+        </div>
+      )}
+
+      {recipe && <RecipeDisplay recipe={recipe} showSaveButton purchase={purchase} onSaved={cameFromImport ? () => setShowTryOwn(true) : onNavigateToLibrary} />}
 
       {showUpgrade && (
         <UpgradePrompt

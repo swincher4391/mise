@@ -44,6 +44,7 @@ export function MealPlanPrompt({ recipeId, onClose }: MealPlanPromptProps) {
     <div className="meal-plan-prompt-overlay" onClick={handleDismiss}>
       <div className="meal-plan-prompt" onClick={(e) => e.stopPropagation()}>
         <h3>Add to this week's meal plan?</h3>
+        <p className="meal-plan-prompt-subtitle">Tap a slot to plan when you'll cook this</p>
         <div className="meal-plan-grid">
           <div className="meal-plan-slot-label" />
           {DAYS_OF_WEEK.map((day) => (

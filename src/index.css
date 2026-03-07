@@ -122,6 +122,28 @@ body {
   background: #3d6b1f;
 }
 
+.try-own-nudge {
+  text-align: center;
+  margin: 1.5rem 0;
+  padding: 1.25rem;
+  border: 2px solid #2d5016;
+  border-radius: 12px;
+  background: #f0f5eb;
+}
+
+.try-own-nudge p {
+  margin: 0 0 0.75rem;
+  color: #2d5016;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.try-own-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+}
+
 /* OCR Review */
 .ocr-review {
   margin-bottom: 1.5rem;
@@ -2987,7 +3009,13 @@ body {
   font-size: 1.1rem;
   font-weight: 700;
   color: #1a1a1a;
-  margin: 0 0 1rem;
+  margin: 0 0 0.25rem;
+}
+
+.meal-plan-prompt-subtitle {
+  font-size: 0.8rem;
+  color: #8a8a7a;
+  margin: 0 0 0.75rem;
 }
 
 .meal-plan-grid {
