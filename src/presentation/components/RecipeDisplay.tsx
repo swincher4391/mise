@@ -7,8 +7,10 @@ import { useIsRecipeSaved, useSavedRecipes } from '@presentation/hooks/useSavedR
 import { downloadSingleRecipe } from '@application/export/exportRecipes.ts'
 import { shareRecipe } from '@application/share/shareRecipe.ts'
 import { buildShareUrl, buildQrShareUrl } from '@application/share/compressRecipe.ts'
+import { copyRedditFormat } from '@application/share/formatReddit.ts'
 import { createRecipePage } from '@infrastructure/instacart/instacartApi.ts'
 import { UpgradePrompt } from './UpgradePrompt.tsx'
+import { MealPlanPrompt } from './MealPlanPrompt.tsx'
 import { RecipeHeader } from './RecipeHeader.tsx'
 import { ServingScaler } from './ServingScaler.tsx'
 import { IngredientList } from './IngredientList.tsx'
@@ -44,6 +46,7 @@ export function RecipeDisplay({ recipe, showSaveButton, onDelete, purchase, onSa
   const [instacartLoading, setInstacartLoading] = useState(false)
   const [shareStatus, setShareStatus] = useState<'idle' | 'copied' | 'shared'>('idle')
   const [qrModal, setQrModal] = useState<{ url: string } | 'too-large' | null>(null)
+  const [mealPlanPrompt, setMealPlanPrompt] = useState<string | null>(null)
 
   const saved = isSavedRecipe(recipe) ? recipe : null
   const effective = editedRecipe ?? recipe
@@ -66,12 +69,13 @@ export function RecipeDisplay({ recipe, showSaveButton, onDelete, purchase, onSa
       setShowUpgrade(true)
       return
     }
-    await save(effective)
+    const savedRecipe = await save(effective)
     trackEvent('recipe_saved', {
       source_domain: effective.sourceUrl ? (() => { try { return new URL(effective.sourceUrl).hostname } catch { return 'unknown' } })() : 'manual',
       extraction_layer: effective.extractionLayer ?? 'unknown',
       ingredient_count: effective.ingredients?.length ?? 0,
     })
+    setMealPlanPrompt(savedRecipe.id)
     onSaved?.()
   }
 
@@ -137,6 +141,16 @@ export function RecipeDisplay({ recipe, showSaveButton, onDelete, purchase, onSa
     trackEvent('recipe_shared', { method: 'pinterest' })
     window.open(pinterestUrl, '_blank', 'noopener')
     setQrModal(null)
+  }
+
+  const [redditCopied, setRedditCopied] = useState(false)
+  const handleCopyReddit = async () => {
+    const ok = await copyRedditFormat(effective)
+    if (ok) {
+      trackEvent('recipe_shared', { method: 'reddit' })
+      setRedditCopied(true)
+      setTimeout(() => setRedditCopied(false), 2000)
+    }
   }
 
   const handleStartEditNotes = () => {
@@ -299,6 +313,13 @@ export function RecipeDisplay({ recipe, showSaveButton, onDelete, purchase, onSa
         />
       )}
 
+      {mealPlanPrompt && (
+        <MealPlanPrompt
+          recipeId={mealPlanPrompt}
+          onClose={() => setMealPlanPrompt(null)}
+        />
+      )}
+
       {qrModal && (
         <div className="qr-modal-overlay" onClick={() => setQrModal(null)}>
           <div className="qr-modal" onClick={(e) => e.stopPropagation()}>
@@ -319,6 +340,9 @@ export function RecipeDisplay({ recipe, showSaveButton, onDelete, purchase, onSa
               )}
               <button className="nav-btn" onClick={handlePinIt}>
                 Pin It
+              </button>
+              <button className="nav-btn" onClick={handleCopyReddit}>
+                {redditCopied ? 'Copied!' : 'Reddit'}
               </button>
               <button className="nav-btn" onClick={handleCopyLink}>
                 {shareStatus === 'copied' ? 'Copied!' : 'Copy Link'}
