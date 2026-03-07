@@ -2889,11 +2889,13 @@ body {
 .qr-modal {
   background: #fafaf5;
   border-radius: 16px;
-  max-width: 320px;
+  max-width: 380px;
   width: 100%;
   padding: 2rem 1.5rem;
   text-align: center;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  max-height: 90vh;
+  overflow-y: auto;
 }
 
 .qr-modal h3 {
@@ -2931,6 +2933,7 @@ body {
 
 .qr-modal-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
   justify-content: center;
 }
@@ -2940,6 +2943,97 @@ body {
   flex: 1;
   font-size: 0.9rem;
   padding: 0.6rem 1rem;
+}
+
+/* ============================
+   Meal Plan Prompt Modal
+   ============================ */
+
+.meal-plan-prompt-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.meal-plan-prompt {
+  background: #fafaf5;
+  border-radius: 16px;
+  max-width: 420px;
+  width: 100%;
+  padding: 1.5rem;
+  text-align: center;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.meal-plan-prompt h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0 0 1rem;
+}
+
+.meal-plan-grid {
+  display: grid;
+  grid-template-columns: auto repeat(7, 1fr);
+  gap: 4px;
+  margin-bottom: 1rem;
+}
+
+.meal-plan-day-header {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #2d5016;
+  text-align: center;
+  padding: 0.25rem 0;
+}
+
+.meal-plan-slot-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #666;
+  display: flex;
+  align-items: center;
+  padding-right: 0.35rem;
+  white-space: nowrap;
+}
+
+.meal-plan-slot {
+  border: 1.5px solid #e0e0d8;
+  border-radius: 6px;
+  background: #fff;
+  padding: 0.5rem 0.15rem;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+  min-height: 32px;
+}
+
+.meal-plan-slot:hover {
+  background: #f0f7ec;
+  border-color: #2d5016;
+}
+
+.meal-plan-slot:active {
+  background: #ddecd3;
+}
+
+.meal-plan-skip {
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 0.5rem 1rem;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.meal-plan-skip:hover {
+  color: #555;
 }
 
 /* ============================
