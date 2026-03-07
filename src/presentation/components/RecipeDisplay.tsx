@@ -197,13 +197,18 @@ export function RecipeDisplay({ recipe, showSaveButton, onDelete, purchase, onSa
             </button>
           )}
           {showSaveButton && (
-            <button
-              className={`save-btn ${isSaved ? 'saved' : ''}`}
-              onClick={handleSave}
-              disabled={isSaved || editMode}
-            >
-              {isSaved ? 'Saved' : 'Save Recipe'}
-            </button>
+            <div className="save-action-group">
+              <button
+                className={`save-btn ${isSaved ? 'saved' : ''}`}
+                onClick={handleSave}
+                disabled={isSaved || editMode}
+              >
+                {isSaved ? 'Saved' : 'Save Recipe'}
+              </button>
+              {!isSaved && !editMode && (
+                <span className="save-hint">Cooking mode, meal planning &amp; grocery lists</span>
+              )}
+            </div>
           )}
           {saved && (
             <button

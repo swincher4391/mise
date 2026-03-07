@@ -692,6 +692,19 @@ body {
   cursor: default;
 }
 
+.save-action-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.save-hint {
+  font-size: 0.7rem;
+  color: #8a8a7a;
+  text-align: center;
+}
+
 .delete-btn {
   padding: 0.5rem 1.25rem;
   font-size: 0.9rem;
