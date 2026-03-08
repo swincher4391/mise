@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { trackEvent } from '@infrastructure/analytics/track.ts'
 
 const EXTRACTED_KEY = 'mise_has_extracted'
 
@@ -29,7 +30,10 @@ export function useInstallPrompt() {
   const install = useCallback(async () => {
     if (!deferredPrompt) return
     deferredPrompt.prompt()
-    await deferredPrompt.userChoice
+    const choice = await deferredPrompt.userChoice
+    if (choice.outcome === 'accepted') {
+      trackEvent('pwa_install_accepted')
+    }
     setDeferredPrompt(null)
     setDismissed(true)
   }, [deferredPrompt])

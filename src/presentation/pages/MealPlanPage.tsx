@@ -8,6 +8,7 @@ import { aggregateIngredients } from '@application/grocery/aggregateIngredients.
 import { addMealToPlan, removeMealFromPlan } from '@infrastructure/db/mealPlanRepository.ts'
 import { saveGroceryList } from '@infrastructure/db/groceryRepository.ts'
 import type { GroceryList } from '@domain/models/GroceryList.ts'
+import { trackEvent } from '@infrastructure/analytics/track.ts'
 import { MealPlanDaySection } from '@presentation/components/mealplan/MealPlanDaySection.tsx'
 import { RecipePickerModal } from '@presentation/components/mealplan/RecipePickerModal.tsx'
 
@@ -44,6 +45,7 @@ export function MealPlanPage({ onNavigateToGrocery }: MealPlanPageProps) {
   const handlePickRecipe = useCallback(async (recipeId: string) => {
     if (!pickerTarget) return
     await addMealToPlan(weekStart, pickerTarget.day, pickerTarget.slot, recipeId)
+    trackEvent('meal_added', { day: pickerTarget.day, slot: pickerTarget.slot })
     setPickerTarget(null)
   }, [weekStart, pickerTarget])
 

@@ -13,10 +13,15 @@
 
 function isRecipeType(type: any): boolean {
   if (typeof type === 'string') {
-    return type === 'Recipe' || type.endsWith('/Recipe')
+    const lower = type.toLowerCase()
+    return lower === 'recipe' || lower.endsWith('/recipe')
   }
   if (Array.isArray(type)) {
-    return type.some((t) => typeof t === 'string' && (t === 'Recipe' || t.endsWith('/Recipe')))
+    return type.some((t) => {
+      if (typeof t !== 'string') return false
+      const lower = t.toLowerCase()
+      return lower === 'recipe' || lower.endsWith('/recipe')
+    })
   }
   return false
 }

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getPurchaseStatus, isVerificationStale } from '@infrastructure/purchase/purchaseStore.ts'
 import { verifyAndCache, verifyBySessionId } from '@infrastructure/purchase/verifyPurchase.ts'
+import { trackEvent, identifyUser } from '@infrastructure/analytics/track.ts'
 
 const FREE_RECIPE_LIMIT = 25
 
@@ -28,6 +29,10 @@ export function usePurchase(): PurchaseState {
         .then((result) => {
           setIsPaid(result.paid)
           setEmail(result.email)
+          if (result.paid) {
+            trackEvent('upgrade_completed')
+            if (result.email) identifyUser(result.email)
+          }
           // Clean URL
           const url = new URL(window.location.href)
           url.searchParams.delete('session_id')
@@ -53,6 +58,7 @@ export function usePurchase(): PurchaseState {
   }, [])
 
   const upgrade = useCallback(async () => {
+    trackEvent('upgrade_initiated')
     try {
       const res = await fetch('/api/create-checkout', {
         method: 'POST',
@@ -75,6 +81,8 @@ export function usePurchase(): PurchaseState {
     try {
       const result = await verifyAndCache(restoreEmail, pin)
       if (result.paid) {
+        trackEvent('upgrade_restored')
+        identifyUser(restoreEmail)
         setIsPaid(true)
         setEmail(restoreEmail)
       }

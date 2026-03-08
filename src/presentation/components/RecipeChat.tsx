@@ -5,6 +5,7 @@ import { useRecipeChat } from '@presentation/hooks/useRecipeChat.ts'
 import { createManualRecipe } from '@application/extraction/createManualRecipe.ts'
 import type { Recipe } from '@domain/models/Recipe.ts'
 import type { PendingRecipe } from '@presentation/hooks/useRecipeChat.ts'
+import { trackEvent } from '@infrastructure/analytics/track.ts'
 
 interface RecipeChatProps {
   onRecipeReady: (recipe: Recipe) => void
@@ -228,7 +229,7 @@ export function RecipeChat({ onRecipeReady, initialPrompt }: RecipeChatProps) {
         {messages.length > 0 && !pendingRecipe && (
           <button
             className="recipe-chat-finalize"
-            onClick={requestFinalize}
+            onClick={() => { trackEvent('chat_recipe_finalized'); requestFinalize() }}
             disabled={isStreaming}
           >
             Build Recipe

@@ -72,20 +72,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: 'HF_API_KEY not configured on server' })
   }
 
-  const { image } = req.body ?? {}
-  if (!image || typeof image !== 'string') {
-    return res.status(400).json({ error: 'Missing image field in request body' })
+  const { image, imageUrl: directUrl } = req.body ?? {}
+
+  if (!image && !directUrl) {
+    return res.status(400).json({ error: 'Missing image or imageUrl field in request body' })
   }
 
-  // Validate base64 size (rough estimate — base64 is ~33% larger than raw)
-  const estimatedBytes = (image.length * 3) / 4
-  if (estimatedBytes > MAX_IMAGE_SIZE) {
-    return res.status(400).json({ error: 'Image exceeds 5MB limit' })
+  if (image) {
+    if (typeof image !== 'string') {
+      return res.status(400).json({ error: 'image must be a string' })
+    }
+    // Validate base64 size (rough estimate — base64 is ~33% larger than raw)
+    const estimatedBytes = (image.length * 3) / 4
+    if (estimatedBytes > MAX_IMAGE_SIZE) {
+      return res.status(400).json({ error: 'Image exceeds 5MB limit' })
+    }
+  }
+
+  if (directUrl && typeof directUrl !== 'string') {
+    return res.status(400).json({ error: 'imageUrl must be a string' })
   }
 
   try {
-    // Upload base64 to temp host — HF Hyperbolic requires a URL, not inline base64
-    const imageUrl = await uploadToTempHost(image)
+    // Use direct URL if provided, otherwise upload base64 to temp host
+    const imageUrl = directUrl ?? await uploadToTempHost(image)
 
     const response = await fetch('https://router.huggingface.co/v1/chat/completions', {
       method: 'POST',

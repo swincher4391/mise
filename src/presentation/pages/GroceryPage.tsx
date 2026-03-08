@@ -14,6 +14,7 @@ import {
 import { createShoppingList } from '@infrastructure/instacart/instacartApi.ts'
 import type { SelectedRecipe } from '@domain/models/GroceryList.ts'
 import type { GroceryList } from '@domain/models/GroceryList.ts'
+import { trackEvent } from '@infrastructure/analytics/track.ts'
 import { RecipeSelector } from '@presentation/components/grocery/RecipeSelector.tsx'
 import { GroceryListView } from '@presentation/components/grocery/GroceryListView.tsx'
 import { GroceryActions } from '@presentation/components/grocery/GroceryActions.tsx'
@@ -60,6 +61,10 @@ export function GroceryPage({ onNavigateToLibrary }: GroceryPageProps) {
     }
 
     await saveGroceryList(list)
+    trackEvent('grocery_list_created', {
+      recipe_count: selected.length,
+      item_count: items.length,
+    })
     setActiveListId(list.id)
     setPhase('list')
   }, [recipes])
@@ -113,6 +118,10 @@ export function GroceryPage({ onNavigateToLibrary }: GroceryPageProps) {
 
   const handleShopInstacart = useCallback(async () => {
     if (!currentList) return
+    trackEvent('instacart_list_click', {
+      recipe_count: currentList.selectedRecipes.length,
+      item_count: currentList.items.filter(i => !i.checked).length + currentList.manualItems.filter(i => !i.checked).length,
+    })
     setShopLoading(true)
     try {
       const uncheckedItems = currentList.items.filter((i) => !i.checked)

@@ -6,7 +6,7 @@ import { extractJsonLd } from '@application/extraction/extractJsonLd.ts'
 import { extractMicrodata } from '@application/extraction/extractMicrodata.ts'
 import { extractHeuristic } from '@application/extraction/extractHeuristic.ts'
 import { normalizeRecipe } from '@application/extraction/normalizeRecipe.ts'
-import { extractImageRecipe } from '@infrastructure/ocr/extractImageRecipe.ts'
+import { extractImageRecipe, extractImageFromUrl } from '@infrastructure/ocr/extractImageRecipe.ts'
 import { createImageRecipe } from '@application/extraction/createImageRecipe.ts'
 import { isInstagramUrl, isTikTokUrl, isYouTubeShortsUrl, extractInstagramShortcode, extractCaptionFromJson, extractCaptionFromMeta, toInstagramEmbedUrl, extractCaptionFromEmbed } from '@application/extraction/extractInstagramCaption.ts'
 import { isFacebookUrl, extractFacebookPostText } from '@application/extraction/extractFacebookPost.ts'
@@ -69,6 +69,30 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
     setExtractionStatus(null)
 
     try {
+      // Image URLs — route directly to vision extraction, skip HTML fetch
+      const isImage = (() => {
+        try {
+          const { pathname } = new URL(url)
+          return /\.(jpe?g|png|gif|webp|bmp|tiff?)$/i.test(pathname)
+        } catch { return false }
+      })()
+
+      if (isImage) {
+        setExtractionStatus({ message: 'Analyzing image…', step: 1, totalSteps: 1 })
+        const result = await extractImageFromUrl(url)
+        const recipe = createImageRecipe({
+          title: result.title,
+          ingredientLines: result.ingredients,
+          stepLines: result.steps,
+          servings: result.servings,
+          prepTime: result.prepTime,
+          cookTime: result.cookTime,
+          sourceUrl: url,
+        })
+        setRecipe(recipe)
+        return
+      }
+
       // Short-form video platforms — skip HTML fetch entirely and go straight
       // to video analysis since these sites block proxied requests
       // and never have structured recipe data.

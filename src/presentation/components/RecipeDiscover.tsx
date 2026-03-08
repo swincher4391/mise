@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useRecipeDiscover } from '@presentation/hooks/useRecipeDiscover.ts'
+import { trackEvent } from '@infrastructure/analytics/track.ts'
 
 interface RecipeDiscoverProps {
   onSelectRecipe: (sourceUrl: string) => void
@@ -27,6 +28,7 @@ export function RecipeDiscover({ onSelectRecipe, onDescribe }: RecipeDiscoverPro
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!input.trim() || isSearching) return
+    trackEvent('discover_search', { query: input })
     search(input)
   }
 

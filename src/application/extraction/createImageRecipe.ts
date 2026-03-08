@@ -17,6 +17,7 @@ export interface ImageRecipeInput {
   servings?: string | null
   prepTime?: string | null
   cookTime?: string | null
+  sourceUrl?: string
 }
 
 export function createImageRecipe(input: ImageRecipeInput): Recipe {
@@ -43,8 +44,8 @@ export function createImageRecipe(input: ImageRecipeInput): Recipe {
   return {
     id: generateId(),
     title: input.title.trim(),
-    sourceUrl: '',
-    sourceDomain: '',
+    sourceUrl: input.sourceUrl ?? '',
+    sourceDomain: input.sourceUrl ? (() => { try { return new URL(input.sourceUrl).hostname } catch { return '' } })() : '',
     author: null,
     description: null,
     imageUrl: null,
