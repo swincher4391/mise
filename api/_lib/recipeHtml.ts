@@ -148,6 +148,11 @@ export function buildRecipeHtml(payload: SharePayload, shareUrl?: string, encode
   <meta property="og:type" content="article">
   ${shareUrl ? `<meta property="og:url" content="${esc(shareUrl)}">` : ''}
   ${safeImg ? `<meta property="og:image" content="${esc(safeImg)}">` : ''}
+  ${shareUrl ? `<link rel="canonical" href="${esc(shareUrl)}">` : ''}
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="${esc(payload.t)}">
+  <meta name="twitter:description" content="${desc || `Recipe with ${payload.ig.length} ingredients`}">
+  ${safeImg ? `<meta name="twitter:image" content="${esc(safeImg)}">` : ''}
   <meta name="pinterest-rich-pin" content="true">
   <script type="application/ld+json">
 ${jsonLdStr}

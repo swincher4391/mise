@@ -3780,3 +3780,10 @@ body {
   color: #bbb;
   padding: 1rem 0 0.5rem;
 }
+.app-version a {
+  color: #bbb;
+  text-decoration: none;
+}
+.app-version a:hover {
+  text-decoration: underline;
+}

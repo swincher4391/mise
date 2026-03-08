@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /api/r
+Disallow: /api/proxy
+Disallow: /api/proxy-browser
+
+Sitemap: https://mise.swinch.dev/sitemap.xml

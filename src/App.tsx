@@ -100,7 +100,7 @@ function App() {
         <InstallBanner onInstall={installPrompt.install} onDismiss={installPrompt.dismiss} />
       )}
       <Analytics />
-      <div className="app-version">v1.0.3</div>
+      <div className="app-version">v1.0.3 · <a href="https://privacy.swinch.dev" target="_blank" rel="noopener noreferrer">Privacy</a></div>
     </>
   )
 }
