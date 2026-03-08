@@ -53,6 +53,45 @@ async function uploadToTempHost(base64DataUrl: string): Promise<string> {
   return pageUrl.replace('tmpfiles.org/', 'tmpfiles.org/dl/')
 }
 
+async function proxyImageToTempHost(url: string): Promise<string> {
+  const resp = await fetch(url, {
+    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; MiseBot/1.0)' },
+    redirect: 'follow',
+  })
+  if (!resp.ok) throw new Error(`Failed to fetch image (${resp.status})`)
+
+  const contentType = resp.headers.get('content-type') ?? 'image/jpeg'
+  if (!contentType.startsWith('image/')) throw new Error('URL does not point to an image')
+
+  const buffer = Buffer.from(await resp.arrayBuffer())
+  if (buffer.length > MAX_IMAGE_SIZE) throw new Error('Image exceeds 5MB limit')
+
+  const ext = contentType.split('/')[1]?.split(';')[0] ?? 'jpg'
+  const boundary = '----MiseBoundary' + Date.now()
+  const header = `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="recipe.${ext}"\r\nContent-Type: ${contentType}\r\n\r\n`
+  const footer = `\r\n--${boundary}--\r\n`
+
+  const body = Buffer.concat([
+    Buffer.from(header, 'utf-8'),
+    buffer,
+    Buffer.from(footer, 'utf-8'),
+  ])
+
+  const uploadResp = await fetch('https://tmpfiles.org/api/v1/upload', {
+    method: 'POST',
+    headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}` },
+    body,
+  })
+
+  if (!uploadResp.ok) throw new Error(`Image re-upload failed (${uploadResp.status})`)
+
+  const data: any = await uploadResp.json()
+  const pageUrl: string = data?.data?.url
+  if (!pageUrl) throw new Error('No URL returned from image host')
+
+  return pageUrl.replace('tmpfiles.org/', 'tmpfiles.org/dl/')
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -94,8 +133,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // Use direct URL if provided, otherwise upload base64 to temp host
-    const imageUrl = directUrl ?? await uploadToTempHost(image)
+    // Proxy image URL through tmpfiles.org so HuggingFace can access it
+    // (many CDNs like Facebook block non-browser requests)
+    const imageUrl = directUrl
+      ? await proxyImageToTempHost(directUrl)
+      : await uploadToTempHost(image)
 
     const response = await fetch('https://router.huggingface.co/v1/chat/completions', {
       method: 'POST',
