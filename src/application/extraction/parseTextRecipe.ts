@@ -23,7 +23,7 @@ export function parseTextRecipe(text: string): ParsedTextRecipe {
   // If the first line is a section header (e.g. "Ingredients"), don't consume it
   // as the title — start parsing from line 0 so the header is detected properly.
   const firstLower = lines[0].toLowerCase().trim()
-  const firstIsHeader = /^(=\s*)?(ingredients|grocery\s*list|instructions|steps|directions|method)\s*:?$/i.test(firstLower)
+  const firstIsHeader = /^(=\s*)?(ingredients|grocery\s*list|instructions|steps|directions|method)\b/i.test(firstLower)
 
   let title: string
   let startIndex: number
@@ -50,11 +50,11 @@ export function parseTextRecipe(text: string): ParsedTextRecipe {
     const lower = line.toLowerCase().trim()
 
     // Detect section headers
-    if (/^(=\s*)?(ingredients|grocery\s*list)\s*:?$/i.test(lower) || lower === '= ingredients:') {
+    if (/^(=\s*)?(ingredients|grocery\s*list)\b/i.test(lower) || lower === '= ingredients:') {
       section = 'ingredients'
       continue
     }
-    if (/^(instructions|steps|directions|method)\s*:?$/i.test(lower)) {
+    if (/^(instructions|steps|directions|method)\b/i.test(lower)) {
       section = 'steps'
       continue
     }

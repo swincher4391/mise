@@ -50,7 +50,7 @@ export function extractTikTokCaption(html: string): string | null {
       .map(([, raw]) => decodeJsonString(raw))
       .filter((t) => t.length >= 50)
       .sort((a, b) => b.length - a.length)
-    if (decoded.length > 0) return cleanSocialCaption(decoded[0])
+    if (decoded.length > 0) return formatTikTokCaption(cleanSocialCaption(decoded[0]))
   }
 
   // Fallback: og:description
@@ -58,10 +58,29 @@ export function extractTikTokCaption(html: string): string | null {
     || html.match(/<meta[^>]*content="([^"]*)"[^>]*property="og:description"/)
   if (ogMatch) {
     const text = decodeEntities(ogMatch[1]).replace(/\\n/g, '\n')
-    if (text.length >= 50) return cleanSocialCaption(text)
+    if (text.length >= 50) return formatTikTokCaption(cleanSocialCaption(text))
   }
 
   return null
+}
+
+/**
+ * TikTok captions often lack newlines — the entire recipe is one long string.
+ * Insert line breaks at recognizable boundaries so parseTextRecipe can work.
+ */
+function formatTikTokCaption(text: string): string {
+  // If it already has plenty of newlines, don't reformat
+  if ((text.match(/\n/g) || []).length > 5) return text
+
+  return text
+    // Break before section headers
+    .replace(/\s+(Ingredients\b)/gi, '\n$1')
+    .replace(/\s+(Instructions\b|Steps\b|Directions\b|Method\b)/gi, '\n$1')
+    // Break before dash-prefixed items (ingredients): " - 3 Tsp Salt"
+    .replace(/\s+-\s+(\d|[A-Z])/g, '\n- $1')
+    // Break before numbered steps: " 1. Trim excess fat"
+    .replace(/\s+(\d+\.\s+[A-Z])/g, '\n$1')
+    .trim()
 }
 
 /** Check if a URL is a YouTube Short */
