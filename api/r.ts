@@ -4,9 +4,6 @@ import { buildRecipeHtml } from './_lib/recipeHtml.js'
 
 const MAX_ENCODED_BYTES = 12_000
 
-/** Bot/crawler User-Agent patterns — serve full HTML for rich previews */
-const BOT_UA = /bot|crawl|spider|pinterest|facebook|twitter|slack|telegram|discord|whatsapp|linkedin|preview|embed|fetch|curl|wget|headless/i
-
 export default function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'OPTIONS') {
     res.setHeader('Access-Control-Allow-Origin', '*')
@@ -21,16 +18,6 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
 
   if (Buffer.byteLength(encoded, 'utf8') > MAX_ENCODED_BYTES) {
     return res.status(413).json({ error: 'Payload too large' })
-  }
-
-  // Real users → redirect straight to the app with ?import= for instant load.
-  // Bots/crawlers → fall through to full HTML with OG tags, JSON-LD, rich pins.
-  const ua = req.headers['user-agent'] ?? ''
-  if (!BOT_UA.test(ua)) {
-    const importUrl = `https://mise.swinch.dev?import=${encodeURIComponent(encoded)}`
-    res.setHeader('Location', importUrl)
-    res.setHeader('Cache-Control', 'private, no-store')
-    return res.status(302).end()
   }
 
   try {
@@ -58,7 +45,6 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8')
     res.setHeader('Cache-Control', 'public, s-maxage=31536000, stale-while-revalidate=31536000')
-    res.setHeader('Vary', 'User-Agent')
     return res.status(200).send(html)
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'

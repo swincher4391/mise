@@ -192,6 +192,7 @@ ${jsonLdStr}
     .footer a { color: #5d6a3f; }
     ${safeSrc ? `.source-link { color: #5d6a3f; font-size: 0.85rem; }` : ''}
   </style>
+  ${encodedData ? `<script>window.location.replace("https://mise.swinch.dev?import=${encodeURIComponent(encodedData)}")</script>` : ''}
 </head>
 <body>
   <div class="header">
