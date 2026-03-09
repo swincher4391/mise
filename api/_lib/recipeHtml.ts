@@ -170,7 +170,7 @@ ${jsonLdStr}
     .steps-preview p { color: #444; margin-bottom: 12px; }
     .steps-preview .features { list-style: none; color: #555; font-size: 0.9rem; }
     .steps-preview .features li { padding: 4px 0; }
-    .steps-preview .features li::before { content: "\2713 "; color: #5d6a3f; font-weight: 600; }
+    .steps-preview .features li::before { content: "\\2713 "; color: #5d6a3f; font-weight: 600; }
     .cta-top {
       display: block; margin: 0 0 20px; padding: 14px 24px;
       background: #5d6a3f; color: #fff; text-decoration: none;
