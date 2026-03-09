@@ -63,6 +63,19 @@ function formatTime(minutes: number): string {
   return `${m}m`
 }
 
+/** Build a generated (non-copyrightable) description from recipe facts. */
+function buildGeneratedDesc(p: SharePayload): string {
+  const parts: string[] = []
+  parts.push(`A recipe with ${p.ig.length} ingredient${p.ig.length === 1 ? '' : 's'}`)
+  if (p.st.length > 0) parts[0] += ` and ${p.st.length} step${p.st.length === 1 ? '' : 's'}`
+  if (p.tt) parts.push(`ready in ${formatTime(p.tt)}`)
+  else if (p.ct) parts.push(`${formatTime(p.ct)} cook time`)
+  if (p.sv) parts.push(`serves ${p.sv}`)
+  if (p.cat?.length) parts.push(p.cat.join(', ').toLowerCase())
+  if (p.cu?.length) parts.push(p.cu.join(', ').toLowerCase())
+  return parts.join('. ') + '.'
+}
+
 export function buildRecipeHtml(payload: SharePayload, shareUrl?: string, encodedData?: string): string {
   // Build JSON-LD
   const jsonLd: Record<string, unknown> = {
@@ -74,7 +87,8 @@ export function buildRecipeHtml(payload: SharePayload, shareUrl?: string, encode
   const safeImg = payload.img ? safeUrl(payload.img) : null
   const safeSrc = payload.src ? safeUrl(payload.src) : null
 
-  if (payload.d) jsonLd.description = payload.d
+  const generatedDesc = buildGeneratedDesc(payload)
+  jsonLd.description = generatedDesc
   if (safeImg) jsonLd.image = safeImg
   if (payload.a) jsonLd.author = { '@type': 'Person', name: payload.a }
   if (payload.sv) jsonLd.recipeYield = String(payload.sv)
@@ -118,7 +132,7 @@ export function buildRecipeHtml(payload: SharePayload, shareUrl?: string, encode
 
   // Build HTML
   const title = esc(payload.t)
-  const desc = payload.d ? esc(payload.d) : ''
+  const desc = esc(generatedDesc)
 
   const timeParts: string[] = []
   if (payload.pt) timeParts.push(`Prep: ${formatTime(payload.pt)}`)
@@ -138,14 +152,14 @@ export function buildRecipeHtml(payload: SharePayload, shareUrl?: string, encode
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${title} — Mise</title>
   <meta property="og:title" content="${esc(payload.t)}">
-  <meta property="og:description" content="${desc || `Recipe with ${payload.ig.length} ingredients`}">
+  <meta property="og:description" content="${desc}">
   <meta property="og:type" content="article">
   ${shareUrl ? `<meta property="og:url" content="${esc(shareUrl)}">` : ''}
   ${safeImg ? `<meta property="og:image" content="${esc(safeImg)}">` : ''}
   ${shareUrl ? `<link rel="canonical" href="${esc(shareUrl)}">` : ''}
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="${esc(payload.t)}">
-  <meta name="twitter:description" content="${desc || `Recipe with ${payload.ig.length} ingredients`}">
+  <meta name="twitter:description" content="${desc}">
   ${safeImg ? `<meta name="twitter:image" content="${esc(safeImg)}">` : ''}
   <meta name="pinterest-rich-pin" content="true">
   <script type="application/ld+json">
@@ -162,8 +176,7 @@ ${jsonLdStr}
     h1 { font-size: 1.75rem; margin-bottom: 8px; color: #111; }
     .meta { color: #666; font-size: 0.9rem; margin-bottom: 4px; }
     .meta span { margin-right: 16px; }
-    .description { color: #444; margin: 12px 0 20px; font-style: italic; }
-    .recipe-img { width: 100%; max-height: 400px; object-fit: cover; border-radius: 8px; margin-bottom: 20px; }
+    .description { color: #444; margin: 12px 0 20px; }
     h2 { font-size: 1.2rem; margin: 24px 0 12px; color: #333; border-bottom: 2px solid #e8e5d8; padding-bottom: 4px; }
     .ingredients li { padding: 6px 0; border-bottom: 1px solid #f0ede4; list-style: none; }
     .steps-preview { background: #f5f3ec; border-radius: 8px; padding: 16px 20px; margin-top: 8px; }
@@ -204,7 +217,6 @@ ${jsonLdStr}
 
   <a class="cta-top" href="https://mise.swinch.dev${encodedData ? `?import=${encodeURIComponent(encodedData)}` : shareUrl ? `?url=${encodeURIComponent(shareUrl)}` : ''}">Save to Mise — cook it step by step<span class="cta-sub">Cooking mode, grocery lists, and meal planning — free</span></a>
 
-  ${safeImg ? `<img class="recipe-img" src="${esc(safeImg)}" alt="${title}">` : ''}
 
   <h2>Ingredients</h2>
   <ul class="ingredients">
