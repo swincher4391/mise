@@ -192,7 +192,6 @@ ${jsonLdStr}
     .footer a { color: #5d6a3f; }
     ${safeSrc ? `.source-link { color: #5d6a3f; font-size: 0.85rem; }` : ''}
   </style>
-  <script src="/r-redirect.js"></script>
 </head>
 <body>
   <div class="header">
