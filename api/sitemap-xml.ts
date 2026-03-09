@@ -64,7 +64,7 @@ async function handleSitemap(_req: VercelRequest, res: VercelResponse) {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://mise.swinch.dev</loc>
+    <loc>https://mise.swinch.dev/</loc>
   </url>
 ${urls.join('\n')}
 </urlset>`
@@ -77,7 +77,7 @@ ${urls.join('\n')}
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://mise.swinch.dev</loc>
+    <loc>https://mise.swinch.dev/</loc>
   </url>
 </urlset>`
 
