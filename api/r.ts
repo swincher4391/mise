@@ -29,7 +29,7 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
   if (!BOT_UA.test(ua)) {
     const importUrl = `https://mise.swinch.dev?import=${encodeURIComponent(encoded)}`
     res.setHeader('Location', importUrl)
-    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
+    res.setHeader('Cache-Control', 'private, no-store')
     return res.status(302).end()
   }
 
@@ -57,7 +57,8 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
     const html = buildRecipeHtml(payload, shareUrl, encoded)
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8')
-    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
+    res.setHeader('Cache-Control', 'public, s-maxage=31536000, stale-while-revalidate=31536000')
+    res.setHeader('Vary', 'User-Agent')
     return res.status(200).send(html)
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'
