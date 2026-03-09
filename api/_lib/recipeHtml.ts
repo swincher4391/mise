@@ -55,10 +55,6 @@ function safeUrl(url: string): string | null {
   }
 }
 
-function escJson(text: string): string {
-  return JSON.stringify(text).slice(1, -1)
-}
-
 function formatTime(minutes: number): string {
   const h = Math.floor(minutes / 60)
   const m = minutes % 60
@@ -90,11 +86,15 @@ export function buildRecipeHtml(payload: SharePayload, shareUrl?: string, encode
   if (payload.cat?.length) jsonLd.recipeCategory = payload.cat
 
   jsonLd.recipeIngredient = payload.ig
-  jsonLd.recipeInstructions = payload.st.map((text, i) => ({
-    '@type': 'HowToStep',
-    position: i + 1,
-    text,
-  }))
+  // Omit full recipeInstructions to avoid republishing copyrightable expression.
+  // Include step count so rich results can still display "N steps".
+  if (payload.st.length > 0) {
+    jsonLd.recipeInstructions = [{
+      '@type': 'HowToSection',
+      name: 'Instructions',
+      numberOfItems: payload.st.length,
+    }]
+  }
 
   if (payload.n) {
     const n = payload.n
@@ -129,13 +129,7 @@ export function buildRecipeHtml(payload: SharePayload, shareUrl?: string, encode
     .map((ig) => `        <li>${esc(String(ig ?? ''))}</li>`)
     .join('\n')
 
-  const stepsHtml = payload.st
-    .map((s, i) => `        <li><span class="step-num">${i + 1}</span>${esc(String(s ?? ''))}</li>`)
-    .join('\n')
-
-  const nutritionHtml = payload.n
-    ? buildNutritionHtml(payload.n)
-    : ''
+  const stepCount = payload.st.length
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -172,16 +166,11 @@ ${jsonLdStr}
     .recipe-img { width: 100%; max-height: 400px; object-fit: cover; border-radius: 8px; margin-bottom: 20px; }
     h2 { font-size: 1.2rem; margin: 24px 0 12px; color: #333; border-bottom: 2px solid #e8e5d8; padding-bottom: 4px; }
     .ingredients li { padding: 6px 0; border-bottom: 1px solid #f0ede4; list-style: none; }
-    .steps { list-style: none; counter-reset: step; }
-    .steps li { padding: 10px 0; border-bottom: 1px solid #f0ede4; display: flex; gap: 12px; }
-    .step-num {
-      display: inline-flex; align-items: center; justify-content: center;
-      min-width: 28px; height: 28px; background: #5d6a3f; color: #fff;
-      border-radius: 50%; font-size: 0.85rem; font-weight: 600; flex-shrink: 0;
-    }
-    .nutrition { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; margin-top: 8px; }
-    .nutrition-item { background: #f5f3ec; padding: 8px 12px; border-radius: 6px; font-size: 0.9rem; }
-    .nutrition-label { color: #888; font-size: 0.8rem; }
+    .steps-preview { background: #f5f3ec; border-radius: 8px; padding: 16px 20px; margin-top: 8px; }
+    .steps-preview p { color: #444; margin-bottom: 12px; }
+    .steps-preview .features { list-style: none; color: #555; font-size: 0.9rem; }
+    .steps-preview .features li { padding: 4px 0; }
+    .steps-preview .features li::before { content: "\2713 "; color: #5d6a3f; font-weight: 600; }
     .cta-top {
       display: block; margin: 0 0 20px; padding: 14px 24px;
       background: #5d6a3f; color: #fff; text-decoration: none;
@@ -223,13 +212,17 @@ ${ingredientsHtml}
   </ul>
 
   <h2>Instructions</h2>
-  <ol class="steps">
-${stepsHtml}
-  </ol>
+  <div class="steps-preview">
+    <p>${stepCount} steps — open in Mise for hands-free cooking mode.</p>
+    <ul class="features">
+      <li>Step-by-step cooking mode with large text</li>
+      <li>Scale ingredients for any serving size</li>
+      <li>Add to meal plan and grocery list</li>
+    </ul>
+  </div>
 
-${nutritionHtml}
-
-  <a class="cta" id="open-cta" href="https://mise.swinch.dev${encodedData ? `?import=${encodeURIComponent(encodedData)}` : shareUrl ? `?url=${encodeURIComponent(shareUrl)}` : ''}">Open in Mise</a>
+  <a class="cta" id="open-cta" href="https://mise.swinch.dev${encodedData ? `?import=${encodeURIComponent(encodedData)}` : shareUrl ? `?url=${encodeURIComponent(shareUrl)}` : ''}">Open Full Recipe in Mise</a>
+  ${safeSrc ? `<p style="margin-top: 12px; font-size: 0.85rem; color: #888;">or <a href="${esc(safeSrc)}" style="color: #5d6a3f;">view original recipe</a></p>` : ''}
 
   <div class="footer">
     Shared from <a href="https://mise.swinch.dev">Mise</a> — recipe extraction for any URL.
@@ -238,25 +231,3 @@ ${nutritionHtml}
 </html>`
 }
 
-function safeNum(v: unknown): string {
-  const n = Number(v)
-  return Number.isFinite(n) ? String(n) : '0'
-}
-
-function buildNutritionHtml(n: NonNullable<SharePayload['n']>): string {
-  const items: string[] = []
-  if (n.cal != null) items.push(`<div class="nutrition-item"><div class="nutrition-label">Calories</div>${safeNum(n.cal)}</div>`)
-  if (n.protein != null) items.push(`<div class="nutrition-item"><div class="nutrition-label">Protein</div>${safeNum(n.protein)}g</div>`)
-  if (n.carb != null) items.push(`<div class="nutrition-item"><div class="nutrition-label">Carbs</div>${safeNum(n.carb)}g</div>`)
-  if (n.fat != null) items.push(`<div class="nutrition-item"><div class="nutrition-label">Fat</div>${safeNum(n.fat)}g</div>`)
-  if (n.fiber != null) items.push(`<div class="nutrition-item"><div class="nutrition-label">Fiber</div>${safeNum(n.fiber)}g</div>`)
-  if (n.sugar != null) items.push(`<div class="nutrition-item"><div class="nutrition-label">Sugar</div>${safeNum(n.sugar)}g</div>`)
-  if (n.sodium != null) items.push(`<div class="nutrition-item"><div class="nutrition-label">Sodium</div>${safeNum(n.sodium)}mg</div>`)
-
-  if (items.length === 0) return ''
-  return `
-  <h2>Nutrition</h2>
-  <div class="nutrition">
-    ${items.join('\n    ')}
-  </div>`
-}
