@@ -12,7 +12,7 @@ const MAX_ENTRIES = 10_000
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'OPTIONS') {
     res.setHeader('Access-Control-Allow-Origin', '*')
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS')
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
     return res.status(204).end()
   }
@@ -23,6 +23,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (req.method === 'GET') {
     return handleSitemap(req, res)
+  }
+
+  if (req.method === 'DELETE') {
+    return handleClear(req, res)
   }
 
   return res.status(405).json({ error: 'Method not allowed' })
@@ -45,6 +49,21 @@ async function handleAdd(req: VercelRequest, res: VercelResponse) {
 
     res.setHeader('Access-Control-Allow-Origin', '*')
     return res.status(200).json({ ok: true })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error'
+    return res.status(500).json({ error: message })
+  }
+}
+
+/** DELETE: clear all share URLs from the sitemap */
+async function handleClear(req: VercelRequest, res: VercelResponse) {
+  const secret = req.headers['x-admin-secret']
+  if (secret !== process.env.ADMIN_SECRET) {
+    return res.status(403).json({ error: 'Forbidden' })
+  }
+  try {
+    await kv.del(KV_KEY)
+    return res.status(200).json({ ok: true, cleared: true })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'
     return res.status(500).json({ error: message })
