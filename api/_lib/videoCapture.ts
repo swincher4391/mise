@@ -22,6 +22,7 @@ export async function launchAndCaptureVideo(
 ): Promise<CaptureResult> {
   const maxRecordMs = opts?.maxRecordMs ?? 90000
   const isYouTube = /youtube\.com|youtu\.be/i.test(url)
+  const isTikTok = /tiktok\.com/i.test(url)
 
   if (await isBlockedAfterResolve(url)) {
     throw new Error('URL resolves to a blocked address')
@@ -43,6 +44,12 @@ export async function launchAndCaptureVideo(
       await page.goto(watchUrl, { waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {})
       if (isBlockedUrl(page.url())) throw new Error('Redirect target URL not allowed')
       await new Promise((r) => setTimeout(r, 5000))
+    } else if (isTikTok) {
+      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {})
+      if (isBlockedUrl(page.url())) throw new Error('Redirect target URL not allowed')
+      // Wait for video element to appear (TikTok never reaches networkidle)
+      await page.waitForSelector('video', { timeout: 10000 }).catch(() => {})
+      await new Promise((r) => setTimeout(r, 2000))
     } else {
       await page.goto(url, { waitUntil: 'networkidle2', timeout: 20000 }).catch(() => {})
       if (isBlockedUrl(page.url())) throw new Error('Redirect target URL not allowed')
@@ -59,14 +66,27 @@ export async function launchAndCaptureVideo(
       await new Promise((r) => setTimeout(r, 2000))
     }
 
-    // Extract the video src from the <video> element
-    const videoSrc = await page.evaluate(() => {
+    // Extract the video src — try TikTok page data first, then <video> element
+    const videoSrc = await page.evaluate((tikTok: boolean) => {
+      // TikTok embeds video URLs in rehydration data
+      if (tikTok) {
+        try {
+          const scripts = document.querySelectorAll('script#__UNIVERSAL_DATA_FOR_REHYDRATION__')
+          for (const s of scripts) {
+            const data = JSON.parse(s.textContent || '{}')
+            const videoData = data?.['__DEFAULT_SCOPE__']?.['webapp.video-detail']?.itemInfo?.itemStruct?.video
+            const playAddr = videoData?.playAddr || videoData?.downloadAddr
+            if (playAddr) return playAddr
+          }
+        } catch {}
+      }
+
       const video = document.querySelector('video')
       if (!video) return null
       const src = video.currentSrc || video.src || video.querySelector('source')?.src
       if (src && !src.startsWith('blob:')) return src
       return null
-    })
+    }, isTikTok)
 
     // Capture via direct fetch or MediaRecorder
     const videoBase64 = await page.evaluate(async (src: string | null, maxMs: number) => {

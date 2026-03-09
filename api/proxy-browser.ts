@@ -186,7 +186,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(500).json({ error: 'HF_API_KEY not configured on server' })
       }
 
-      const { videoBuffer } = await launchAndCaptureVideo(targetUrl)
+      const { videoBuffer } = await launchAndCaptureVideo(targetUrl, { maxRecordMs: 20000 })
 
       // Run both extraction paths in parallel
       const [audioResult, frameResult] = await Promise.allSettled([

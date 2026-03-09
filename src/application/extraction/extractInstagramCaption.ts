@@ -11,7 +11,7 @@
  * - Captioned embed endpoint (increasingly unreliable)
  */
 
-import { extractSocialPostText } from './extractSocialPostText.ts'
+import { extractSocialPostText, decodeJsonString } from './extractSocialPostText.ts'
 
 /** Convert an Instagram URL to its captioned embed URL */
 export function toInstagramEmbedUrl(url: string): string | null {
@@ -35,6 +35,33 @@ export function isInstagramUrl(url: string): boolean {
 /** Check if a URL is a TikTok video */
 export function isTikTokUrl(url: string): boolean {
   return /tiktok\.com\//i.test(url)
+}
+
+/**
+ * Extract caption from TikTok's server-rendered HTML.
+ * TikTok embeds video metadata in __UNIVERSAL_DATA_FOR_REHYDRATION__ JSON,
+ * with the caption in the "desc" field. Also checks og:description as fallback.
+ */
+export function extractTikTokCaption(html: string): string | null {
+  // Try rehydration data first — "desc":"..." field has the full caption
+  const descMatches = [...html.matchAll(/"desc"\s*:\s*"((?:[^"\\]|\\.)*)"/g)]
+  if (descMatches.length > 0) {
+    const decoded = descMatches
+      .map(([, raw]) => decodeJsonString(raw))
+      .filter((t) => t.length >= 50)
+      .sort((a, b) => b.length - a.length)
+    if (decoded.length > 0) return cleanSocialCaption(decoded[0])
+  }
+
+  // Fallback: og:description
+  const ogMatch = html.match(/<meta[^>]*property="og:description"[^>]*content="([^"]*)"/)
+    || html.match(/<meta[^>]*content="([^"]*)"[^>]*property="og:description"/)
+  if (ogMatch) {
+    const text = decodeEntities(ogMatch[1]).replace(/\\n/g, '\n')
+    if (text.length >= 50) return cleanSocialCaption(text)
+  }
+
+  return null
 }
 
 /** Check if a URL is a YouTube Short */

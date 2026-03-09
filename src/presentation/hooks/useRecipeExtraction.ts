@@ -8,7 +8,7 @@ import { extractHeuristic } from '@application/extraction/extractHeuristic.ts'
 import { normalizeRecipe } from '@application/extraction/normalizeRecipe.ts'
 import { extractImageRecipe, extractImageFromUrl } from '@infrastructure/ocr/extractImageRecipe.ts'
 import { createImageRecipe } from '@application/extraction/createImageRecipe.ts'
-import { isInstagramUrl, isTikTokUrl, isYouTubeShortsUrl, extractInstagramShortcode, extractCaptionFromJson, extractCaptionFromMeta, toInstagramEmbedUrl, extractCaptionFromEmbed } from '@application/extraction/extractInstagramCaption.ts'
+import { isInstagramUrl, isTikTokUrl, isYouTubeShortsUrl, extractInstagramShortcode, extractCaptionFromJson, extractCaptionFromMeta, extractTikTokCaption, toInstagramEmbedUrl, extractCaptionFromEmbed } from '@application/extraction/extractInstagramCaption.ts'
 import { isFacebookUrl, extractFacebookPostText } from '@application/extraction/extractFacebookPost.ts'
 import { parseTextRecipe } from '@application/extraction/parseTextRecipe.ts'
 import { createManualRecipe } from '@application/extraction/createManualRecipe.ts'
@@ -112,8 +112,21 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
             // Transcription failed
           }
         } else {
-          // TikTok: use unified analyze-video (single capture, parallel pipelines)
-          setExtractionStatus({ message: 'Analyzing video…', step: 1, totalSteps: 1, timed: true })
+          // TikTok: try caption text first (fast), fall back to video analysis (slow)
+          setExtractionStatus({ message: 'Reading caption…', step: 1, totalSteps: 2 })
+
+          // Step 1: Fetch page HTML and extract caption text
+          try {
+            const html = await fetchViaBrowser(url)
+            const caption = extractTikTokCaption(html)
+            const found = caption ? tryParseVideoResult(caption, url) : null
+            if (found) { setRecipe(found); return }
+          } catch {
+            // Browser fetch failed — continue to video analysis
+          }
+
+          // Step 2: Video analysis fallback
+          setExtractionStatus({ message: 'Analyzing video…', step: 2, totalSteps: 2, timed: true })
 
           // Check cache first
           const cached = await getCachedExtraction(url).catch(() => null)
