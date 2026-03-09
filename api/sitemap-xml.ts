@@ -3,18 +3,57 @@ import { kv } from '@vercel/kv'
 
 const KV_KEY = 'sitemap:urls'
 const SHARE_BASE = 'https://mise.swinch.dev/api/r'
+const MAX_ENTRIES = 10_000
 
 /**
- * GET /api/sitemap.xml
- * Generates an XML sitemap from all shared recipe URLs stored in Vercel KV.
+ * GET  /api/sitemap-xml → serves XML sitemap from Vercel KV
+ * POST /api/sitemap-xml → adds a share URL to the sitemap
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' })
+  if (req.method === 'OPTIONS') {
+    res.setHeader('Access-Control-Allow-Origin', '*')
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+    return res.status(204).end()
+  }
+
+  if (req.method === 'POST') {
+    return handleAdd(req, res)
+  }
+
+  if (req.method === 'GET') {
+    return handleSitemap(req, res)
+  }
+
+  return res.status(405).json({ error: 'Method not allowed' })
+}
+
+/** POST: add a share URL to the sitemap */
+async function handleAdd(req: VercelRequest, res: VercelResponse) {
+  const { d } = req.body ?? {}
+  if (!d || typeof d !== 'string' || d.length > 12_000) {
+    return res.status(400).json({ error: 'Missing or invalid d parameter' })
   }
 
   try {
-    // Fetch all members with scores (timestamps) — newest first
+    const count = await kv.zcard(KV_KEY)
+    if (count >= MAX_ENTRIES) {
+      await kv.zremrangebyrank(KV_KEY, 0, 0)
+    }
+
+    await kv.zadd(KV_KEY, { score: Date.now(), member: d })
+
+    res.setHeader('Access-Control-Allow-Origin', '*')
+    return res.status(200).json({ ok: true })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error'
+    return res.status(500).json({ error: message })
+  }
+}
+
+/** GET: generate XML sitemap from stored URLs */
+async function handleSitemap(_req: VercelRequest, res: VercelResponse) {
+  try {
     const entries: string[] = await kv.zrange(KV_KEY, 0, -1)
 
     const urls = entries.map((d) => {
@@ -33,8 +72,8 @@ ${urls.join('\n')}
     res.setHeader('Content-Type', 'application/xml; charset=utf-8')
     res.setHeader('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400')
     return res.status(200).send(xml)
-  } catch (err) {
-    // If KV is not configured yet, return a minimal sitemap
+  } catch {
+    // KV not configured — return minimal sitemap
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>

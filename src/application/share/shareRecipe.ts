@@ -39,7 +39,7 @@ export async function shareRecipe(
 
 /** Fire-and-forget: register the share URL in the sitemap */
 function addToSitemap(d: string): void {
-  fetch('/api/sitemap-add', {
+  fetch('/api/sitemap-xml', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ d }),
