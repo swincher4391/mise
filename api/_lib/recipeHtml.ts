@@ -182,6 +182,14 @@ ${jsonLdStr}
     .nutrition { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; margin-top: 8px; }
     .nutrition-item { background: #f5f3ec; padding: 8px 12px; border-radius: 6px; font-size: 0.9rem; }
     .nutrition-label { color: #888; font-size: 0.8rem; }
+    .cta-top {
+      display: block; margin: 0 0 20px; padding: 14px 24px;
+      background: #5d6a3f; color: #fff; text-decoration: none;
+      border-radius: 8px; font-weight: 600; font-size: 1rem;
+      text-align: center;
+    }
+    .cta-top:hover { background: #4e5a34; }
+    .cta-top .cta-sub { display: block; font-size: 0.8rem; font-weight: 400; opacity: 0.9; margin-top: 2px; }
     .cta {
       display: inline-block; margin: 32px 0 16px; padding: 12px 24px;
       background: #5d6a3f; color: #fff; text-decoration: none;
@@ -204,6 +212,8 @@ ${jsonLdStr}
     ${desc ? `<p class="description">${desc}</p>` : ''}
     ${safeSrc ? `<a class="source-link" href="${esc(safeSrc)}">Original recipe</a>` : ''}
   </div>
+
+  <a class="cta-top" href="https://mise.swinch.dev${encodedData ? `?import=${encodeURIComponent(encodedData)}` : shareUrl ? `?url=${encodeURIComponent(shareUrl)}` : ''}">Save to Mise — cook it step by step<span class="cta-sub">Cooking mode, grocery lists, and meal planning — free</span></a>
 
   ${safeImg ? `<img class="recipe-img" src="${esc(safeImg)}" alt="${title}">` : ''}
 
