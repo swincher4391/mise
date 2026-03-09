@@ -2,6 +2,9 @@
   "framework": "vite",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
+  "rewrites": [
+    { "source": "/sitemap.xml", "destination": "/api/sitemap.xml" }
+  ],
   "headers": [
     {
       "source": "/(.*)",

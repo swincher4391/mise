@@ -12,10 +12,14 @@ export async function shareRecipe(
 ): Promise<'shared' | 'copied' | false> {
   const url = await buildShareUrl(recipe)
 
+  // Extract the encoded payload for sitemap indexing
+  const dParam = new URL(url).searchParams.get('d')
+
   // Try Web Share API first (mobile-friendly)
   if (navigator.share) {
     try {
       await navigator.share({ title: recipe.title, url })
+      if (dParam) addToSitemap(dParam)
       return 'shared'
     } catch (err) {
       // User cancelled or share failed — fall through to clipboard
@@ -26,8 +30,18 @@ export async function shareRecipe(
   // Clipboard fallback
   try {
     await navigator.clipboard.writeText(url)
+    if (dParam) addToSitemap(dParam)
     return 'copied'
   } catch {
     return false
   }
+}
+
+/** Fire-and-forget: register the share URL in the sitemap */
+function addToSitemap(d: string): void {
+  fetch('/api/sitemap-add', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ d }),
+  }).catch(() => {})
 }
