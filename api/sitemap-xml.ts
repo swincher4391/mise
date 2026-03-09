@@ -70,7 +70,7 @@ ${urls.join('\n')}
 </urlset>`
 
     res.setHeader('Content-Type', 'application/xml; charset=utf-8')
-    res.setHeader('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400')
+    res.setHeader('Cache-Control', 'public, s-maxage=600, stale-while-revalidate=3600')
     return res.status(200).send(xml)
   } catch {
     // KV not configured — return minimal sitemap
