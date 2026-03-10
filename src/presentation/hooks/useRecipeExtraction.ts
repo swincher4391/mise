@@ -54,6 +54,36 @@ function tryParseVideoResult(
   return null
 }
 
+/**
+ * Try multiple text source combinations to get the best recipe.
+ * Captions often have ingredients while transcripts have instructions.
+ * Combining them yields the most complete result.
+ */
+function tryBestVideoResult(
+  caption: string | null,
+  transcript: string | null,
+  ocrText: string | null,
+  sourceUrl: string
+): Recipe | null {
+  // Try combining caption + transcript (caption ingredients + transcript steps)
+  if (caption && transcript) {
+    const combined = caption + '\n\n' + transcript
+    const found = tryParseVideoResult(combined, sourceUrl)
+    if (found && found.ingredients.length > 0 && found.steps.length > 0) return found
+  }
+
+  // Try combining caption + OCR
+  if (caption && ocrText) {
+    const combined = caption + '\n\n' + ocrText
+    const found = tryParseVideoResult(combined, sourceUrl)
+    if (found && found.ingredients.length > 0 && found.steps.length > 0) return found
+  }
+
+  // Fall back to individual sources
+  return tryParseVideoResult(transcript, sourceUrl)
+    ?? tryParseVideoResult(ocrText, sourceUrl)
+}
+
 export function useRecipeExtraction(): UseRecipeExtractionResult {
   const [recipe, setRecipe] = useState<Recipe | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -112,15 +142,24 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
             // Transcription failed
           }
         } else {
-          // TikTok: try caption text first (fast), fall back to video analysis (slow)
+          // TikTok: try caption text first (fast), fall back to video analysis (slow).
+          // Captions often have ingredients while transcripts have instructions,
+          // so we combine both sources for the best result.
           setExtractionStatus({ message: 'Reading caption…', step: 1, totalSteps: 2 })
 
           // Step 1: Fetch page HTML and extract caption text
+          let captionText: string | null = null
           try {
             const html = await fetchViaBrowser(url)
-            const caption = extractTikTokCaption(html)
-            const found = caption ? tryParseVideoResult(caption, url) : null
-            if (found) { setRecipe(found); return }
+            captionText = extractTikTokCaption(html)
+            if (captionText) {
+              const found = tryParseVideoResult(captionText, url)
+              // Only return early if caption has BOTH ingredients and steps
+              if (found && found.ingredients.length > 0 && found.steps.length > 0) {
+                setRecipe(found)
+                return
+              }
+            }
           } catch {
             // Browser fetch failed — continue to video analysis
           }
@@ -131,8 +170,7 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
           // Check cache first
           const cached = await getCachedExtraction(url).catch(() => null)
           if (cached) {
-            const found = tryParseVideoResult(cached.transcript, url)
-              ?? tryParseVideoResult(cached.ocrText, url)
+            const found = tryBestVideoResult(captionText, cached.transcript, cached.ocrText, url)
             if (found) { setRecipe(found); return }
           }
 
@@ -142,9 +180,7 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
             // Cache the result for future use
             cacheExtraction(url, result).catch(() => {})
 
-            // Try transcript first, fall back to OCR
-            const found = tryParseVideoResult(result.transcript, url)
-              ?? tryParseVideoResult(result.ocrText, url)
+            const found = tryBestVideoResult(captionText, result.transcript, result.ocrText, url)
             if (found) { setRecipe(found); return }
           } catch {
             // Video analysis failed

@@ -189,6 +189,46 @@ Ingredients:
     expect(result.ingredientLines).toEqual(['flour', 'sugar'])
   })
 
+  it('should split ingredient blob from social media caption and detect ingredients', () => {
+    // TikTok/Instagram captions often dump all ingredients on one line
+    const caption = 'Creamy Pesto Chicken Pasta Bake My most viral recipe of 2024! Here is how to make it: 1lb pasta of choice 1/2 cup sun-dried tomatoes + oil 1lb chicken 1 tbsp butter 1/2 yellow onion, diced Salt and pepper, to taste 1 tsp red pepper flakes (to taste) 1 tsp smoked paprika (to taste) 1 tsp oregano (to taste) 6-8 cloves of garlic, minced (to taste) 2 cups heavy cream (room temp) 1-2 cups cooked broccoli 2 handfuls spinach 6-8 oz freshly shredded parmesan cheese (divided) 8 oz freshly shredded mozzarella (divided) 1/2 cup pesto, to taste (I recommend Costco brand) Parsley to garnish'
+
+    const result = parseTextRecipe(caption)
+
+    // Title should be the preamble, not the entire blob
+    expect(result.title).not.toContain('1lb pasta')
+
+    // Should detect individual ingredients
+    expect(result.ingredientLines.length).toBeGreaterThanOrEqual(10)
+    expect(result.ingredientLines).toContainEqual(expect.stringContaining('pasta'))
+    expect(result.ingredientLines).toContainEqual(expect.stringContaining('sun-dried tomatoes'))
+    expect(result.ingredientLines).toContainEqual(expect.stringContaining('chicken'))
+    expect(result.ingredientLines).toContainEqual(expect.stringContaining('butter'))
+    expect(result.ingredientLines).toContainEqual(expect.stringContaining('heavy cream'))
+    expect(result.ingredientLines).toContainEqual(expect.stringContaining('parmesan'))
+    expect(result.ingredientLines).toContainEqual(expect.stringContaining('mozzarella'))
+    expect(result.ingredientLines).toContainEqual(expect.stringContaining('pesto'))
+  })
+
+  it('should combine caption ingredients with transcript steps', () => {
+    // Simulates combined caption (ingredients) + transcript (numbered steps)
+    // This is how TikTok extraction works: caption has ingredients, transcript has instructions
+    const combined = `Chicken Pasta Bake My favorite comfort food recipe! Here is how to make it: 1lb pasta of choice 2 cups heavy cream 1 cup shredded cheese 1 tbsp butter 1 tsp garlic powder Salt and pepper, to taste Parsley to garnish
+
+1. Preheat oven to 350.
+2. Cook pasta until al dente.
+3. Mix cream and cheese, pour over pasta.
+4. Bake for 20 minutes.`
+
+    const result = parseTextRecipe(combined)
+    expect(result.ingredientLines.length).toBeGreaterThanOrEqual(5)
+    expect(result.stepLines.length).toBe(4)
+    expect(result.ingredientLines).toContainEqual(expect.stringContaining('pasta'))
+    expect(result.ingredientLines).toContainEqual(expect.stringContaining('cream'))
+    expect(result.ingredientLines).toContainEqual(expect.stringContaining('cheese'))
+    expect(result.stepLines[0]).toContain('Preheat oven')
+  })
+
   it('should split paragraph instructions into sentences and filter attribution', () => {
     const text = `Spaghetti Casserole
 Ingredients

@@ -7,10 +7,91 @@ export interface ParsedTextRecipe {
 }
 
 /**
+ * Measurement units that signal ingredient text. Built from the same units
+ * as the ingredient parser (domain/constants/units.ts) but as a regex
+ * for fast matching in unstructured text.
+ */
+const INGREDIENT_UNITS = /\b(cups?|tbsps?|tsps?|tbs|tbl|tablespoons?|teaspoons?|oz|ounces?|lbs?|pounds?|g|grams?|gm|kg|kgs?|ml|mls?|liters?|litres?|pints?|quarts?|gallons?|fl\s*oz|pinch(?:es)?|dash(?:es)?|handfuls?|cloves?|bunch(?:es)?|sprigs?|stalks?|cans?|heads?|packages?|pkg|sticks?|pieces?|pcs?|slices?|bags?|bottles?|jars?|boxes?|drops?|whole|large|medium|small)\b/i
+
+/**
+ * Check if text starts with a quantity followed by a unit (with or without space).
+ * Handles "1 cup", "1/2 lb", "6-8 oz", and also "1lb" (no space, common in social media).
+ */
+const QUANTITY_UNIT_START = /^[\d½¼¾⅓⅔][\d/.½¼¾⅓⅔-]*\s*(?:cups?|tbsps?|tsps?|tbs|tbl|tablespoons?|teaspoons?|oz|ounces?|lbs?|pounds?|g|grams?|gm|kg|kgs?|ml|mls?|liters?|litres?|pints?|quarts?|gallons?|fl\s*oz|pinch(?:es)?|dash(?:es)?|handfuls?|cloves?|bunch(?:es)?|sprigs?|stalks?|cans?|heads?|packages?|pkg|sticks?|pieces?|pcs?|slices?|bags?|bottles?|jars?|boxes?|drops?|whole|large|medium|small)\b/i
+
+/**
+ * Detect whether a line reads like an ingredient based on its content.
+ * Looks for quantity + unit patterns, bare numbers + food words,
+ * and common ingredient qualifiers like "to taste".
+ */
+function isLikelyIngredient(line: string): boolean {
+  // Quantity + unit (handles "1 cup flour", "1lb chicken", "6-8 oz cheese")
+  if (QUANTITY_UNIT_START.test(line)) return true
+  // Fraction + food word without explicit unit: "1/2 yellow onion"
+  if (/^[\d½¼¾⅓⅔][\d/.½¼¾⅓⅔-]+\s+[a-z]/i.test(line) && !COOKING_VERBS.test(line) && line.length < 60) return true
+  // Number + food word without explicit unit: "2 eggs", "3 tomatoes"
+  if (/^\d+\s+[a-z]/i.test(line) && !COOKING_VERBS.test(line) && line.length < 60) return true
+  // Ingredient qualifiers: "Salt and pepper, to taste", "Parsley to garnish"
+  if (/\b(to\s+taste|(?:to|for)\s+garnish(?:ing)?|as\s+needed)\b/i.test(line) && line.length < 80) return true
+  return false
+}
+
+/**
+ * Split a long text blob at ingredient boundaries.
+ *
+ * Social media captions often list ingredients as a single run-on line
+ * without newlines or bullets. This detects quantity+unit patterns and
+ * inserts line breaks so each ingredient lands on its own line.
+ *
+ * Only activates when the text contains 3+ quantity+unit matches,
+ * ensuring we don't accidentally split normal prose.
+ */
+function splitAtIngredientBoundaries(text: string): string[] {
+  // Count quantity+unit patterns to confirm this is an ingredient blob
+  const UNIT_PATTERN = /[\d½¼¾⅓⅔][\d/.½¼¾⅓⅔-]*\s*(?:cups?|tbsps?|tsps?|tbs|tbl|tablespoons?|teaspoons?|oz|ounces?|lbs?|pounds?|g|grams?|gm|kg|ml|mls?|liters?|litres?|pints?|quarts?|fl\s*oz|pinch(?:es)?|dash(?:es)?|handfuls?|cloves?|bunch(?:es)?|sprigs?|stalks?|cans?|heads?|packages?|pkg|sticks?|pieces?|pcs?|slices?|bags?|bottles?|jars?|boxes?|drops?)\b/gi
+  const unitMatches = text.match(UNIT_PATTERN)
+  if (!unitMatches || unitMatches.length < 3) return [text]
+
+  // Stage 1: Split at quantity + unit boundaries
+  let result = text
+    // Break before quantity + unit (main ingredient boundaries)
+    .replace(
+      /(\s)([\d½¼¾⅓⅔][\d/.½¼¾⅓⅔-]*\s*(?:cups?|tbsps?|tsps?|tbs|tbl|tablespoons?|teaspoons?|oz|ounces?|lbs?|pounds?|g|grams?|gm|kg|ml|mls?|liters?|litres?|pints?|quarts?|fl\s*oz|pinch(?:es)?|dash(?:es)?|handfuls?|cloves?|bunch(?:es)?|sprigs?|stalks?|cans?|heads?|packages?|pkg|sticks?|pieces?|pcs?|slices?|bags?|bottles?|jars?|boxes?|drops?)\b)/gi,
+      '\n$2'
+    )
+    // Break before fractions without explicit units: "1/2 yellow onion"
+    .replace(/(\s)(\d+\/\d+\s+[a-z])/gi, '\n$2')
+    // Break before standalone numbers (not temps/times): "2 eggs", "3 tomatoes"
+    .replace(/(\s)(\d+[-\d]*\s+[a-z])/gi, (match, space, rest) => {
+      if (/^\d+[-\d]*\s*(degrees?|°[FCfc]?|minutes?|mins?|hours?|hrs?|seconds?|secs?)\b/i.test(rest)) return match
+      return '\n' + rest
+    })
+
+  // Stage 2: Split remaining long lines at qualifier boundaries,
+  // but only lines that don't already start with a quantity (to avoid
+  // splitting "1/2 cup pesto, to taste" into two pieces).
+  let lines = result.split('\n').map(s => s.trim()).filter(s => s.length > 0)
+  lines = lines.flatMap(line => {
+    if (/^[\d½¼¾⅓⅔]/.test(line)) return [line]  // Already has quantity prefix
+    const parts = line.replace(
+      /(\w)\s+(\S+(?:\s+and\s+\S+)?[,\s]+(?:to\s+taste|(?:to|for)\s+garnish(?:ing)?|as\s+needed))/gi,
+      '$1\n$2'
+    ).split('\n').map(s => s.trim()).filter(s => s.length > 0)
+    return parts.length > 1 ? parts : [line]
+  })
+
+  return lines
+}
+
+/**
  * Parse plain text into recipe components (title, ingredients, steps).
  * First non-empty line becomes the title. Lines are assigned to sections
  * based on explicit headers (Ingredients:/Instructions:) or auto-detected
  * by format (bullets → ingredients, numbered → steps).
+ *
+ * Long blob lines containing multiple ingredient patterns (common in
+ * social media captions) are automatically split at quantity+unit
+ * boundaries before parsing.
  */
 export function parseTextRecipe(text: string): ParsedTextRecipe {
   if (text.includes('* Exported from MasterCook *')) {
@@ -19,6 +100,17 @@ export function parseTextRecipe(text: string): ParsedTextRecipe {
 
   let lines = text.split('\n').filter((l) => l.trim())
   if (lines.length === 0) return { title: '', ingredientLines: [], stepLines: [] }
+
+  // Pre-process: split long blob lines at ingredient boundaries.
+  // Social media captions often dump all ingredients on one line.
+  lines = lines.flatMap(line => {
+    const trimmed = line.trim()
+    if (trimmed.length > 80) {
+      const parts = splitAtIngredientBoundaries(trimmed)
+      if (parts.length > 1) return parts
+    }
+    return [line]
+  })
 
   // If the first line is a section header (e.g. "Ingredients"), don't consume it
   // as the title — start parsing from line 0 so the header is detected properly.
@@ -82,7 +174,7 @@ export function parseTextRecipe(text: string): ParsedTextRecipe {
       }
     } else {
       // Before any section header — try to detect by format
-      if (/^[-*\u2022]\s/.test(line.trim()) || /^\d+[a-z]*\s*(cups?|tbsps?|tsps?|tablespoons?|teaspoons?|oz|lbs?|g|kg|ml)\b/i.test(cleaned)) {
+      if (/^[-*\u2022]\s/.test(line.trim()) || isLikelyIngredient(cleaned)) {
         ingredientLines.push(cleaned)
       } else if (/^\d+\.\s/.test(line.trim())) {
         stepLines.push(cleaned)
