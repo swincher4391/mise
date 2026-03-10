@@ -7,13 +7,6 @@ export interface ParsedTextRecipe {
 }
 
 /**
- * Measurement units that signal ingredient text. Built from the same units
- * as the ingredient parser (domain/constants/units.ts) but as a regex
- * for fast matching in unstructured text.
- */
-const INGREDIENT_UNITS = /\b(cups?|tbsps?|tsps?|tbs|tbl|tablespoons?|teaspoons?|oz|ounces?|lbs?|pounds?|g|grams?|gm|kg|kgs?|ml|mls?|liters?|litres?|pints?|quarts?|gallons?|fl\s*oz|pinch(?:es)?|dash(?:es)?|handfuls?|cloves?|bunch(?:es)?|sprigs?|stalks?|cans?|heads?|packages?|pkg|sticks?|pieces?|pcs?|slices?|bags?|bottles?|jars?|boxes?|drops?|whole|large|medium|small)\b/i
-
-/**
  * Check if text starts with a quantity followed by a unit (with or without space).
  * Handles "1 cup", "1/2 lb", "6-8 oz", and also "1lb" (no space, common in social media).
  */
@@ -62,7 +55,7 @@ function splitAtIngredientBoundaries(text: string): string[] {
     // Break before fractions without explicit units: "1/2 yellow onion"
     .replace(/(\s)(\d+\/\d+\s+[a-z])/gi, '\n$2')
     // Break before standalone numbers (not temps/times): "2 eggs", "3 tomatoes"
-    .replace(/(\s)(\d+[-\d]*\s+[a-z])/gi, (match, space, rest) => {
+    .replace(/(\s)(\d+[-\d]*\s+[a-z])/gi, (match, _space, rest) => {
       if (/^\d+[-\d]*\s*(degrees?|°[FCfc]?|minutes?|mins?|hours?|hrs?|seconds?|secs?)\b/i.test(rest)) return match
       return '\n' + rest
     })
