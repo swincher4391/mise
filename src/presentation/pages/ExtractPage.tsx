@@ -47,6 +47,7 @@ export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRec
   const [shortcutDismissed, setShortcutDismissed] = useState(() => localStorage.getItem('mise_shortcut_dismissed') === 'true')
   const [cameFromImport, setCameFromImport] = useState(false)
   const [showTryOwn, setShowTryOwn] = useState(false)
+  const [lastAttemptedUrl, setLastAttemptedUrl] = useState('')
   const isIos = useMemo(() => /iP(hone|ad|od)/i.test(navigator.userAgent), [])
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -94,7 +95,7 @@ export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRec
   useEffect(() => {
     if (error) {
       const method = activeTab === 'extract' ? 'url' : activeTab === 'photo' ? 'photo' : activeTab
-      trackEvent('extraction_failed', { method, error })
+      trackEvent('extraction_failed', { method, error, ...(lastAttemptedUrl && { source_url: lastAttemptedUrl }) })
     }
   }, [error]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -127,6 +128,7 @@ export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRec
   }
 
   const handleGatedExtract = (url: string) => {
+    setLastAttemptedUrl(url)
     const platform = detectVideoPlatform(url)
     if (platform && !canExtractVideo(platform)) {
       trackEvent('video_limit_reached', { platform })
