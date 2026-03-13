@@ -3773,6 +3773,12 @@ body {
   color: #888;
 }
 
+.peerpush-badge {
+  display: block;
+  text-align: center;
+  margin: 1rem auto 0;
+}
+
 /* App Version */
 .app-version {
   text-align: center;
