@@ -319,7 +319,7 @@ function qtyToGrams(qty: number | Range | null, unit: string | null, ingredientN
 // USDA API fallback (client-side)
 // ---------------------------------------------------------------------------
 
-const USDA_API_KEY = 'DEMO_KEY'
+const USDA_API_KEY = 'J7H4cSY59DnmvORX1cvextyHCS7zpKNGfIJ2rj2V'
 const USDA_SEARCH_URL = 'https://api.nal.usda.gov/fdc/v1/foods/search'
 
 async function searchUSDA(ingredientName: string): Promise<{ macros: Macros; confidence: 'medium' | 'low' } | null> {
