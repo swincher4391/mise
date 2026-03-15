@@ -148,17 +148,26 @@ export function NutritionCard({ recipe, currentServings, purchase }: NutritionCa
                 </tr>
               </thead>
               <tbody>
-                {perIngredient.map((item, i) => (
+                {perIngredient.map((item, i) => {
+                  const s = displayServings
+                  const cal = item.calories !== null ? Math.round(item.calories / s) : null
+                  const prot = item.protein !== null ? Math.round(item.protein / s * 10) / 10 : null
+                  const fat = item.fat !== null ? Math.round(item.fat / s * 10) / 10 : null
+                  const carbs = item.carbs !== null ? Math.round(item.carbs / s * 10) / 10 : null
+                  const fiber = item.fiber !== null ? Math.round(item.fiber / s * 10) / 10 : null
+                  const net = carbs !== null && fiber !== null ? Math.round((carbs - fiber) * 10) / 10 : null
+                  return (
                   <tr key={i} className={!item.matched ? 'nb-unmatched' : item.calories === 0 ? 'nb-zero' : ''}>
                     <td className="nb-ingredient">{item.ingredient}</td>
-                    <td>{item.matched ? item.calories : '–'}</td>
-                    <td>{item.matched ? `${item.protein}g` : '–'}</td>
-                    <td>{item.matched ? `${item.fat}g` : '–'}</td>
-                    <td>{item.matched ? `${item.carbs}g` : '–'}</td>
-                    <td>{item.matched ? `${item.fiber}g` : '–'}</td>
-                    <td>{item.matched ? `${Math.round(((item.carbs ?? 0) - (item.fiber ?? 0)) * 10) / 10}g` : '–'}</td>
+                    <td>{item.matched ? cal : '–'}</td>
+                    <td>{item.matched ? `${prot}g` : '–'}</td>
+                    <td>{item.matched ? `${fat}g` : '–'}</td>
+                    <td>{item.matched ? `${carbs}g` : '–'}</td>
+                    <td>{item.matched ? `${fiber}g` : '–'}</td>
+                    <td>{item.matched ? `${net}g` : '–'}</td>
                   </tr>
-                ))}
+                  )
+                })}
               </tbody>
             </table>
           )}
