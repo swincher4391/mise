@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import type { Recipe } from '@domain/models/Recipe.ts'
 import type { SavedRecipe } from '@domain/models/SavedRecipe.ts'
 import type { RecipeNutrition } from '@domain/models/RecipeNutrition.ts'
@@ -13,21 +13,30 @@ function isSaved(recipe: Recipe | SavedRecipe): recipe is SavedRecipe {
   return 'savedAt' in recipe
 }
 
+/** Fingerprint ingredients so we can detect edits. */
+function ingredientFingerprint(recipe: Recipe | SavedRecipe): string {
+  return recipe.ingredients.map((i) => i.raw).join('\n')
+}
+
 export function NutritionCard({ recipe }: NutritionCardProps) {
   const [nutrition, setNutrition] = useState<RecipeNutrition | null>(null)
   const [loading, setLoading] = useState(false)
   const [expanded, setExpanded] = useState(false)
+  const lastFingerprint = useRef('')
 
   useEffect(() => {
-    // Prefer JSON-LD nutrition from source — don't estimate
-    if (recipe.nutrition && recipe.nutrition.calories != null) return
+    if (recipe.ingredients.length === 0) return
+
+    const fingerprint = ingredientFingerprint(recipe)
+    const ingredientsChanged = fingerprint !== lastFingerprint.current
+    lastFingerprint.current = fingerprint
 
     let cancelled = false
     setLoading(true)
 
     async function load() {
-      // Check cache first
-      if (isSaved(recipe)) {
+      // Check cache if ingredients haven't changed
+      if (!ingredientsChanged && isSaved(recipe)) {
         const cached = await getCachedNutrition(recipe.id)
         if (cached && !cancelled) {
           setNutrition(cached)
@@ -36,12 +45,13 @@ export function NutritionCard({ recipe }: NutritionCardProps) {
         }
       }
 
-      // Estimate and cache
+      // Estimate from current ingredients
       const result = await estimateNutrition(recipe)
       if (cancelled) return
       setNutrition(result)
       setLoading(false)
 
+      // Cache the result
       if (result && isSaved(recipe)) {
         setCachedNutrition(recipe.id, result).catch(() => {})
       }
@@ -50,38 +60,6 @@ export function NutritionCard({ recipe }: NutritionCardProps) {
     load()
     return () => { cancelled = true }
   }, [recipe])
-
-  // Show JSON-LD nutrition if available
-  const jsonLd = recipe.nutrition
-  if (jsonLd && jsonLd.calories != null) {
-    return (
-      <div className="nutrition-card">
-        <button
-          className="nutrition-card-header"
-          onClick={() => setExpanded(!expanded)}
-        >
-          <span className="nutrition-title">Nutrition</span>
-          <span className="nutrition-summary">
-            {jsonLd.calories} cal
-            {jsonLd.proteinG != null && ` · ${jsonLd.proteinG}g protein`}
-          </span>
-          <span className="nutrition-chevron">{expanded ? '\u25B2' : '\u25BC'}</span>
-        </button>
-        {expanded && (
-          <div className="nutrition-card-body">
-            <div className="nutrition-macros">
-              {jsonLd.calories != null && <MacroItem label="Calories" value={jsonLd.calories} />}
-              {jsonLd.proteinG != null && <MacroItem label="Protein" value={jsonLd.proteinG} unit="g" />}
-              {jsonLd.fatG != null && <MacroItem label="Fat" value={jsonLd.fatG} unit="g" />}
-              {jsonLd.carbohydrateG != null && <MacroItem label="Carbs" value={jsonLd.carbohydrateG} unit="g" />}
-              {jsonLd.fiberG != null && <MacroItem label="Fiber" value={jsonLd.fiberG} unit="g" />}
-            </div>
-            <p className="nutrition-source">Per serving · from recipe source</p>
-          </div>
-        )}
-      </div>
-    )
-  }
 
   if (loading) {
     return (
@@ -110,11 +88,11 @@ export function NutritionCard({ recipe }: NutritionCardProps) {
       {expanded && (
         <div className="nutrition-card-body">
           <div className="nutrition-macros">
-            <MacroItem label="Calories" value={perServing.calories} approx />
-            <MacroItem label="Protein" value={perServing.protein} unit="g" approx />
-            <MacroItem label="Fat" value={perServing.fat} unit="g" approx />
-            <MacroItem label="Carbs" value={perServing.carbs} unit="g" approx />
-            <MacroItem label="Fiber" value={perServing.fiber} unit="g" approx />
+            <MacroItem label="Calories" value={perServing.calories} />
+            <MacroItem label="Protein" value={perServing.protein} unit="g" />
+            <MacroItem label="Fat" value={perServing.fat} unit="g" />
+            <MacroItem label="Carbs" value={perServing.carbs} unit="g" />
+            <MacroItem label="Fiber" value={perServing.fiber} unit="g" />
           </div>
           <p className="nutrition-source">
             Per serving · estimated from USDA data ({matchedCount}/{ingredientCount} ingredients matched)
@@ -126,10 +104,10 @@ export function NutritionCard({ recipe }: NutritionCardProps) {
   )
 }
 
-function MacroItem({ label, value, unit, approx }: { label: string; value: number; unit?: string; approx?: boolean }) {
+function MacroItem({ label, value, unit }: { label: string; value: number; unit?: string }) {
   return (
     <div className="macro-item">
-      <span className="macro-value">{approx && '~'}{value}{unit}</span>
+      <span className="macro-value">~{value}{unit}</span>
       <span className="macro-label">{label}</span>
     </div>
   )
