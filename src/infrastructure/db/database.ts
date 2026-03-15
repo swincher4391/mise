@@ -2,6 +2,7 @@ import Dexie, { type Table } from 'dexie'
 import type { SavedRecipe } from '@domain/models/SavedRecipe.ts'
 import type { GroceryList } from '@domain/models/GroceryList.ts'
 import type { MealPlan } from '@domain/models/MealPlan.ts'
+import type { RecipeNutrition } from '@domain/models/RecipeNutrition.ts'
 
 export interface ExtractionCacheEntry {
   canonicalUrl: string
@@ -10,11 +11,17 @@ export interface ExtractionCacheEntry {
   ocrText: string | null
 }
 
+export interface NutritionCacheEntry {
+  recipeId: string
+  nutrition: RecipeNutrition
+}
+
 export class MiseDB extends Dexie {
   recipes!: Table<SavedRecipe, string>
   groceryLists!: Table<GroceryList, string>
   mealPlans!: Table<MealPlan, string>
   extractionCache!: Table<ExtractionCacheEntry, string>
+  nutritionCache!: Table<NutritionCacheEntry, string>
 
   constructor() {
     super('MiseDB')
@@ -49,6 +56,14 @@ export class MiseDB extends Dexie {
       groceryLists: 'id, name, createdAt, updatedAt',
       mealPlans: 'id, weekStart, updatedAt',
       extractionCache: 'canonicalUrl, extractedAt',
+    })
+
+    this.version(6).stores({
+      recipes: 'id, sourceUrl, title, savedAt, *tags, favorite',
+      groceryLists: 'id, name, createdAt, updatedAt',
+      mealPlans: 'id, weekStart, updatedAt',
+      extractionCache: 'canonicalUrl, extractedAt',
+      nutritionCache: 'recipeId',
     })
   }
 }

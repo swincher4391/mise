@@ -1,5 +1,6 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import type { DayOfWeek, MealSlot } from '@domain/models/MealPlan.ts'
+import type { RecipeNutrition } from '@domain/models/RecipeNutrition.ts'
 import { useSavedRecipes } from '@presentation/hooks/useSavedRecipes.ts'
 import { useMealPlan } from '@presentation/hooks/useMealPlan.ts'
 import { getWeekStart, offsetWeek, formatWeekRange, formatWeekName, DAYS_OF_WEEK } from '@application/mealplan/weekUtils.ts'
@@ -7,6 +8,7 @@ import { mealPlanToSelectedRecipes } from '@application/mealplan/mealPlanToGroce
 import { aggregateIngredients } from '@application/grocery/aggregateIngredients.ts'
 import { addMealToPlan, removeMealFromPlan } from '@infrastructure/db/mealPlanRepository.ts'
 import { saveGroceryList } from '@infrastructure/db/groceryRepository.ts'
+import { getCachedNutritionBulk } from '@infrastructure/db/nutritionCacheRepository.ts'
 import type { GroceryList } from '@domain/models/GroceryList.ts'
 import { trackEvent } from '@infrastructure/analytics/track.ts'
 import { MealPlanDaySection } from '@presentation/components/mealplan/MealPlanDaySection.tsx'
@@ -24,15 +26,26 @@ export function MealPlanPage({ onNavigateToGrocery }: MealPlanPageProps) {
 
   const [pickerTarget, setPickerTarget] = useState<{ day: DayOfWeek; slot: MealSlot } | null>(null)
   const [nutritionCopied, setNutritionCopied] = useState(false)
+  const [nutritionMap, setNutritionMap] = useState<Map<string, RecipeNutrition>>(new Map())
 
   const meals = plan?.meals ?? []
   const mealCount = meals.length
+
+  // Load nutrition cache for recipes in this week's plan
+  useEffect(() => {
+    const recipeIds = [...new Set(meals.map((m) => m.recipeId))]
+    if (recipeIds.length === 0) {
+      setNutritionMap(new Map())
+      return
+    }
+    getCachedNutritionBulk(recipeIds).then(setNutritionMap).catch(() => {})
+  }, [meals])
 
   // Check if current week and compute today's nutrition
   const currentWeekStart = getWeekStart()
   const isCurrentWeek = weekStart === currentWeekStart
   const todayNutrition = isCurrentWeek
-    ? computeDayNutrition(getTodayDayOfWeek(), meals, recipes)
+    ? computeDayNutrition(getTodayDayOfWeek(), meals, recipes, nutritionMap)
     : null
 
   const handlePrevWeek = useCallback(() => {

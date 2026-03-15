@@ -6,6 +6,11 @@ import { parseIngredients } from '@application/parser/IngredientParser.ts'
 const SHARE_BASE = 'https://mise.swinch.dev/api/r'
 const MAX_URL_LENGTH = 6000
 
+/** Strip per-ingredient cost annotations like "($2.09)" from ingredient text. */
+function stripCostAnnotations(text: string): string {
+  return text.replace(/\s*\(\$\d+(?:\.\d{1,2})?\)/g, '').trim()
+}
+
 /**
  * Compact share payload — short keys to minimize compressed size.
  * Only includes what schema.org/Recipe needs.
@@ -57,7 +62,7 @@ export interface SharePayload {
 export function recipeToSharePayload(recipe: Recipe | SavedRecipe): SharePayload {
   const payload: SharePayload = {
     t: recipe.title,
-    ig: recipe.ingredients.map((i) => i.raw),
+    ig: recipe.ingredients.map((i) => stripCostAnnotations(i.raw)),
     st: recipe.steps.map((s) => s.text),
   }
 

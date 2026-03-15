@@ -39,14 +39,19 @@ describe('CWE-79: XSS via share payload', () => {
 
   it('escapes script tags in steps', () => {
     const html = buildRecipeHtml(payload({ st: ['<svg/onload=alert(1)>'] }))
-    // In the HTML steps, it must be escaped
-    expect(html).toContain('&lt;svg/onload=alert(1)&gt;')
+    // Steps are not rendered as HTML — only step count is shown.
+    // The malicious step text must not appear unescaped anywhere.
+    expect(html).not.toContain('<svg/onload=alert(1)>')
+    // Step count should still render
+    expect(html).toContain('1 steps')
   })
 
   it('escapes HTML in description', () => {
     const html = buildRecipeHtml(payload({ d: '<div onmouseover="alert(1)">hover me</div>' }))
-    // In the description paragraph, it must be escaped
-    expect(html).toContain('&lt;div onmouseover=')
+    // Description is generated from recipe facts, not rendered from payload.d.
+    // The malicious description must not appear unescaped anywhere in the output.
+    expect(html).not.toContain('<div onmouseover=')
+    expect(html).not.toContain('hover me</div>')
   })
 
   it('escapes HTML in author', () => {
@@ -85,7 +90,8 @@ describe('CWE-79: XSS via share payload', () => {
 
   it('allows valid https imageUrl', () => {
     const html = buildRecipeHtml(payload({ img: 'https://example.com/photo.jpg' }))
-    expect(html).toContain('src="https://example.com/photo.jpg"')
+    // Image appears in og:image and twitter:image meta tags
+    expect(html).toContain('content="https://example.com/photo.jpg"')
   })
 
   it('allows valid https sourceUrl', () => {
@@ -193,9 +199,10 @@ describe('CWE-20: Input validation', () => {
     const html = buildRecipeHtml(payload({
       n: { cal: '<script>alert(1)</script>' as any },
     }))
-    // safeNum coerces non-numbers to "0" in the HTML rendering
-    expect(html).toContain('<div class="nutrition-label">Calories</div>0</div>')
-    // JSON-LD uses <\/ to prevent script breakout even with bad values
+    // Nutrition is only in JSON-LD, not rendered as visible HTML.
+    // Malicious values must not cause script breakout in the JSON-LD block.
     expect(html).not.toMatch(/<\/script>\s*<script>alert/)
+    // The script tag in the value should be escaped via JSON-LD <\/ escaping
+    expect(html).not.toContain('</script><script>')
   })
 })

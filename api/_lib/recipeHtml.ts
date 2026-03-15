@@ -42,6 +42,11 @@ function esc(text: string): string {
     .replace(/"/g, '&quot;')
 }
 
+/** Strip per-ingredient cost annotations like "($2.09)" from ingredient text. */
+function stripCostAnnotations(text: unknown): string {
+  return String(text ?? '').replace(/\s*\(\$\d+(?:\.\d{1,2})?\)/g, '').trim()
+}
+
 /** Only allow http/https URLs — blocks javascript:, data:, vbscript:, etc. */
 function safeUrl(url: string): string | null {
   try {
@@ -99,7 +104,7 @@ export function buildRecipeHtml(payload: SharePayload, shareUrl?: string, encode
   if (payload.cu?.length) jsonLd.recipeCuisine = payload.cu
   if (payload.cat?.length) jsonLd.recipeCategory = payload.cat
 
-  jsonLd.recipeIngredient = payload.ig
+  jsonLd.recipeIngredient = payload.ig.map(stripCostAnnotations)
   // Omit full recipeInstructions to avoid republishing copyrightable expression.
   // Include step count so rich results can still display "N steps".
   if (payload.st.length > 0) {
@@ -140,7 +145,7 @@ export function buildRecipeHtml(payload: SharePayload, shareUrl?: string, encode
   if (payload.tt) timeParts.push(`Total: ${formatTime(payload.tt)}`)
 
   const ingredientsHtml = payload.ig
-    .map((ig) => `        <li>${esc(String(ig ?? ''))}</li>`)
+    .map((ig) => `        <li>${esc(stripCostAnnotations(ig))}</li>`)
     .join('\n')
 
   const stepCount = payload.st.length

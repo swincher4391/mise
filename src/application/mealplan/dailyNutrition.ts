@@ -1,5 +1,6 @@
 import type { DayOfWeek, PlannedMeal } from '@domain/models/MealPlan.ts'
 import type { SavedRecipe } from '@domain/models/SavedRecipe.ts'
+import type { RecipeNutrition } from '@domain/models/RecipeNutrition.ts'
 
 export interface DailyNutritionTotal {
   calories: number
@@ -12,13 +13,15 @@ export interface DailyNutritionTotal {
 
 /**
  * Compute total nutrition for a given day from planned meals.
- * Uses estimatedNutrition (USDA) if available, falls back to JSON-LD nutrition.
+ * Uses cached estimated nutrition if available, falls back to JSON-LD nutrition.
+ * Accepts a pre-loaded nutrition cache map to avoid async lookups.
  * Returns null if no meals have nutrition data.
  */
 export function computeDayNutrition(
   day: DayOfWeek,
   meals: PlannedMeal[],
-  recipes: SavedRecipe[]
+  recipes: SavedRecipe[],
+  nutritionCache?: Map<string, RecipeNutrition>
 ): DailyNutritionTotal | null {
   const dayMeals = meals.filter((m) => m.day === day)
   if (dayMeals.length === 0) return null
@@ -35,8 +38,9 @@ export function computeDayNutrition(
     const recipe = recipeMap.get(meal.recipeId)
     if (!recipe) continue
 
-    // Same priority as MealPlanDaySection: estimatedNutrition first, then JSON-LD
-    const n = recipe.estimatedNutrition?.perServing ?? (recipe.nutrition ? {
+    // Check cached estimated nutrition first, then JSON-LD
+    const cached = nutritionCache?.get(recipe.id)
+    const n = cached?.perServing ?? (recipe.nutrition ? {
       calories: recipe.nutrition.calories ?? 0,
       protein: recipe.nutrition.proteinG ?? 0,
       fat: recipe.nutrition.fatG ?? 0,

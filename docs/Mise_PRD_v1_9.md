@@ -22,17 +22,18 @@
 7. [Feature 4: Meal Planning & Grocery Lists](#7-feature-4-meal-planning--grocery-lists)
 8. [Feature 5: Grocery Integration](#8-feature-5-grocery-integration)
 9. [Feature 6: Discover](#9-feature-6-discover)
-10. [Ingredient Parser (The Hard, Valuable Part)](#10-ingredient-parser-the-hard-valuable-part)
-11. [Data Model](#11-data-model)
-12. [Competitive Landscape](#12-competitive-landscape)
-13. [Packaging & Distribution](#13-packaging--distribution)
-14. [Monetization](#14-monetization)
-15. [Promise Boundaries](#15-promise-boundaries)
-16. [What Shipped (Build History)](#16-what-shipped-build-history)
-17. [Roadmap (What's Next)](#17-roadmap-whats-next)
-18. [Testing Strategy](#18-testing-strategy)
-19. [Security & Content Sanitization](#19-security--content-sanitization)
-20. [Non-Functional Requirements](#20-non-functional-requirements)
+10. [Feature 7: Nutrition Estimation](#10-feature-7-nutrition-estimation)
+11. [Ingredient Parser (The Hard, Valuable Part)](#11-ingredient-parser-the-hard-valuable-part)
+12. [Data Model](#12-data-model)
+13. [Competitive Landscape](#13-competitive-landscape)
+14. [Packaging & Distribution](#14-packaging--distribution)
+15. [Monetization](#15-monetization)
+16. [Promise Boundaries](#16-promise-boundaries)
+17. [What Shipped (Build History)](#17-what-shipped-build-history)
+18. [Roadmap (What's Next)](#18-roadmap-whats-next)
+19. [Testing Strategy](#19-testing-strategy)
+20. [Security & Content Sanitization](#20-security--content-sanitization)
+21. [Non-Functional Requirements](#21-non-functional-requirements)
 
 ---
 
@@ -44,7 +45,7 @@ Mise is a Progressive Web App (PWA) hosted on Vercel. It runs on phones, tablets
 
 The core workflow is: paste a URL -> get a clean recipe -> save it to your library -> cook from it. The extended workflow adds five input modes (URL extraction, photo import, video extraction, text paste, and AI generation), a discovery engine for finding new recipes, weekly meal planning, grocery list generation, and one-tap shopping via Instacart at 85,000+ retailers.
 
-**What changed since v1.8:** PRD accuracy pass — fixed factual inconsistencies (Instacart status, grocery section header) and added strategic gaps identified by review. Documented post-save meal plan calendar prompt as shipped feature in 7.1 and 13.7. Added HuggingFace single-point-of-failure risk section (3.6). Updated Reddit distribution to reflect r/food permaban and volume constraints. Added TikTok/Facebook Groups as distribution channels (13.1) and TikTok marketing as high-priority roadmap item. Image URL extraction: pasting an image URL (Reddit, Facebook CDN, Imgur, etc.) now routes directly to vision extraction with server-side proxy for CDN-hosted images. Marked r/food whitelisting as blocked, Reddit launch as paused.
+**What changed since v1.8:** Nutrition estimation added to meal planner via USDA FoodData Central API. Planned meals now display estimated calories, protein, fat, and carbs per recipe and per day. Macro totals appear in the weekly meal planner view as a natural extension of meal planning — no separate tracking app required. PRD accuracy pass — fixed factual inconsistencies (Instacart status, grocery section header) and added strategic gaps identified by review. Documented post-save meal plan calendar prompt as shipped feature in 7.1 and 13.7. Added HuggingFace single-point-of-failure risk section (3.6). Updated Reddit distribution to reflect r/food permaban and volume constraints. Added TikTok/Facebook Groups as distribution channels (13.1) and TikTok marketing as high-priority roadmap item. Image URL extraction: pasting an image URL (Reddit, Facebook CDN, Imgur, etc.) now routes directly to vision extraction with server-side proxy for CDN-hosted images. Marked r/food whitelisting as blocked, Reddit launch as paused.
 
 ---
 
@@ -86,6 +87,7 @@ The "Jump to Recipe" button is the industry's confession that the content above 
 | Payment | Stripe (one-time checkout) | $4.99 unlock via Stripe Checkout. Comp system via COMPED_EMAILS env var with PIN verification. |
 | Grocery Integration | Instacart Developer Platform (primary) + Kroger Developer API (deprecating) | Instacart: recipe-level and shopping-list-level deep links via Shopping APIs with affiliate tracking via Impact. Kroger: product search, price lookup, cart management via OAuth2 (retained as internal feature). |
 | Analytics | Vercel Analytics + PostHog + Pinterest Analytics | Vercel: privacy-focused aggregate metrics. PostHog: product analytics with autocapture, custom events, and conversion funnels (extract → save → meal plan → shop). Pinterest Analytics: Rich Pin impressions, click-throughs, and saves via verified domain (business account). |
+| Nutrition Estimation | USDA FoodData Central API (api.nal.usda.gov/fdc/v1) | Maps parsed ingredients to USDA food entries for macro estimation. Proxied through Vercel serverless function. Free API key for higher rate limits. Results cached locally per-recipe. |
 | Sanitization | DOMPurify | XSS prevention on all extracted content. |
 
 ### 3.2 The CORS Problem (How It Was Solved)
@@ -346,18 +348,84 @@ Discover is unlimited on the free tier. It drives engagement and feeds the extra
 
 ---
 
-## 10. Ingredient Parser (The Hard, Valuable Part)
+## 10. Feature 7: Nutrition Estimation [NEW]
+
+### 10.1 What It Does
+
+Estimates per-recipe macros (calories, protein, fat, carbs, fiber) by mapping parsed ingredients to the USDA FoodData Central database. The meal planner displays daily totals across all planned meals for the current week.
+
+### 10.2 How It Works
+
+1. **Ingredient mapping.** Each parsed ingredient (structured output from the existing ingredient parser: quantity, unit, name) is searched against the USDA FoodData Central API (`/v1/foods/search`). The ingredient name is the search query. Use `dataType` filter for "Survey (FNDDS)" and "SR Legacy" which have the best macro coverage.
+
+2. **Local staples cache.** A bundled JSON lookup table maps ~200 common ingredients (chicken breast, rice, olive oil, eggs, flour, butter, onion, garlic, etc.) directly to USDA FDC IDs and per-100g macro values. This eliminates API calls for staples, improves accuracy (hand-verified matches), and works offline.
+
+3. **Unit-to-gram conversion.** The existing unit normalization logic (built for grocery aggregation) converts parsed quantities to grams. For volume-based measurements (cups, tablespoons), use USDA portion/measure data from the API response (`foodMeasures` array) to get gram equivalents. Fallback: use a standard density table for common ingredients (e.g., 1 cup flour ≈ 125g, 1 cup rice ≈ 185g).
+
+4. **Per-recipe calculation.** For each ingredient: `(quantity_in_grams / 100) × nutrient_per_100g`. Sum across all ingredients. Divide by `servings` to get per-serving values. Store the result on the Recipe object in IndexedDB.
+
+5. **Meal plan daily totals.** The weekly planner view sums per-serving macros across all recipes assigned to each day. Display as a summary row: "~1,380 cal | 115g protein | 52g fat | 145g carbs".
+
+6. **Staleness.** Nutrition estimates are computed on first save and cached. If a recipe's ingredients are edited, the cached nutrition is cleared and recomputed on next view. Nutrition is never recomputed automatically in the background.
+
+### 10.3 What It Is NOT
+
+- NOT a food diary or calorie tracker. There is no daily logging, no "add a snack" flow, no weight tracking.
+- NOT a substitute for verified nutrition labels. All values are estimates with a visible disclaimer.
+- NOT a dietary recommendation engine. No goals, no targets, no red/green indicators. Just numbers.
+
+### 10.4 UI
+
+- **Recipe detail view:** Nutrition card below ingredients showing per-serving macros. Small text: "Estimated from USDA FoodData Central. Values are approximate."
+- **Meal plan weekly view:** Daily summary row at the bottom of each day column. Same disclaimer on hover/tap.
+- **No nutrition on recipe cards in the library.** Too noisy. Only visible when you drill into a recipe or view the meal plan.
+
+### 10.5 API Architecture
+
+New Vercel serverless function: `/api/nutrition`
+
+- Accepts: `{ ingredients: [{ name: string, quantity: number, unit: string }] }`
+- Returns: `{ perServing: { calories, protein, fat, carbs, fiber }, perIngredient: [...], confidence: "high" | "medium" | "low" }`
+- Checks local staples cache first, calls USDA API for misses.
+- `USDA_API_KEY` stored in Vercel environment variables.
+- Confidence is based on match quality: exact staple match = high, top USDA result with matching food category = medium, fuzzy match or no portion data = low.
+
+### 10.6 Data Model Addition
+
+Add to the Recipe interface:
+
+```typescript
+interface RecipeNutrition {
+  perServing: {
+    calories: number;
+    protein: number;  // grams
+    fat: number;      // grams
+    carbs: number;    // grams
+    fiber: number;    // grams
+  };
+  confidence: 'high' | 'medium' | 'low';
+  computedAt: string; // ISO timestamp
+  ingredientCount: number;    // total ingredients
+  matchedCount: number;       // ingredients successfully matched
+}
+```
+
+Add `nutrition?: RecipeNutrition` to the existing Recipe type. Stored in IndexedDB alongside the recipe. No schema migration needed (optional field on existing records).
+
+---
+
+## 11. Ingredient Parser (The Hard, Valuable Part)
 
 *Architecture unchanged from v1.2. Results exceeded expectations.*
 
-### 10.1 Current State
+### 11.1 Current State
 
 - **172+ unit test fixtures** covering quantities, units, fractions, ranges, parentheticals, prep instructions, compound ingredients, and edge cases.
 - **348 total tests** passing across 15 test files (parser, extraction, validation, scaling, aggregation, security, Instacart mapping).
 - Rule-based pipeline in TypeScript. Deterministic, fast, client-side.
 - Parser handles: whole numbers, fractions, unicode fractions, ranges (3-4), mixed numbers (1 1/2), absent quantities ("to taste"), standard units, informal units, container-based units, parenthetical notes, prep before/after ingredient, compound ingredients, optional flags.
 
-### 10.2 What Changed from v1.2
+### 11.2 What Changed from v1.2
 
 - Parser accuracy exceeded the "90% case" target. Handles the vast majority of real-world ingredient strings without LLM fallback.
 - LLM-assisted parsing (Phase 2) has not been needed. The rule-based parser is sufficient for production use.
@@ -365,11 +433,11 @@ Discover is unlimited on the free tier. It drives engagement and feeds the extra
 
 ---
 
-## 11. Data Model
+## 12. Data Model
 
 *Core schema unchanged from v1.2.* All data stored in IndexedDB via Dexie.js. Key additions:
 
-### 11.1 Additions Since v1.2
+### 12.1 Additions Since v1.2
 
 | Entity | Status | Notes |
 | --- | --- | --- |
@@ -378,11 +446,12 @@ Discover is unlimited on the free tier. It drives engagement and feeds the extra
 | MealPlan | Shipped | Flat entries queried by date range. |
 | GroceryList | Shipped | Aggregated items + manual items. Checked state persists. |
 | Collection | Not shipped | Tags provide sufficient organization. |
-| Nutrition | Shipped | Extracted from JSON-LD when available. Display only, no estimation. |
+| Nutrition | Shipped | Extracted from JSON-LD when available. Estimated via USDA FoodData Central when JSON-LD nutrition is not available. JSON-LD nutrition data is preferred when present. |
+| RecipeNutrition | Shipped | Optional field on Recipe. Cached macro estimates from USDA FoodData Central. Per-serving calories, protein, fat, carbs, fiber. Confidence indicator. |
 
 ---
 
-## 12. Competitive Landscape
+## 13. Competitive Landscape
 
 *Updated to reflect current positioning.*
 
@@ -394,13 +463,13 @@ Discover is unlimited on the free tier. It drives engagement and feeds the extra
 | CookBook | Free + $2.99 premium | No ads. Photo import. Video import. Grocery integration. Recipe discovery. |
 | Whisk (Samsung) | Free | No ecosystem lock-in. Privacy-first. Deeper ingredient parsing. |
 
-**Honest assessment:** Paprika is still the gold standard for recipe management. Mise's differentiation is now clearer: (1) PWA cross-platform, (2) five input modes including video extraction and AI generation that no competitor matches, (3) Instacart grocery integration covering 85,000+ stores, (4) recipe discovery engine, (5) hands-free cook mode with read-aloud. The grocery integration is the moat — it turns a recipe app into a shopping tool. The AI features are the hook — they make recipe capture effortless from any source.
+**Honest assessment:** Paprika is still the gold standard for recipe management. Mise's differentiation is now clearer: (1) PWA cross-platform, (2) five input modes including video extraction and AI generation that no competitor matches, (3) Instacart grocery integration covering 85,000+ stores, (4) recipe discovery engine, (5) hands-free cook mode with read-aloud, (6) nutrition-aware meal planning (estimated macros per recipe and per day). The grocery integration is the moat — it turns a recipe app into a shopping tool. The AI features are the hook — they make recipe capture effortless from any source.
 
 ---
 
-## 13. Packaging & Distribution
+## 14. Packaging & Distribution
 
-### 13.1 Current Distribution
+### 14.1 Current Distribution
 
 | Channel | Status | Notes |
 | --- | --- | --- |
@@ -411,10 +480,11 @@ Discover is unlimited on the free tier. It drives engagement and feeds the extra
 | Reddit (organic) | Paused | Validated in r/MealPrepSunday, r/webdev. r/food permaban constrains reach. Requires careful pacing. |
 | TikTok / short-form video | Not started | No gatekeepers, algorithmic reach. Best channel for recipe extraction demos. High priority. |
 | Facebook Groups | Not started | Recipe-sharing groups with millions of members. Link previews work (OG tags render). |
+| PeerPush | Submitted | Directory listing in queue. Provides backlink and discovery. |
 | Chrome Extension | Not shipped | Extension code exists in repo (`/extension/`) but not published to Chrome Web Store. |
 | App stores | Not shipped | PWA is sufficient. |
 
-### 13.2 Infrastructure Costs (Actual)
+### 14.2 Infrastructure Costs (Actual)
 
 | Item | Cost |
 | --- | --- |
@@ -425,9 +495,10 @@ Discover is unlimited on the free tier. It drives engagement and feeds the extra
 | HuggingFace Inference API | $0 (free tier, rate-limited) |
 | PostHog | $0 (free tier, 1M events/month) |
 | Pinterest Analytics | $0 (included with verified business account) |
+| USDA FoodData Central API | $0 (free, API key for rate limits) |
 | **Total fixed cost** | **~$12/year** |
 
-### 13.3 Community Launch Plan (Reddit)
+### 14.3 Community Launch Plan (Reddit)
 
 **Strategy:** Provide genuine value first. Every post should help someone cook dinner tonight. The product mention is secondary — it earns attention because the post is useful, not because the post is an ad. Follow the 9:1 rule: nine helpful comments/posts for every one that mentions Mise.
 
@@ -467,8 +538,9 @@ Discover is unlimited on the free tier. It drives engagement and feeds the extra
 - **Don't post share links in subs with domain whitelists** (r/food) without getting whitelisted first — results in permaban.
 
 **Known constraints (March 2026):**
-- **r/food permaban.** Account permanently banned for posting a non-whitelisted domain. This subreddit (3M+) is inaccessible without a new account or successful appeal.
-- **Volume sensitivity.** Posting share links across multiple subs in a single day triggered spam detection. Space posts across days, not hours.
+- **Account-level suspension (temporary).** Posting share links across multiple subs in a short window triggered Reddit's automated spam detection, which removed all prior posts site-wide. The suspension resolved — account can post in all subs except r/food. This is distinct from the r/food ban below.
+- **r/food permaban (permanent).** Posting a non-whitelisted domain triggered automod removal, which escalated to a permanent subreddit ban. This subreddit (3M+) is inaccessible without a new account or successful appeal. Separate from the account-level suspension.
+- **Volume sensitivity.** One sub per day maximum. Never post the same domain link in multiple subs on the same day.
 
 #### Validated Results (March 2026)
 
@@ -489,7 +561,7 @@ Reddit community sharing has been validated as an organic distribution channel:
 - Rapport-first approach works: genuine participation earns trust, product mentions are organic
 - "Recipe digitization service" concept emerged: offering to convert recipe requests into clean digital format drives natural engagement and share link distribution
 
-### 13.4 SEO Distribution: Share URLs as Crawlable Landing Pages
+### 14.4 SEO Distribution: Share URLs as Crawlable Landing Pages
 
 **This is the most novel distribution mechanism in the product.** Every recipe shared from Mise creates a crawlable, indexable landing page — with zero database, zero infrastructure, and zero per-page cost.
 
@@ -595,11 +667,11 @@ User cooks recipe → Shares to friend/Pinterest/social
 
 The key insight: **the user is the distribution mechanism.** Every share creates permanent, indexed, crawlable content that drives new users into the Instacart affiliate funnel. This costs nothing per share and compounds over time.
 
-### 13.5 Directory Submissions (SEO Backlinks)
+### 14.5 Directory Submissions (SEO Backlinks)
 
-Strategy documented in `plans/directory-submission-strategy.md`. 51 directory targets ranked by Domain Rating (DR 40-91), targeting AI tools, software directories, and general directories. Provides backlinks for domain authority independent of the share URL strategy.
+Strategy documented in `plans/directory-submission-strategy.md`. 51 directory targets ranked by Domain Rating (DR 40-91), targeting AI tools, software directories, and general directories. Provides backlinks for domain authority independent of the share URL strategy. PeerPush listing submitted (in queue).
 
-### 13.6 Pinterest Bulk Pin Script (Non-Recipe Content)
+### 14.6 Pinterest Bulk Pin Script (Non-Recipe Content)
 
 A standalone Python script (`scripts/pinterest/pin_recipes.py`) exists for bulk-creating Pinterest pins via the Pinterest API v5. This is separate from the in-app "Pin It" flow and intended for:
 
@@ -609,7 +681,7 @@ A standalone Python script (`scripts/pinterest/pin_recipes.py`) exists for bulk-
 
 The script reads recipe JSON exports, generates branded pin images (Pillow), and posts via OAuth access token. It tracks progress to avoid duplicates. See `scripts/pinterest/README.md` for setup.
 
-### 13.7 Share-Link Visitor Conversion Flywheel
+### 14.7 Share-Link Visitor Conversion Flywheel
 
 Share links bring visitors who see a specific recipe but have no context about Mise's value. The conversion flywheel addresses each drop-off point:
 
@@ -622,18 +694,18 @@ Share links bring visitors who see a specific recipe but have no context about M
 
 ---
 
-## 14. Monetization
+## 15. Monetization
 
 *This section is substantially rewritten from v1.2. Monetization is no longer hypothetical.*
 
-### 14.1 Revenue Model: Two Streams
+### 15.1 Revenue Model: Two Streams
 
 | Stream | Mechanism | Status |
 | --- | --- | --- |
 | **One-time unlock** | $4.99 via Stripe Checkout. Unlocks unlimited saved recipes, photo import, unlimited video extraction, and all features. | Live |
 | **Grocery affiliate commission** | Instacart checkout via IDP. 5% commission on cart value tracked through Impact affiliate platform. | Live |
 
-### 14.2 Why $4.99
+### 15.2 Why $4.99
 
 The $4.99 isn't where the money is made -- the affiliate revenue is. The one-time payment serves three purposes:
 
@@ -641,7 +713,7 @@ The $4.99 isn't where the money is made -- the affiliate revenue is. The one-tim
 2. **Positions against competition.** JustTheRecipe charges $2/month ($24/year). Paprika charges $4.99 per platform. Mise is $4.99 total, forever, every device.
 3. **Removes friction at the right moment.** Going higher ($9.99) loses users who would generate grocery affiliate revenue. Going lower ($2.99) undervalues the product without meaningfully reducing friction.
 
-### 14.3 Free Tier
+### 15.3 Free Tier
 
 | Feature | Free Limit |
 | --- | --- |
@@ -663,7 +735,7 @@ The free tier includes the grocery flow and AI features intentionally. A free us
 
 Video extraction limits are per-platform: a free user gets 3 TikTok, 3 YouTube Shorts, and 3 Instagram imports (9 total). Only successful extractions consume a use. Counters stored in localStorage.
 
-### 14.4 Entitlement Mechanism
+### 15.4 Entitlement Mechanism
 
 - Stripe Checkout (mode: 'payment', one-time, not subscription).
 - On successful payment, unlock flag stored locally in IndexedDB keyed to email.
@@ -671,13 +743,13 @@ Video extraction limits are per-platform: a free user gets 3 TikTok, 3 YouTube S
 - Comp system: `COMPED_EMAILS` environment variable with optional PIN verification for gifted access.
 - Video extraction counters: per-platform counts in localStorage (`mise_video_extract_tiktok`, `mise_video_extract_youtube`, `mise_video_extract_instagram`).
 
-### 14.5 Affiliate Integration
+### 15.5 Affiliate Integration
 
 Instacart Developer Platform handles affiliate attribution through the API integration itself. When a user checks out via an Instacart link generated through the Shopping APIs, the purchase is tracked via Impact affiliate platform. No separate affiliate redirect or cookie-setting step is needed — attribution is built into the checkout URL.
 
 FTC disclosure ("Mise may earn a commission from purchases made through these links.") is displayed above the checkout button.
 
-### 14.6 Revenue Timeline
+### 15.6 Revenue Timeline
 
 | Milestone | Status | Notes |
 | --- | --- | --- |
@@ -690,7 +762,7 @@ FTC disclosure ("Mise may earn a commission from purchases made through these li
 | **Revenue pipeline** | **Live** | **Full funnel operational: meal plan → grocery list → Instacart checkout → affiliate commission.** |
 | Share-link conversion flywheel | Done | Save hints, post-save nudge, meal plan prompt improvements drive share-link visitors to save and engage. |
 
-### 14.7 Revenue Flywheel & Unit Economics
+### 15.7 Revenue Flywheel & Unit Economics
 
 The real business model isn't the $4.99 paywall — it's recurring grocery affiliate revenue driven by meal planning.
 
@@ -723,7 +795,7 @@ Instacart affiliate terms: 5% commission on all orders (both new user activation
 
 **Implication for free tier:** Free users who meal plan and shop weekly are the most valuable users. The paywall should gate convenience features (photo import, video import, batch import), not the commerce funnel. A free user generating $7.50/week in affiliate revenue is worth more than a paid user who saves 25 recipes and never shops. The 7-day referral window aligns perfectly with the weekly meal plan cycle — a user who plans on Sunday and shops by Saturday is always within the attribution window.
 
-### 14.8 What We Will Never Do
+### 15.8 What We Will Never Do
 
 - **Ads.** Ever. This product exists because ads ruined recipe websites.
 - **Sell user data.** There is no user data to sell. Everything is local.
@@ -732,13 +804,15 @@ Instacart affiliate terms: 5% commission on all orders (both new user activation
 
 **What changed from v1.2:** The PRD originally stated "No affiliate links in recipes. No brand partnerships." This was revised. The affiliate integration is in the shopping checkout flow, which is a feature the user explicitly initiates. The affiliate revenue aligns user and business incentives: the user gets a convenient shopping experience at their preferred retailer, and Mise earns a commission on purchases the user was already going to make. This is fundamentally different from injecting "buy this on Amazon" links into ingredient lists.
 
-### 14.9 What Changed from v1.5 (Free Tier Strategy)
+### 15.9 What Changed from v1.5 (Free Tier Strategy)
 
-The v1.5 PRD noted "the paywall gates library size, not the commerce funnel." This remains true, but v1.6 makes the reasoning explicit: the meal plan -> grocery order flywheel is the primary revenue driver, and it must remain ungated. The 25-recipe save limit may be revisited if data shows it's blocking users from building weekly meal plans (see Section 17: analytics/funnel tracking as high-priority roadmap item).
+The v1.5 PRD noted "the paywall gates library size, not the commerce funnel." This remains true, but v1.6 makes the reasoning explicit: the meal plan -> grocery order flywheel is the primary revenue driver, and it must remain ungated.
+
+**25-recipe limit tension (updated v1.9):** The post-save meal plan prompt (shipped v1.0.3) changes the calculus. A user who saves 5 recipes and meal-plans all 5 hits the shop flow at 20% of the save cap — the funnel works well within the limit. However, Discover and Describe are both unlimited and generate saveable recipes freely. A user who explores aggressively could hit 25 in two weeks and churn before ever shopping. **Action:** Track in PostHog specifically: (1) how many saves before first meal plan, (2) how many saves before first Instacart checkout, (3) what % of free users hit the 25 cap. If the median user meal-plans before 10 saves, the cap is fine. If users routinely hit 25 without meal planning, the cap is blocking the funnel.
 
 ---
 
-## 15. Promise Boundaries
+## 16. Promise Boundaries
 
 | Mise Does | Mise Does NOT Do |
 | --- | --- |
@@ -752,10 +826,11 @@ The v1.5 PRD noted "the paywall gates library size, not the commerce funnel." Th
 | Generate grocery lists from meal plans with ingredient aggregation | Order groceries for you (but it can send items to Instacart for checkout). |
 | Connect you to 85,000+ stores via Instacart | Guarantee price accuracy. Prices come from retailers via Instacart and may vary. |
 | Work offline after first load | Sync between devices. Cloud sync is a planned future feature. |
+| Estimate macros (calories, protein, fat, carbs) from parsed ingredients via USDA data | Guarantee nutrition accuracy. Estimates depend on ingredient matching and portion conversion. Not a substitute for verified nutrition labels. |
 
 ---
 
-## 16. What Shipped (Build History)
+## 17. What Shipped (Build History)
 
 The MVP build order from v1.2 is now history. Here's what actually shipped:
 
@@ -779,12 +854,14 @@ The MVP build order from v1.2 is now history. Here's what actually shipped:
 | **Monetization** | Stripe one-time checkout ($4.99), email-based restore, comp system with PIN, FTC affiliate disclosure, video extraction usage limits |
 | **Instacart (Production)** | Production API key approved, Impact affiliate account active, full revenue pipeline live (meal plan → grocery list → Instacart checkout → affiliate commission) |
 | **Share & SEO** | Share URLs as crawlable landing pages (JSON-LD + OG meta tags), Pinterest Rich Pin support, "Pin It" share button, `og:url` canonical tag, pinterest-rich-pin meta hint, Pinterest bulk pin script (standalone Python) |
-| **v1.0.3 (March 2026)** | Layer 3 heuristic HTML extraction, stub JSON-LD fallthrough, MasterCook step splitting, sentence-splitting for single-string instruction blobs, space-separated itemprop handling in microdata, paste parser section-header robustness, editable image URL in recipe edit form, save-value hints for share-link visitors, share-link visitor conversion flywheel (post-save nudge, 7×3 meal plan calendar prompt after save), SW race condition fix for shared recipe imports, image URL extraction routing (paste image URL → vision extraction with server-side proxy for CDN-hosted images) |
+| **Extraction Hardening (v1.0.3, March 2026)** | Layer 3 heuristic HTML extraction, stub JSON-LD fallthrough, MasterCook step splitting, sentence-splitting for single-string instruction blobs, space-separated itemprop handling in microdata, paste parser section-header robustness, image URL extraction routing (paste image URL → vision extraction with server-side proxy for CDN-hosted images) |
+| **Conversion Flywheel (v1.0.3, March 2026)** | Save-value hints for share-link visitors, post-save "try your own" nudge, 7×3 meal plan calendar prompt after save, editable image URL in recipe edit form, SW race condition fix for shared recipe imports |
+| **Nutrition Estimation** | USDA FoodData Central integration via serverless proxy, local staples cache (~200 ingredients), per-recipe macro estimation (calories, protein, fat, carbs, fiber), confidence scoring, meal plan daily totals, recipe detail nutrition card |
 | **Polish** | PWA install prompt (triggers after first extraction), DOMPurify sanitization, SSRF protection on proxy, Vercel Analytics |
 
 ---
 
-## 17. Roadmap (What's Next)
+## 18. Roadmap (What's Next)
 
 Ranked by expected impact:
 
@@ -809,13 +886,13 @@ Ranked by expected impact:
 | **Security audit consulting** | Low | Discovered during Reddit engagement — offering lightweight security reviews for indie developer sites. Not core product but builds credibility and community goodwill. |
 | **Inline step-text scaling** | Low | Replace quantities within step prose text when servings change. Nice-to-have. |
 | **Collections / smart filters** | Low | "Under 30 minutes", "Vegetarian" auto-collections. Tags cover most needs. |
-| **Nutrition estimation** | Low | Map ingredients to USDA FoodData Central. Valuable but not urgent. |
+| ~~**Nutrition estimation**~~ | ~~Low~~ | ~~Map ingredients to USDA FoodData Central. Valuable but not urgent.~~ **Shipped.** Per-recipe and per-day macro estimation via USDA FoodData Central. Cached locally. Displayed in recipe detail and meal planner views. |
 
 ---
 
-## 18. Testing Strategy
+## 19. Testing Strategy
 
-### 18.1 Current Test Suite
+### 19.1 Current Test Suite
 
 - **348 tests** across 15 test files, all passing.
 - **Ingredient parser:** 172 fixtures covering common cases and edge cases.
@@ -826,7 +903,7 @@ Ranked by expected impact:
 - **Security hardening:** OAuth cookie handling, CSRF protection, token encryption, input validation, rate limiting.
 - **Instacart:** Ingredient name normalization and API mapping.
 
-### 18.2 What's Tested
+### 19.2 What's Tested
 
 - Ingredient parser (fixture-based unit tests, largest suite).
 - Recipe extraction pipeline (JSON-LD, microdata, normalization).
@@ -836,7 +913,7 @@ Ranked by expected impact:
 - Step timer extraction (parsing time references from instruction text).
 - Instacart ingredient mapping (normalizing parsed ingredients to API format).
 
-### 18.3 What's Not Tested
+### 19.3 What's Not Tested
 
 - E2E / Playwright (not yet implemented).
 - Visual regression.
@@ -848,20 +925,20 @@ Ranked by expected impact:
 
 ---
 
-## 19. Security & Content Sanitization
+## 20. Security & Content Sanitization
 
-### 19.1 Extracted HTML
+### 20.1 Extracted HTML
 
 - All extracted text is treated as **plain text**, never rendered as raw HTML.
 - **DOMPurify** sanitizes any content that passes through rendering paths.
 - React's default text escaping provides an additional layer.
 
-### 19.2 CORS Proxy Security
+### 20.2 CORS Proxy Security
 
 - **SSRF protection:** Blocked private IP ranges (127.x, 10.x, 172.16-31.x, 192.168.x, 169.254.x), localhost, metadata endpoints (metadata.google.internal), non-HTTP protocols.
 - Proxy returns raw HTML for client-side extraction only. Raw HTML is never displayed.
 
-### 19.3 Kroger API Security
+### 20.3 Kroger API Security
 
 - Kroger client credentials (`KROGER_CLIENT_ID`, `KROGER_CLIENT_SECRET`) stored in Vercel environment variables, never exposed to the client.
 - OAuth2 token exchange handled server-side.
@@ -869,52 +946,58 @@ Ranked by expected impact:
 - **CSRF protection on OAuth flow.** Random `state` nonce stored in a short-lived httpOnly cookie, validated on callback before code exchange.
 - All Kroger API calls proxied through Vercel serverless functions.
 
-### 19.4 Payment Security
+### 20.4 Payment Security
 
 - Stripe Checkout handles all payment data. No credit card information touches Mise's code.
 - `STRIPE_SECRET_KEY` and `STRIPE_PRICE_ID` stored in Vercel environment variables.
 - No `.env` files have ever been committed to the repository (verified via full git history scan).
 - **Rate limiting on comp PIN verification.** 5 failed attempts per email triggers 15-minute lockout (in-memory, resets on cold start — acceptable for serverless model).
 
-### 19.5 Content Security Policy
+### 20.5 Content Security Policy
 
 - `script-src 'self'` — no inline scripts permitted. All JavaScript served from same origin.
 - `style-src 'self' 'unsafe-inline'` — inline styles allowed for React/component library compatibility.
-- `connect-src` restricted to known API domains (Stripe, Kroger, Hugging Face, tmpfiles.org, Instacart).
+- `connect-src` restricted to known API domains (Stripe, Kroger, Hugging Face, tmpfiles.org, Instacart, api.nal.usda.gov).
 - Additional headers: `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Strict-Transport-Security`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy: camera=(), microphone=(), geolocation=()`.
 - **A+ rating on SecurityHeaders.com.** A+ rating on SSL Labs. TLS 1.3 with HSTS preload (2-year max-age).
 
-### 19.6 Input Validation
+### 20.6 Input Validation
 
 - **Recipe import payloads** (base64 hash fragment): 1MB size limit, schema validation for expected recipe fields before parsing.
 - **Email format validation** on comp verification endpoint.
 - **Token format validation** on OAuth callback: non-empty string, max 4096 characters.
 
-### 19.7 CORS Policy
+### 20.7 CORS Policy
 
 - **Authenticated endpoints** (`kroger-status`, `kroger-cart`, `kroger-logout`): `Access-Control-Allow-Origin` restricted to `https://mise.swinch.dev` and `https://mise-recipe.vercel.app`. Includes `Vary: Origin` and `Access-Control-Allow-Credentials: true`.
 - **Public endpoints** (`verify-purchase`, `kroger-authorize`): `Access-Control-Allow-Origin: *`.
 
-### 19.8 PII Protection
+### 20.8 PII Protection
 
 - **Email/PIN verification moved from GET to POST** (v1.5). Prevents email addresses and PINs from appearing in server logs, Vercel analytics, browser history, and referrer headers. GET retained only for Stripe `sessionId` verification (opaque token, not PII).
 - **Legacy localStorage token cleanup** (v1.5). One-time cleanup on app load removes `kroger_access_token`, `kroger_refresh_token`, and `kroger_token_expiry` from localStorage. These legacy keys predate the migration to encrypted httpOnly cookies.
 
-### 19.9 AI Model Security
+### 20.9 AI Model Security
 
 - All AI model calls (Qwen2.5-VL, Qwen3-14B, Whisper) proxied through Vercel serverless functions. HuggingFace API key (`HF_API_KEY`) never exposed to the client.
 - Instacart API key (`INSTACART_API_KEY`) stored server-side only.
 - User-uploaded images are uploaded to tmpfiles.org (temporary file hosting, auto-expires) for vision model processing. No persistent storage of user images on any server.
 
-### 19.10 Full Security Audit
+### 20.10 Nutrition API Security
+
+- USDA FoodData Central API key (`USDA_API_KEY`) stored in Vercel environment variables, never exposed to the client.
+- All nutrition lookups proxied through `/api/nutrition` serverless function.
+- No user data is sent to USDA — only ingredient names.
+
+### 20.11 Full Security Audit
 
 A comprehensive security review was conducted in February 2026 and documented in `docs/security-review.md`. The audit covers transport security, HTTP headers, authentication flows, client-side storage, CSP enforcement, third-party dependencies, API security, service worker behavior, browser permissions, and PWA manifest. All findings have been addressed or accepted with documented rationale.
 
 ---
 
-## 20. Non-Functional Requirements
+## 21. Non-Functional Requirements
 
-### 20.1 Browser Support
+### 21.1 Browser Support
 
 *Unchanged from v1.2.*
 
@@ -926,7 +1009,7 @@ A comprehensive security review was conducted in February 2026 and documented in
 | Safari (iOS) | Supported with caveats (Wake Lock, background timers, storage eviction) |
 | Edge | Expected to work (Chromium-based) |
 
-### 20.2 Performance
+### 21.2 Performance
 
 - First load: < 3 seconds on 3G.
 - Extraction: < 2 seconds (proxy). < 30 seconds (headless browser fallback). < 60 seconds (video extraction).
@@ -935,7 +1018,7 @@ A comprehensive security review was conducted in February 2026 and documented in
 - Describe: First token < 2 seconds. Full recipe generation < 15 seconds.
 - Discover: Search results < 10 seconds (includes enrichment fetches).
 
-### 20.3 iOS-Specific Limitations
+### 21.3 iOS-Specific Limitations
 
 - **Wake Lock API:** Graceful fallback message when unsupported.
 - **Background timers:** Timer state persisted; resumes on foreground. Audio alerts may not fire while backgrounded.
@@ -947,16 +1030,25 @@ A comprehensive security review was conducted in February 2026 and documented in
 
 | Section | What Changed |
 | --- | --- |
-| Executive Summary (1) | Updated "what changed" for v1.9: PRD accuracy fixes, image URL extraction, distribution channel updates, HF risk section. |
+| Executive Summary (1) | Updated "what changed" for v1.9: nutrition estimation via USDA FoodData Central, PRD accuracy fixes, image URL extraction, distribution channel updates, HF risk section. |
 | Architecture (3) | New section 3.6: HuggingFace Single Point of Failure — documents dependency risk and mitigations for photo import, video extraction, and Describe. |
 | Meal Planner (7.1) | Added post-save meal plan calendar prompt as shipped feature. Documents the 7×3 grid that bridges save → plan in the funnel. |
 | Grocery Integration (8) | Header updated from "SHIPPED — PIVOTING" to "SHIPPED — LIVE". |
-| Distribution (13.1) | Added Reddit (paused), TikTok (not started, high priority), and Facebook Groups (not started) to channel table. |
-| Reddit Plan (13.3) | Removed contradictory "wait for analytics" timing. Added r/food permaban, volume constraints, and "Known constraints" subsection. |
-| Conversion Flywheel (13.7) | Updated meal plan prompt description to reflect shipped 7×3 calendar grid UI, not just copy improvements. |
-| Revenue (14.1) | Fixed Instacart affiliate status: "Built, awaiting production key" → "Live". |
-| Build History (16) | Updated v1.0.3 row: added image URL extraction routing, clarified meal plan calendar prompt. |
-| Roadmap (17) | Reddit launch: "In Progress" → "Paused". r/food whitelisting: "High" → "Blocked". Added TikTok/short-form video marketing as high priority. |
+| Distribution (14.1) | Added Reddit (paused), TikTok (not started, high priority), and Facebook Groups (not started) to channel table. |
+| Reddit Plan (14.3) | Removed contradictory "wait for analytics" timing. Added r/food permaban, volume constraints, and "Known constraints" subsection. |
+| Conversion Flywheel (14.7) | Updated meal plan prompt description to reflect shipped 7×3 calendar grid UI, not just copy improvements. |
+| Revenue (15.1) | Fixed Instacart affiliate status: "Built, awaiting production key" → "Live". |
+| Build History (17) | Updated v1.0.3 row: added image URL extraction routing, clarified meal plan calendar prompt. |
+| Roadmap (17→18) | Reddit launch: "In Progress" → "Paused". r/food whitelisting: "High" → "Blocked". Added TikTok/short-form video marketing as high priority. Nutrition estimation: "Low" → "Shipped". |
+| Feature 7: Nutrition Estimation (10) | New section. USDA FoodData Central integration, local staples cache, per-recipe macro estimation, confidence scoring, meal plan daily totals, API architecture, data model addition. |
+| Technology Stack (3.1) | Added USDA FoodData Central API row. |
+| Data Model (12) | Updated Nutrition row to reflect USDA estimation. Added RecipeNutrition entity. |
+| Competitive Landscape (13) | Added nutrition-aware meal planning to Mise's advantages. |
+| Infrastructure Costs (14.2) | Added USDA FoodData Central API ($0). |
+| Promise Boundaries (16) | Added nutrition estimation row with accuracy disclaimer. |
+| What Shipped (17) | Added Nutrition Estimation phase. |
+| Security (20) | Added section 20.10 Nutrition API Security. Updated CSP connect-src to include api.nal.usda.gov. |
+| All sections 10-20 | Renumbered to 11-21 to accommodate new Feature 7 section at position 10. |
 
 ---
 

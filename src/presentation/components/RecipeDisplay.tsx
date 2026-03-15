@@ -18,6 +18,7 @@ import { StepList } from './StepList.tsx'
 import { TagManager } from './TagManager.tsx'
 import { CookingMode } from './CookingMode.tsx'
 import { RecipeEditForm } from './RecipeEditForm.tsx'
+import { NutritionCard } from './NutritionCard.tsx'
 import { FREE_RECIPE_LIMIT, type PurchaseState } from '@presentation/hooks/usePurchase.ts'
 import { trackEvent } from '@infrastructure/analytics/track.ts'
 
@@ -291,6 +292,7 @@ export function RecipeDisplay({ recipe, showSaveButton, onDelete, purchase, onSa
             />
           )}
           <IngredientList ingredients={scaledIngredients} />
+          <NutritionCard recipe={effective} />
           {effective.ingredients.length > 0 && (
             <button
               className="instacart-cta"
