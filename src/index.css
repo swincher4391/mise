@@ -3943,6 +3943,14 @@ body {
   white-space: nowrap;
 }
 
+.nb-unmatched td {
+  color: #bbb;
+}
+
+.nb-zero td:not(:first-child) {
+  color: #ccc;
+}
+
 .nutrition-source {
   margin-top: 0.5rem;
   font-size: 0.7rem;

@@ -109,6 +109,7 @@ export function NutritionCard({ recipe, currentServings }: NutritionCardProps) {
             <MacroItem label="Fat" value={adjusted.fat} unit="g" />
             <MacroItem label="Carbs" value={adjusted.carbs} unit="g" />
             <MacroItem label="Fiber" value={adjusted.fiber} unit="g" />
+            <MacroItem label="Net Carbs" value={Math.round((adjusted.carbs - adjusted.fiber) * 10) / 10} unit="g" />
           </div>
 
           {perIngredient.length > 0 && (
@@ -120,16 +121,20 @@ export function NutritionCard({ recipe, currentServings }: NutritionCardProps) {
                   <th>Prot</th>
                   <th>Fat</th>
                   <th>Carbs</th>
+                  <th>Fiber</th>
+                  <th>Net</th>
                 </tr>
               </thead>
               <tbody>
                 {perIngredient.map((item, i) => (
-                  <tr key={i}>
+                  <tr key={i} className={!item.matched ? 'nb-unmatched' : item.calories === 0 ? 'nb-zero' : ''}>
                     <td className="nb-ingredient">{item.ingredient}</td>
-                    <td>{item.calories}</td>
-                    <td>{item.protein}g</td>
-                    <td>{item.fat}g</td>
-                    <td>{item.carbs}g</td>
+                    <td>{item.matched ? item.calories : '–'}</td>
+                    <td>{item.matched ? `${item.protein}g` : '–'}</td>
+                    <td>{item.matched ? `${item.fat}g` : '–'}</td>
+                    <td>{item.matched ? `${item.carbs}g` : '–'}</td>
+                    <td>{item.matched ? `${item.fiber}g` : '–'}</td>
+                    <td>{item.matched ? `${Math.round(((item.carbs ?? 0) - (item.fiber ?? 0)) * 10) / 10}g` : '–'}</td>
                   </tr>
                 ))}
               </tbody>

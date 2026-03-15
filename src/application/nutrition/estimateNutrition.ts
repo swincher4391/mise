@@ -463,16 +463,15 @@ export async function estimateNutrition(
     confidence = 'low'
   }
 
-  const perIngredient = results
-    .filter((r) => r.macros !== null)
-    .map((r) => ({
-      ingredient: r.ingredient,
-      calories: r.macros!.calories,
-      protein: r.macros!.protein,
-      fat: r.macros!.fat,
-      carbs: r.macros!.carbs,
-      fiber: r.macros!.fiber,
-    }))
+  const perIngredient = results.map((r) => ({
+    ingredient: r.ingredient,
+    calories: r.macros?.calories ?? null,
+    protein: r.macros?.protein ?? null,
+    fat: r.macros?.fat ?? null,
+    carbs: r.macros?.carbs ?? null,
+    fiber: r.macros?.fiber ?? null,
+    matched: r.macros !== null,
+  }))
 
   return {
     perServing,

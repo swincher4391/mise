@@ -1,10 +1,11 @@
 export interface IngredientNutrition {
   ingredient: string
-  calories: number
-  protein: number
-  fat: number
-  carbs: number
-  fiber: number
+  calories: number | null
+  protein: number | null
+  fat: number | null
+  carbs: number | null
+  fiber: number | null
+  matched: boolean
 }
 
 export interface RecipeNutrition {
