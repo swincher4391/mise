@@ -15,9 +15,12 @@ import { createManualRecipe } from '@application/extraction/createManualRecipe.t
 import { parseTextRecipe } from '@application/extraction/parseTextRecipe.ts'
 import { compressImage } from '@infrastructure/imageProcessing.ts'
 import type { Recipe } from '@domain/models/Recipe.ts'
-import type { PurchaseState } from '@presentation/hooks/usePurchase.ts'
+import { FREE_RECIPE_LIMIT, type PurchaseState } from '@presentation/hooks/usePurchase.ts'
 import { trackEvent } from '@infrastructure/analytics/track.ts'
 import { VideoProgressBar } from '@presentation/components/VideoProgressBar.tsx'
+import { saveRecipe } from '@infrastructure/db/recipeRepository.ts'
+import { incrementSaveCount } from '@infrastructure/backup/backupNudge.ts'
+import { db } from '@infrastructure/db/database.ts'
 
 type TabId = 'extract' | 'photo' | 'paste' | 'describe' | 'discover'
 
@@ -370,7 +373,25 @@ export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRec
 
       {activeTab === 'describe' && (
         <RecipeChat
-          onRecipeReady={(r) => { setRecipe(r); setActiveTab('extract') }}
+          onRecipeReady={async (r) => {
+            // Check free tier limit
+            if (!purchase.isPaid) {
+              const count = await db.recipes.count()
+              if (count >= FREE_RECIPE_LIMIT) {
+                setUpgradeFeature('You\'ve reached the free recipe limit. Upgrade to Mise Pro for unlimited recipes.')
+                setShowUpgrade(true)
+                return
+              }
+            }
+            await saveRecipe(r)
+            incrementSaveCount()
+            trackEvent('recipe_saved', {
+              source_domain: 'manual',
+              extraction_layer: 'chat',
+              ingredient_count: r.ingredients?.length ?? 0,
+            })
+            onNavigateToLibrary()
+          }}
           initialPrompt={chatInitialPrompt}
         />
       )}
