@@ -132,6 +132,17 @@ describe('Staples cache alias resolution', () => {
     expect(result).not.toBeNull()
   })
 
+  it('resolves stir fry vegetables (added staple)', () => {
+    const result = lookupStaple('stir fry vegetables')
+    expect(result).not.toBeNull()
+    expect(result!.per100g.calories).toBe(30)
+  })
+
+  it('resolves mixed vegetables (added staple)', () => {
+    const result = lookupStaple('mixed vegetables')
+    expect(result).not.toBeNull()
+  })
+
   it('returns null for unknown ingredient', () => {
     const result = lookupStaple('unicorn tears')
     expect(result).toBeNull()
@@ -207,6 +218,27 @@ describe('qtyToGrams', () => {
     const grams = qtyToGrams({ min: 2, max: 4 }, 'ounce', 'cheese')
     // avg 3 * 28.35 = ~85g
     expect(grams).toBeCloseTo(85, 0)
+  })
+
+  it('converts count-based garlic (no unit, PIECE_WEIGHT_G)', () => {
+    const grams = qtyToGrams(4, null, 'garlic')
+    expect(grams).toBe(12) // 4 * 3g per clove
+  })
+
+  it('converts count-based green onion (PIECE_WEIGHT_G)', () => {
+    const grams = qtyToGrams(6, null, 'green onion')
+    expect(grams).toBe(90) // 6 * 15g
+  })
+
+  it('converts count-based green onions plural (PIECE_WEIGHT_G)', () => {
+    const grams = qtyToGrams(3, null, 'green onions')
+    expect(grams).toBe(45) // 3 * 15g
+  })
+
+  it('converts volume-based sesame seeds (1 tbsp)', () => {
+    const grams = qtyToGrams(1, 'tablespoon', 'sesame seeds')
+    // 3 tsp * 3.0 g/tsp = 9g
+    expect(grams).toBeCloseTo(9, 0)
   })
 })
 

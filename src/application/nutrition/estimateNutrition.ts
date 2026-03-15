@@ -229,6 +229,10 @@ const DENSITY_G_PER_TSP: Record<string, number> = {
   breadcrumbs: 2.3,
   panko: 1.2,
 
+  // Seeds
+  'sesame seeds': 3.0,
+  'sesame seed': 3.0,
+
   // Default fallback for unknown ingredients
   _default: 4.0,
 }
@@ -286,6 +290,11 @@ const PIECE_WEIGHT_G: Record<string, number> = {
   'chicken thigh': 116,
   'chicken drumstick': 105,
   'pork chop': 170,
+  garlic: 3, // 1 clove ≈ 3g (common count context when parser misses "clove" unit)
+  'green onion': 15,
+  'green onions': 15,
+  scallion: 15,
+  scallions: 15,
 }
 
 // Units that mean "count" (no unit, or piece-like units)

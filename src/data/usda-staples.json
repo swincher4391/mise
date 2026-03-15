@@ -277,5 +277,7 @@
   "cornichons": { "fdcId": 169225, "per100g": { "calories": 11, "protein": 0.3, "fat": 0.2, "carbs": 2.3, "fiber": 1.2 } },
   "capers": { "fdcId": 169218, "per100g": { "calories": 23, "protein": 2.4, "fat": 0.9, "carbs": 1.7, "fiber": 3.2 } },
   "anchovies": { "fdcId": 175139, "per100g": { "calories": 210, "protein": 29.2, "fat": 9.7, "carbs": 0, "fiber": 0 } },
-  "sardines": { "fdcId": 175139, "per100g": { "calories": 208, "protein": 24.6, "fat": 11.5, "carbs": 0, "fiber": 0 } }
+  "sardines": { "fdcId": 175139, "per100g": { "calories": 208, "protein": 24.6, "fat": 11.5, "carbs": 0, "fiber": 0 } },
+  "stir fry vegetables": { "fdcId": 0, "per100g": { "calories": 30, "protein": 1.5, "fat": 0.3, "carbs": 6.0, "fiber": 2.0 } },
+  "mixed vegetables": { "fdcId": 167607, "per100g": { "calories": 65, "protein": 3.3, "fat": 0.3, "carbs": 13.1, "fiber": 4.1 } }
 }
