@@ -3822,14 +3822,6 @@ body {
   text-decoration: underline;
 }
 
-/* Ingredient Calorie Annotation */
-
-.ing-cal {
-  font-size: 0.75rem;
-  color: #999;
-  font-weight: 400;
-}
-
 /* Nutrition Card */
 
 .nutrition-card {
@@ -3909,6 +3901,46 @@ body {
   color: #888;
   text-transform: uppercase;
   letter-spacing: 0.03em;
+}
+
+.nutrition-breakdown {
+  width: 100%;
+  margin-top: 0.75rem;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+
+.nutrition-breakdown th {
+  text-align: left;
+  font-weight: 600;
+  color: #666;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 0.3rem 0.4rem;
+  border-bottom: 1px solid #e0e0d8;
+}
+
+.nutrition-breakdown th:not(:first-child) {
+  text-align: right;
+}
+
+.nutrition-breakdown td {
+  padding: 0.25rem 0.4rem;
+  border-bottom: 1px solid #f0ede4;
+  color: #555;
+}
+
+.nutrition-breakdown td:not(:first-child) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.nb-ingredient {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .nutrition-source {

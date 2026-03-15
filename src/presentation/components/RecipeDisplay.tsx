@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import type { Recipe } from '@domain/models/Recipe.ts'
 import type { SavedRecipe } from '@domain/models/SavedRecipe.ts'
@@ -21,7 +21,6 @@ import { RecipeEditForm } from './RecipeEditForm.tsx'
 import { NutritionCard } from './NutritionCard.tsx'
 import { FREE_RECIPE_LIMIT, type PurchaseState } from '@presentation/hooks/usePurchase.ts'
 import { trackEvent } from '@infrastructure/analytics/track.ts'
-import type { RecipeNutrition, IngredientNutrition } from '@domain/models/RecipeNutrition.ts'
 
 interface RecipeDisplayProps {
   recipe: Recipe | SavedRecipe
@@ -49,15 +48,6 @@ export function RecipeDisplay({ recipe, showSaveButton, onDelete, purchase, onSa
   const [shareStatus, setShareStatus] = useState<'idle' | 'copied' | 'shared'>('idle')
   const [qrModal, setQrModal] = useState<{ url: string } | 'too-large' | null>(null)
   const [mealPlanPrompt, setMealPlanPrompt] = useState<string | null>(null)
-  const [ingredientNutritionMap, setIngredientNutritionMap] = useState<Map<string, IngredientNutrition>>(new Map())
-
-  const handleNutritionComputed = useCallback((nutrition: RecipeNutrition) => {
-    const map = new Map<string, IngredientNutrition>()
-    for (const item of nutrition.perIngredient) {
-      map.set(item.ingredient, item)
-    }
-    setIngredientNutritionMap(map)
-  }, [])
 
   const saved = isSavedRecipe(recipe) ? recipe : null
   const effective = editedRecipe ?? recipe
@@ -301,8 +291,8 @@ export function RecipeDisplay({ recipe, showSaveButton, onDelete, purchase, onSa
               onChange={setCurrentServings}
             />
           )}
-          <IngredientList ingredients={scaledIngredients} nutritionMap={ingredientNutritionMap} />
-          <NutritionCard recipe={effective} onComputed={handleNutritionComputed} />
+          <IngredientList ingredients={scaledIngredients} />
+          <NutritionCard recipe={effective} currentServings={currentServings} />
           {effective.ingredients.length > 0 && (
             <button
               className="instacart-cta"
