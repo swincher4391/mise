@@ -510,7 +510,7 @@ export async function estimateNutrition(
 
   console.log(`[Mise:Nutrition] normalization source: ${normSource}, result:`, normalized ? `${normalized.length} entries` : 'null (fallback to raw names)')
 
-  const nameMap = buildNormalizedNameMap(ingredients, normalized)
+  const nameMap = buildNormalizedNameMap(normalized)
 
   // Log the name mapping for each ingredient
   for (const ing of ingredients) {

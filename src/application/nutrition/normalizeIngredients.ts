@@ -62,7 +62,6 @@ export async function normalizeIngredients(
  * Falls back to the parsed ingredient name if normalization is unavailable.
  */
 export function buildNormalizedNameMap(
-  ingredients: Ingredient[],
   normalized: NormalizedIngredient[] | null,
 ): Record<string, NormalizedIngredient> {
   const map: Record<string, NormalizedIngredient> = {}

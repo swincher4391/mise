@@ -183,7 +183,7 @@ export function mapGroceryListToInstacart(
   manualItems: ManualGroceryItem[],
 ): InstacartShoppingListRequest {
   const lineItems = [
-    ...items.map(mapGroceryItemToLineItem),
+    ...items.map((item) => mapGroceryItemToLineItem(item)),
     ...manualItems.map(mapManualItemToLineItem),
   ]
 

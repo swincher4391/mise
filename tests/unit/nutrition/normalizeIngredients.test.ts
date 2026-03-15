@@ -141,22 +141,17 @@ describe('normalizeIngredients', () => {
 
 describe('buildNormalizedNameMap', () => {
   it('returns empty map when normalized is null', () => {
-    const ingredients = [makeIngredient({ raw: 'flour', ingredient: 'flour' })]
-    const map = buildNormalizedNameMap(ingredients, null)
+    const map = buildNormalizedNameMap(null)
     expect(Object.keys(map)).toHaveLength(0)
   })
 
   it('maps raw ingredient strings to normalized entries', () => {
-    const ingredients = [
-      makeIngredient({ raw: '2 cups flour', ingredient: 'flour' }),
-      makeIngredient({ raw: '1 tsp salt', ingredient: 'salt' }),
-    ]
     const normalized: NormalizedIngredient[] = [
       { raw: '2 cups flour', name: 'all-purpose flour', action: 'MATCH' },
       { raw: '1 tsp salt', name: 'salt', action: 'SKIP' },
     ]
 
-    const map = buildNormalizedNameMap(ingredients, normalized)
+    const map = buildNormalizedNameMap(normalized)
     expect(map['2 cups flour'].name).toBe('all-purpose flour')
     expect(map['1 tsp salt'].action).toBe('SKIP')
   })
