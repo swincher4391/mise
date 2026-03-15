@@ -11,6 +11,7 @@ import type { GroceryList } from '@domain/models/GroceryList.ts'
 import { trackEvent } from '@infrastructure/analytics/track.ts'
 import { MealPlanDaySection } from '@presentation/components/mealplan/MealPlanDaySection.tsx'
 import { RecipePickerModal } from '@presentation/components/mealplan/RecipePickerModal.tsx'
+import { computeDayNutrition, formatNutritionForTare, getTodayDayOfWeek } from '@application/mealplan/dailyNutrition.ts'
 
 interface MealPlanPageProps {
   onNavigateToGrocery: () => void
@@ -22,9 +23,17 @@ export function MealPlanPage({ onNavigateToGrocery }: MealPlanPageProps) {
   const { recipes } = useSavedRecipes()
 
   const [pickerTarget, setPickerTarget] = useState<{ day: DayOfWeek; slot: MealSlot } | null>(null)
+  const [nutritionCopied, setNutritionCopied] = useState(false)
 
   const meals = plan?.meals ?? []
   const mealCount = meals.length
+
+  // Check if current week and compute today's nutrition
+  const currentWeekStart = getWeekStart()
+  const isCurrentWeek = weekStart === currentWeekStart
+  const todayNutrition = isCurrentWeek
+    ? computeDayNutrition(getTodayDayOfWeek(), meals, recipes)
+    : null
 
   const handlePrevWeek = useCallback(() => {
     setWeekStart((ws) => offsetWeek(ws, -1))
@@ -87,13 +96,31 @@ export function MealPlanPage({ onNavigateToGrocery }: MealPlanPageProps) {
         </button>
       </div>
 
-      <button
-        className="shop-week-btn save-btn"
-        onClick={handleShopThisWeek}
-        disabled={mealCount === 0}
-      >
-        Shop This Week ({mealCount} {mealCount === 1 ? 'meal' : 'meals'})
-      </button>
+      <div className="meal-plan-actions">
+        <button
+          className="shop-week-btn save-btn"
+          onClick={handleShopThisWeek}
+          disabled={mealCount === 0}
+        >
+          Shop This Week ({mealCount} {mealCount === 1 ? 'meal' : 'meals'})
+        </button>
+
+        {todayNutrition && (
+          <button
+            className="copy-nutrition-btn"
+            onClick={() => {
+              navigator.clipboard.writeText(formatNutritionForTare(todayNutrition))
+              setNutritionCopied(true)
+              setTimeout(() => setNutritionCopied(false), 2000)
+            }}
+          >
+            {nutritionCopied ? 'Copied!' : `Copy Today's Nutrition`}
+            {!nutritionCopied && todayNutrition.mealsWithNutrition < todayNutrition.mealCount && (
+              <span className="nutrition-partial"> ({todayNutrition.mealsWithNutrition}/{todayNutrition.mealCount})</span>
+            )}
+          </button>
+        )}
+      </div>
 
       {DAYS_OF_WEEK.map((day) => (
         <MealPlanDaySection
