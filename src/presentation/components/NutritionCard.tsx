@@ -7,6 +7,7 @@ import { getCachedNutrition, setCachedNutrition } from '@infrastructure/db/nutri
 
 interface NutritionCardProps {
   recipe: Recipe | SavedRecipe
+  onComputed?: (nutrition: RecipeNutrition) => void
 }
 
 function isSaved(recipe: Recipe | SavedRecipe): recipe is SavedRecipe {
@@ -18,7 +19,7 @@ function ingredientFingerprint(recipe: Recipe | SavedRecipe): string {
   return recipe.ingredients.map((i) => i.raw).join('\n')
 }
 
-export function NutritionCard({ recipe }: NutritionCardProps) {
+export function NutritionCard({ recipe, onComputed }: NutritionCardProps) {
   const [nutrition, setNutrition] = useState<RecipeNutrition | null>(null)
   const [loading, setLoading] = useState(false)
   const [expanded, setExpanded] = useState(false)
@@ -41,6 +42,7 @@ export function NutritionCard({ recipe }: NutritionCardProps) {
         if (cached && !cancelled) {
           setNutrition(cached)
           setLoading(false)
+          onComputed?.(cached)
           return
         }
       }
@@ -51,9 +53,12 @@ export function NutritionCard({ recipe }: NutritionCardProps) {
       setNutrition(result)
       setLoading(false)
 
-      // Cache the result
-      if (result && isSaved(recipe)) {
-        setCachedNutrition(recipe.id, result).catch(() => {})
+      if (result) {
+        onComputed?.(result)
+        // Cache the result
+        if (isSaved(recipe)) {
+          setCachedNutrition(recipe.id, result).catch(() => {})
+        }
       }
     }
 

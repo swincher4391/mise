@@ -463,8 +463,20 @@ export async function estimateNutrition(
     confidence = 'low'
   }
 
+  const perIngredient = results
+    .filter((r) => r.macros !== null)
+    .map((r) => ({
+      ingredient: r.ingredient,
+      calories: r.macros!.calories,
+      protein: r.macros!.protein,
+      fat: r.macros!.fat,
+      carbs: r.macros!.carbs,
+      fiber: r.macros!.fiber,
+    }))
+
   return {
     perServing,
+    perIngredient,
     confidence,
     computedAt: new Date().toISOString(),
     ingredientCount: ingredients.length,

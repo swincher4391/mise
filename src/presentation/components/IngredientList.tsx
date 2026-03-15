@@ -1,9 +1,11 @@
 import type { ScaledIngredient } from '@application/scaler/scaleIngredients.ts'
 import type { Range } from '@domain/models/Ingredient.ts'
+import type { IngredientNutrition } from '@domain/models/RecipeNutrition.ts'
 import { formatQuantity } from '@application/scaler/formatQuantity.ts'
 
 interface IngredientListProps {
   ingredients: ScaledIngredient[]
+  nutritionMap?: Map<string, IngredientNutrition>
 }
 
 function formatQty(qty: number | Range | null): string {
@@ -14,21 +16,27 @@ function formatQty(qty: number | Range | null): string {
   return formatQuantity(qty)
 }
 
-export function IngredientList({ ingredients }: IngredientListProps) {
+export function IngredientList({ ingredients, nutritionMap }: IngredientListProps) {
   return (
     <section className="ingredient-section">
       <h2>Ingredients</h2>
       <ul className="ingredient-list">
-        {ingredients.map((ing) => (
-          <li key={ing.id} className={`ingredient-item${ing.optional ? ' optional' : ''}`}>
-            <span className="ing-qty">{formatQty(ing.scaledQty)}</span>
-            {ing.displayUnit && <span className="ing-unit"> {ing.displayUnit}</span>}
-            <span className="ing-name"> {ing.ingredient}</span>
-            {ing.prep && <span className="ing-prep">, {ing.prep}</span>}
-            {ing.notes && <span className="ing-notes"> ({ing.notes})</span>}
-            {ing.optional && <span className="ing-optional"> (optional)</span>}
-          </li>
-        ))}
+        {ingredients.map((ing) => {
+          const n = nutritionMap?.get(ing.ingredient)
+          return (
+            <li key={ing.id} className={`ingredient-item${ing.optional ? ' optional' : ''}`}>
+              <span className="ing-qty">{formatQty(ing.scaledQty)}</span>
+              {ing.displayUnit && <span className="ing-unit"> {ing.displayUnit}</span>}
+              <span className="ing-name"> {ing.ingredient}</span>
+              {ing.prep && <span className="ing-prep">, {ing.prep}</span>}
+              {ing.notes && <span className="ing-notes"> ({ing.notes})</span>}
+              {ing.optional && <span className="ing-optional"> (optional)</span>}
+              {n && n.calories > 0 && (
+                <span className="ing-cal"> · {n.calories} cal</span>
+              )}
+            </li>
+          )
+        })}
       </ul>
     </section>
   )
