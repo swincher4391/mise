@@ -99,20 +99,51 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           ],
           max_tokens: 1024,
           temperature: 0.1,
-          stream: false,
+          stream: true,
         }),
       })
 
       if (!response.ok) {
         const errorText = await response.text()
+        console.error(`[Normalize] HF API error ${response.status}:`, errorText.slice(0, 500))
         return res.status(502).json({ error: `HF API error (${response.status}): ${errorText.slice(0, 200)}` })
       }
 
-      const data = await response.json()
-      const content = data.choices?.[0]?.message?.content ?? ''
+      if (!response.body) {
+        return res.status(502).json({ error: 'No response body from HF API' })
+      }
 
-      // Strip </think>...</think> wrapper and markdown fences if present
-      const cleaned = content
+      // Collect streamed tokens into a single string
+      const reader = (response.body as any).getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      let fullContent = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() ?? ''
+
+        for (const line of lines) {
+          const trimmed = line.trim()
+          if (!trimmed || !trimmed.startsWith('data: ')) continue
+          const data = trimmed.slice(6)
+          if (data === '[DONE]') continue
+          try {
+            const parsed = JSON.parse(data)
+            const token = parsed.choices?.[0]?.delta?.content
+            if (token) fullContent += token
+          } catch {
+            // skip
+          }
+        }
+      }
+
+      // Strip <think>...</think> wrapper and markdown fences if present
+      const cleaned = fullContent
         .replace(/<think>[\s\S]*?<\/think>/g, '')
         .replace(/```(?:json)?\s*/g, '')
         .replace(/```/g, '')
@@ -122,7 +153,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const parsed = JSON.parse(cleaned)
         return res.status(200).json(parsed)
       } catch {
-        return res.status(502).json({ error: 'Failed to parse LLM response as JSON', raw: cleaned })
+        console.error('[Normalize] Failed to parse LLM JSON:', cleaned.slice(0, 500))
+        return res.status(502).json({ error: 'Failed to parse LLM response as JSON', raw: cleaned.slice(0, 500) })
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error'
