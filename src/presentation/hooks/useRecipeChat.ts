@@ -13,6 +13,8 @@ export interface PendingRecipe {
   prepTime: string | null
   cookTime: string | null
   imageUrl: string | null
+  /** Map from ingredient text → USDA-friendly name (from Describe schema) */
+  usdaNames: Record<string, string> | null
 }
 
 function parseRecipeJson(text: string): PendingRecipe | null {
@@ -25,14 +27,33 @@ function parseRecipeJson(text: string): PendingRecipe | null {
     if (!parsed.title || !Array.isArray(parsed.ingredients) || !Array.isArray(parsed.steps)) {
       return null
     }
+
+    // Support both old format (string[]) and new format ({text, usdaName}[])
+    let ingredientStrings: string[]
+    let usdaNames: Record<string, string> | null = null
+
+    if (parsed.ingredients.length > 0 && typeof parsed.ingredients[0] === 'object') {
+      ingredientStrings = parsed.ingredients.map((i: any) => i.text ?? String(i))
+      usdaNames = {}
+      for (const ing of parsed.ingredients) {
+        if (ing.text && ing.usdaName) {
+          usdaNames[ing.text] = ing.usdaName
+        }
+      }
+      if (Object.keys(usdaNames).length === 0) usdaNames = null
+    } else {
+      ingredientStrings = parsed.ingredients
+    }
+
     return {
       title: parsed.title,
-      ingredients: parsed.ingredients,
+      ingredients: ingredientStrings,
       steps: parsed.steps,
       servings: parsed.servings ?? null,
       prepTime: parsed.prepTime ?? null,
       cookTime: parsed.cookTime ?? null,
       imageUrl: null,
+      usdaNames,
     }
   } catch {
     return null

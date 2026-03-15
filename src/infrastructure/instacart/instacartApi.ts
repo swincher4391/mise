@@ -31,8 +31,9 @@ export async function createShoppingList(
 
 export async function createRecipePage(
   recipe: Recipe | SavedRecipe,
+  normalizedNames?: Record<string, string>,
 ): Promise<InstacartResult> {
-  const body = mapRecipeToInstacart(recipe)
+  const body = mapRecipeToInstacart(recipe, normalizedNames)
 
   const response = await fetch('/api/grocery/instacart-recipe', {
     method: 'POST',

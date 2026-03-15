@@ -4,10 +4,12 @@ import type { SavedRecipe } from '@domain/models/SavedRecipe.ts'
 import type { RecipeNutrition } from '@domain/models/RecipeNutrition.ts'
 import { estimateNutrition } from '@application/nutrition/estimateNutrition.ts'
 import { getCachedNutrition, setCachedNutrition } from '@infrastructure/db/nutritionCacheRepository.ts'
+import type { PurchaseState } from '@presentation/hooks/usePurchase.ts'
 
 interface NutritionCardProps {
   recipe: Recipe | SavedRecipe
   currentServings?: number
+  purchase?: PurchaseState
 }
 
 function isSaved(recipe: Recipe | SavedRecipe): recipe is SavedRecipe {
@@ -18,11 +20,18 @@ function ingredientFingerprint(recipe: Recipe | SavedRecipe): string {
   return recipe.ingredients.map((i) => i.raw).join('\n')
 }
 
-export function NutritionCard({ recipe, currentServings }: NutritionCardProps) {
+export function NutritionCard({ recipe, currentServings, purchase }: NutritionCardProps) {
   const [nutrition, setNutrition] = useState<RecipeNutrition | null>(null)
   const [loading, setLoading] = useState(false)
   const [expanded, setExpanded] = useState(false)
   const lastFingerprint = useRef('')
+
+  // Source nutrition from JSON-LD is always free to display
+  const hasSourceNutrition = recipe.nutrition !== null
+
+  // Estimated nutrition is gated for free users (but normalization still runs for Instacart)
+  const isPaid = purchase?.isPaid ?? true // default to true if no purchase context (e.g. unsaved recipe preview)
+  const showEstimatedNutrition = isPaid || hasSourceNutrition
 
   // The cached nutrition is computed for the recipe's original servings.
   // If the user scales servings, we adjust at display time.
@@ -50,6 +59,7 @@ export function NutritionCard({ recipe, currentServings }: NutritionCardProps) {
         }
       }
 
+      // Always run estimation (includes normalization for Instacart cache)
       const result = await estimateNutrition(recipe)
       if (cancelled) return
       setNutrition(result)
@@ -86,6 +96,18 @@ export function NutritionCard({ recipe, currentServings }: NutritionCardProps) {
   }
 
   if (!nutrition || !adjusted) return null
+
+  // Free user with no source nutrition: show upgrade teaser
+  if (!showEstimatedNutrition) {
+    return (
+      <div className="nutrition-card nutrition-gated">
+        <div className="nutrition-card-header">
+          <span className="nutrition-title">Nutrition (est.)</span>
+          <span className="nutrition-summary nutrition-locked">Upgrade for nutrition estimates</span>
+        </div>
+      </div>
+    )
+  }
 
   const { confidence, ingredientCount, matchedCount, perIngredient } = nutrition
 

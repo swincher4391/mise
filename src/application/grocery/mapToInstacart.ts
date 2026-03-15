@@ -93,10 +93,13 @@ export function mapUnitToInstacart(unit: string | null): string {
   return UNIT_ALIASES[lower] ?? 'each'
 }
 
-export function mapGroceryItemToLineItem(item: GroceryItem): InstacartLineItem {
+export function mapGroceryItemToLineItem(
+  item: GroceryItem,
+  normalizedNames?: Record<string, string>,
+): InstacartLineItem {
   const unit = mapUnitToInstacart(item.unit)
   const lineItem: InstacartLineItem = {
-    name: item.ingredient,
+    name: normalizedNames?.[item.displayName] ?? normalizedNames?.[item.ingredient] ?? item.ingredient,
     display_text: item.displayName,
   }
 
@@ -119,10 +122,13 @@ export function mapManualItemToLineItem(item: ManualGroceryItem): InstacartLineI
   }
 }
 
-function mapIngredientToLineItem(ingredient: Ingredient): InstacartLineItem {
+function mapIngredientToLineItem(
+  ingredient: Ingredient,
+  normalizedNames?: Record<string, string>,
+): InstacartLineItem {
   const unit = mapUnitToInstacart(ingredient.unit)
   const lineItem: InstacartLineItem = {
-    name: ingredient.ingredient,
+    name: normalizedNames?.[ingredient.raw] ?? ingredient.ingredient,
     display_text: ingredient.raw,
   }
 
@@ -148,10 +154,13 @@ function formatCookingTime(recipe: Recipe): string | undefined {
   return undefined
 }
 
-export function mapRecipeToInstacart(recipe: Recipe): InstacartRecipeRequest {
+export function mapRecipeToInstacart(
+  recipe: Recipe,
+  normalizedNames?: Record<string, string>,
+): InstacartRecipeRequest {
   const request: InstacartRecipeRequest = {
     title: recipe.title,
-    ingredients: recipe.ingredients.map(mapIngredientToLineItem),
+    ingredients: recipe.ingredients.map((ing) => mapIngredientToLineItem(ing, normalizedNames)),
   }
 
   if (recipe.imageUrl) request.image_url = recipe.imageUrl

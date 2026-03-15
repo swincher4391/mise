@@ -9,6 +9,7 @@ import { shareRecipe } from '@application/share/shareRecipe.ts'
 import { buildShareUrl, buildQrShareUrl } from '@application/share/compressRecipe.ts'
 import { copyRedditFormat } from '@application/share/formatReddit.ts'
 import { createRecipePage } from '@infrastructure/instacart/instacartApi.ts'
+import { getCachedNutrition } from '@infrastructure/db/nutritionCacheRepository.ts'
 import { UpgradePrompt } from './UpgradePrompt.tsx'
 import { MealPlanPrompt } from './MealPlanPrompt.tsx'
 import { RecipeHeader } from './RecipeHeader.tsx'
@@ -87,7 +88,13 @@ export function RecipeDisplay({ recipe, showSaveButton, onDelete, purchase, onSa
     })
     setInstacartLoading(true)
     try {
-      const result = await createRecipePage(effective)
+      // Pull normalized names from nutrition cache if available
+      let normalizedNames: Record<string, string> | undefined
+      if (saved) {
+        const cached = await getCachedNutrition(saved.id)
+        normalizedNames = cached?.normalizedNames ?? undefined
+      }
+      const result = await createRecipePage(effective, normalizedNames)
       window.open(result.url, '_blank', 'noopener')
     } catch (err) {
       console.error('Instacart error:', err)
@@ -292,7 +299,7 @@ export function RecipeDisplay({ recipe, showSaveButton, onDelete, purchase, onSa
             />
           )}
           <IngredientList ingredients={scaledIngredients} />
-          <NutritionCard recipe={effective} currentServings={currentServings} />
+          <NutritionCard recipe={effective} currentServings={currentServings} purchase={purchase} />
           {effective.ingredients.length > 0 && (
             <button
               className="instacart-cta"

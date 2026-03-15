@@ -33,6 +33,7 @@ function buildRecipe(pending: PendingRecipe): Recipe {
     recipe.totalTimeMinutes = recipe.prepTimeMinutes + recipe.cookTimeMinutes
   }
   recipe.imageUrl = pending.imageUrl
+  recipe.usdaNames = pending.usdaNames ?? null
   return recipe
 }
 

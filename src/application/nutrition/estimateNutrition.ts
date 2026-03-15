@@ -1,9 +1,10 @@
 import type { Ingredient, Range } from '@domain/models/Ingredient.ts'
 import type { Recipe } from '@domain/models/Recipe.ts'
 import type { SavedRecipe } from '@domain/models/SavedRecipe.ts'
-import type { RecipeNutrition } from '@domain/models/RecipeNutrition.ts'
+import type { RecipeNutrition, NormalizedIngredient } from '@domain/models/RecipeNutrition.ts'
 import { WEIGHT_TO_G, VOLUME_TO_TSP, isWeightUnit, isVolumeUnit } from '@domain/constants/units.ts'
 import staplesData from '../../data/usda-staples.json'
+import { normalizeIngredients, buildNormalizedNameMap } from './normalizeIngredients.ts'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -362,13 +363,35 @@ async function searchUSDA(ingredientName: string): Promise<{ macros: Macros; con
 // Main estimation function
 // ---------------------------------------------------------------------------
 
-async function estimateIngredient(ingredient: Ingredient): Promise<IngredientMatch> {
+async function estimateIngredient(
+  ingredient: Ingredient,
+  normalizedEntry?: NormalizedIngredient,
+): Promise<IngredientMatch> {
   const name = ingredient.ingredient
+  const lookupName = normalizedEntry?.name ?? name
 
-  // 1. Try staples cache (high confidence)
-  const staple = lookupStaple(name)
+  // SKIP: zero-nutrition seasonings — count as matched with zero macros
+  if (normalizedEntry?.action === 'SKIP') {
+    return {
+      ingredient: name,
+      macros: { calories: 0, protein: 0, fat: 0, carbs: 0, fiber: 0 },
+      confidence: 'high',
+    }
+  }
+
+  // ESTIMATE_QUANTITY: use defaultGrams if qty is missing
+  const effectiveQty = (ingredient.qty === null && normalizedEntry?.action === 'ESTIMATE_QUANTITY' && normalizedEntry.defaultGrams)
+    ? normalizedEntry.defaultGrams
+    : null
+
+  // 1. Try staples cache (high confidence) — use normalized name for lookup
+  const staple = lookupStaple(lookupName)
   if (staple) {
-    const grams = qtyToGrams(ingredient.qty, ingredient.unitCanonical, name)
+    let grams = qtyToGrams(ingredient.qty, ingredient.unitCanonical, lookupName)
+    // If qty conversion failed but we have a default from ESTIMATE_QUANTITY, use it
+    if ((grams === null || grams <= 0) && effectiveQty) {
+      grams = effectiveQty
+    }
     if (grams !== null && grams > 0) {
       const factor = grams / 100
       return {
@@ -387,10 +410,13 @@ async function estimateIngredient(ingredient: Ingredient): Promise<IngredientMat
     return { ingredient: name, macros: null, confidence: 'low' }
   }
 
-  // 2. Try USDA API fallback (medium/low confidence)
-  const usdaResult = await searchUSDA(name)
+  // 2. Try USDA API fallback (medium/low confidence) — use normalized name
+  const usdaResult = await searchUSDA(lookupName)
   if (usdaResult) {
-    const grams = qtyToGrams(ingredient.qty, ingredient.unitCanonical, name)
+    let grams = qtyToGrams(ingredient.qty, ingredient.unitCanonical, lookupName)
+    if ((grams === null || grams <= 0) && effectiveQty) {
+      grams = effectiveQty
+    }
     if (grams !== null && grams > 0) {
       const factor = grams / 100
       return {
@@ -413,16 +439,37 @@ async function estimateIngredient(ingredient: Ingredient): Promise<IngredientMat
 
 /**
  * Estimate per-recipe nutrition from parsed ingredients.
+ * Optionally accepts pre-computed normalized names (e.g. from Describe recipes).
  * Returns null if too few ingredients can be matched.
  */
 export async function estimateNutrition(
   recipe: Recipe | SavedRecipe,
+  preNormalized?: NormalizedIngredient[] | null,
 ): Promise<RecipeNutrition | null> {
   const ingredients = recipe.ingredients
 
   if (ingredients.length === 0) return null
 
-  const results = await Promise.all(ingredients.map(estimateIngredient))
+  // Use pre-computed usdaNames from Describe recipes, or run LLM normalization
+  let normalized: NormalizedIngredient[] | null
+  if (preNormalized !== undefined) {
+    normalized = preNormalized
+  } else if (recipe.usdaNames && Object.keys(recipe.usdaNames).length > 0) {
+    // Convert usdaNames map to NormalizedIngredient[] — skip LLM call
+    normalized = ingredients.map((ing) => ({
+      raw: ing.raw,
+      name: recipe.usdaNames![ing.raw] ?? ing.ingredient,
+      action: 'MATCH' as const,
+    }))
+  } else {
+    normalized = await normalizeIngredients(ingredients)
+  }
+
+  const nameMap = buildNormalizedNameMap(ingredients, normalized)
+
+  const results = await Promise.all(
+    ingredients.map((ing) => estimateIngredient(ing, nameMap[ing.raw])),
+  )
 
   const matched = results.filter((r) => r.macros !== null)
   if (matched.length === 0) return null
@@ -450,6 +497,7 @@ export async function estimateNutrition(
   }
 
   // Overall confidence: high if >70% matched from staples, medium if >50%, low otherwise
+  // SKIP items count as high-confidence matches
   const highCount = results.filter((r) => r.confidence === 'high' && r.macros).length
   const matchRate = matched.length / ingredients.length
   const highRate = highCount / ingredients.length
@@ -473,6 +521,14 @@ export async function estimateNutrition(
     matched: r.macros !== null,
   }))
 
+  // Build normalized name map for caching
+  const normalizedNames: Record<string, string> = {}
+  if (normalized) {
+    for (const entry of normalized) {
+      normalizedNames[entry.raw] = entry.name
+    }
+  }
+
   return {
     perServing,
     perIngredient,
@@ -480,6 +536,7 @@ export async function estimateNutrition(
     computedAt: new Date().toISOString(),
     ingredientCount: ingredients.length,
     matchedCount: matched.length,
+    ...(Object.keys(normalizedNames).length > 0 ? { normalizedNames } : {}),
   }
 }
 

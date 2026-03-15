@@ -1,8 +1,9 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { lookupStaple, qtyToGrams, normalizeForLookup } from '../../../src/application/nutrition/estimateNutrition.ts'
 import { estimateNutrition } from '../../../src/application/nutrition/estimateNutrition.ts'
 import type { Recipe } from '../../../src/domain/models/Recipe.ts'
 import type { Ingredient } from '../../../src/domain/models/Ingredient.ts'
+import type { NormalizedIngredient } from '../../../src/domain/models/RecipeNutrition.ts'
 
 function makeIngredient(overrides: Partial<Ingredient> & { ingredient: string; raw: string }): Ingredient {
   return {
@@ -283,5 +284,154 @@ describe('estimateNutrition', () => {
     // 1 tbsp butter = 3 tsp * 4.7 g/tsp = 14.1g → 14.1/100 * 717 ≈ 101 cal
     expect(result!.perServing.calories).toBeGreaterThan(80)
     expect(result!.perServing.calories).toBeLessThan(120)
+  })
+})
+
+describe('estimateNutrition with pre-normalized names', () => {
+  it('uses normalized name for staples lookup', async () => {
+    const recipe = makeRecipe([
+      makeIngredient({
+        ingredient: 'boneless skinless chicken breasts, trimmed and pounded thin',
+        raw: '1 lb boneless skinless chicken breasts, trimmed and pounded thin',
+        qty: 1,
+        unitCanonical: 'pound',
+      }),
+    ])
+
+    // Pre-normalized: LLM cleaned it to "chicken breast"
+    const preNormalized: NormalizedIngredient[] = [
+      { raw: '1 lb boneless skinless chicken breasts, trimmed and pounded thin', name: 'chicken breast', action: 'MATCH' },
+    ]
+
+    const result = await estimateNutrition(recipe, preNormalized)
+    expect(result).not.toBeNull()
+    expect(result!.matchedCount).toBe(1)
+    expect(result!.perServing.protein).toBeGreaterThan(0)
+  })
+
+  it('SKIP items get zero macros and count as matched', async () => {
+    const recipe = makeRecipe([
+      makeIngredient({ ingredient: 'chicken breast', raw: '1 lb chicken breast', qty: 1, unitCanonical: 'pound' }),
+      makeIngredient({ ingredient: 'salt', raw: '1 tsp salt', qty: 1, unitCanonical: 'teaspoon' }),
+      makeIngredient({ ingredient: 'black pepper', raw: 'pepper to taste', qty: null, unitCanonical: null }),
+      makeIngredient({ ingredient: 'water', raw: '1 cup water', qty: 1, unitCanonical: 'cup' }),
+    ])
+
+    const preNormalized: NormalizedIngredient[] = [
+      { raw: '1 lb chicken breast', name: 'chicken breast', action: 'MATCH' },
+      { raw: '1 tsp salt', name: 'salt', action: 'SKIP' },
+      { raw: 'pepper to taste', name: 'black pepper', action: 'SKIP' },
+      { raw: '1 cup water', name: 'water', action: 'SKIP' },
+    ]
+
+    const result = await estimateNutrition(recipe, preNormalized)
+    expect(result).not.toBeNull()
+    // All 4 should be matched (chicken + 3 SKIPs)
+    expect(result!.matchedCount).toBe(4)
+
+    // SKIP items should have 0 calories
+    const saltItem = result!.perIngredient.find((i) => i.ingredient === 'salt')
+    expect(saltItem!.matched).toBe(true)
+    expect(saltItem!.calories).toBe(0)
+
+    const pepperItem = result!.perIngredient.find((i) => i.ingredient === 'black pepper')
+    expect(pepperItem!.matched).toBe(true)
+    expect(pepperItem!.calories).toBe(0)
+  })
+
+  it('ESTIMATE_QUANTITY uses defaultGrams when qty is null', async () => {
+    const recipe = makeRecipe([
+      makeIngredient({ ingredient: 'sugar', raw: 'sugar to taste', qty: null, unitCanonical: null }),
+    ], 1)
+
+    const preNormalized: NormalizedIngredient[] = [
+      { raw: 'sugar to taste', name: 'sugar', action: 'ESTIMATE_QUANTITY', defaultGrams: 10 },
+    ]
+
+    const result = await estimateNutrition(recipe, preNormalized)
+    expect(result).not.toBeNull()
+    expect(result!.matchedCount).toBe(1)
+    // 10g sugar ≈ 39 cal (387 cal per 100g)
+    expect(result!.perServing.calories).toBeGreaterThan(30)
+    expect(result!.perServing.calories).toBeLessThan(50)
+  })
+
+  it('confidence improves with SKIP items counting as high-confidence', async () => {
+    // 5 ingredients: 3 real + 2 SKIPs
+    const recipe = makeRecipe([
+      makeIngredient({ ingredient: 'chicken breast', raw: '1 lb chicken breast', qty: 1, unitCanonical: 'pound' }),
+      makeIngredient({ ingredient: 'olive oil', raw: '1 tbsp olive oil', qty: 1, unitCanonical: 'tablespoon' }),
+      makeIngredient({ ingredient: 'garlic', raw: '3 cloves garlic', qty: 3, unitCanonical: 'clove' }),
+      makeIngredient({ ingredient: 'salt', raw: '1 tsp salt', qty: 1, unitCanonical: 'teaspoon' }),
+      makeIngredient({ ingredient: 'black pepper', raw: 'pepper to taste', qty: null, unitCanonical: null }),
+    ])
+
+    const preNormalized: NormalizedIngredient[] = [
+      { raw: '1 lb chicken breast', name: 'chicken breast', action: 'MATCH' },
+      { raw: '1 tbsp olive oil', name: 'olive oil', action: 'MATCH' },
+      { raw: '3 cloves garlic', name: 'garlic', action: 'MATCH' },
+      { raw: '1 tsp salt', name: 'salt', action: 'SKIP' },
+      { raw: 'pepper to taste', name: 'black pepper', action: 'SKIP' },
+    ]
+
+    const result = await estimateNutrition(recipe, preNormalized)
+    expect(result).not.toBeNull()
+    // 5/5 matched, 5/5 high confidence → should be 'high'
+    expect(result!.confidence).toBe('high')
+    expect(result!.matchedCount).toBe(5)
+  })
+
+  it('stores normalizedNames in result when normalization is provided', async () => {
+    const recipe = makeRecipe([
+      makeIngredient({ ingredient: 'chicken breast', raw: '1 lb chicken breast', qty: 1, unitCanonical: 'pound' }),
+    ])
+
+    const preNormalized: NormalizedIngredient[] = [
+      { raw: '1 lb chicken breast', name: 'chicken breast', action: 'MATCH' },
+    ]
+
+    const result = await estimateNutrition(recipe, preNormalized)
+    expect(result).not.toBeNull()
+    expect(result!.normalizedNames).toBeDefined()
+    expect(result!.normalizedNames!['1 lb chicken breast']).toBe('chicken breast')
+  })
+
+  it('graceful fallback: null preNormalized uses raw names', async () => {
+    const recipe = makeRecipe([
+      makeIngredient({ ingredient: 'chicken breast', raw: '1 lb chicken breast', qty: 1, unitCanonical: 'pound' }),
+    ])
+
+    // Explicitly pass null to simulate LLM failure fallback
+    const result = await estimateNutrition(recipe, null)
+    expect(result).not.toBeNull()
+    expect(result!.matchedCount).toBe(1)
+    // Should still work using raw name
+    expect(result!.perServing.protein).toBeGreaterThan(0)
+  })
+})
+
+describe('estimateNutrition with usdaNames from Describe', () => {
+  it('skips LLM normalization when recipe has usdaNames', async () => {
+    // Mock fetch to track if normalization API is called
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: false,
+    } as Response)
+
+    const recipe = makeRecipe([
+      makeIngredient({ ingredient: 'chicken breast', raw: '1 lb chicken breast', qty: 1, unitCanonical: 'pound' }),
+    ])
+    recipe.usdaNames = { '1 lb chicken breast': 'chicken breast' }
+
+    const result = await estimateNutrition(recipe)
+    expect(result).not.toBeNull()
+    expect(result!.matchedCount).toBe(1)
+
+    // The normalization API should NOT have been called
+    const normalizeCalls = fetchSpy.mock.calls.filter(
+      (call) => typeof call[0] === 'string' && call[0].includes('recipe-chat'),
+    )
+    expect(normalizeCalls).toHaveLength(0)
+
+    fetchSpy.mockRestore()
   })
 })

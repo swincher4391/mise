@@ -28,4 +28,6 @@ export interface Recipe {
   extractionLayer: 'json-ld' | 'microdata' | 'heuristic' | 'manual' | 'image' | 'text' | 'chat'
   parserVersion: string
   schemaVersion: number
+  /** Pre-normalized USDA names from Describe/chat generation (transient, not persisted) */
+  usdaNames?: Record<string, string> | null
 }
