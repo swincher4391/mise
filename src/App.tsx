@@ -103,7 +103,7 @@ function App() {
       <a href="https://peerpush.net/p/mise" target="_blank" rel="noopener" className="peerpush-badge">
         <img src="https://peerpush.net/p/mise/badge.png" alt="Mise on PeerPush" width={230} />
       </a>
-      <div className="app-version">v1.0.3 · <a href="https://privacy.swinch.dev" target="_blank" rel="noopener noreferrer">Privacy</a></div>
+      <div className="app-version">v2.0 · <a href="https://privacy.swinch.dev" target="_blank" rel="noopener noreferrer">Privacy</a></div>
     </>
   )
 }
