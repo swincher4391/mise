@@ -94,6 +94,38 @@ describe('Staples cache alias resolution', () => {
     expect(result!.fdcId).toBe(2707586)
   })
 
+  it('resolves slash alternatives (green onions / spring onions)', () => {
+    const result = lookupStaple('green onions / spring onions')
+    expect(result).not.toBeNull()
+  })
+
+  it('resolves suffix noise (garlic cloves → garlic)', () => {
+    const result = lookupStaple('garlic cloves')
+    expect(result).not.toBeNull()
+    expect(result!.per100g.calories).toBe(149)
+  })
+
+  it('resolves generic alias (oil → vegetable oil)', () => {
+    const result = lookupStaple('oil')
+    expect(result).not.toBeNull()
+    expect(result!.per100g.fat).toBe(100)
+  })
+
+  it('resolves spring onions alias', () => {
+    const result = lookupStaple('spring onions')
+    expect(result).not.toBeNull()
+  })
+
+  it('resolves scallions alias', () => {
+    const result = lookupStaple('scallions')
+    expect(result).not.toBeNull()
+  })
+
+  it('resolves crushed prefix (crushed ginger → ginger)', () => {
+    const result = lookupStaple('crushed ginger')
+    expect(result).not.toBeNull()
+  })
+
   it('returns null for unknown ingredient', () => {
     const result = lookupStaple('unicorn tears')
     expect(result).toBeNull()

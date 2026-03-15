@@ -20,11 +20,18 @@ export async function normalizeIngredients(
       body: JSON.stringify({ mode: 'normalize', ingredients: rawStrings }),
     })
 
-    if (!response.ok) return null
+    if (!response.ok) {
+      console.warn('[Mise:Normalize] API returned', response.status)
+      return null
+    }
 
     const data = await response.json()
+    console.log('[Mise:Normalize] raw response:', data)
 
-    if (!data.normalized || !Array.isArray(data.normalized)) return null
+    if (!data.normalized || !Array.isArray(data.normalized)) {
+      console.warn('[Mise:Normalize] no normalized array in response:', Object.keys(data))
+      return null
+    }
 
     // Validate each entry has required fields
     const result: NormalizedIngredient[] = data.normalized
@@ -41,8 +48,10 @@ export async function normalizeIngredients(
         ...(entry.defaultGrams != null ? { defaultGrams: Number(entry.defaultGrams) } : {}),
       }))
 
+    console.log('[Mise:Normalize] validated entries:', result.length, '/', data.normalized.length)
     return result.length > 0 ? result : null
-  } catch {
+  } catch (err) {
+    console.error('[Mise:Normalize] fetch error:', err)
     // Graceful fallback: return null so callers use raw names
     return null
   }

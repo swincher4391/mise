@@ -51,8 +51,27 @@ function normalizeForLookup(name: string): string {
   const cleaned = name.toLowerCase().trim()
     .replace(/\s*\(.*?\)\s*/g, ' ') // remove parentheticals
     .replace(/,.*$/, '')            // remove everything after comma
+    .replace(/\s*\/\s*.+$/, '')     // remove slash alternatives ("green onions / spring onions" → "green onions")
     .trim()
   return cleaned
+}
+
+// Trailing words to strip when looking up staples (e.g. "garlic cloves" → "garlic")
+const SUFFIX_NOISE = [' cloves', ' clove', ' stalks', ' stalk', ' leaves', ' leaf', ' pieces', ' piece', ' heads', ' head', ' sprigs', ' sprig']
+
+// Generic ingredient aliases that map to common staples
+const GENERIC_ALIASES: Record<string, string> = {
+  oil: 'vegetable oil',
+  'cooking oil': 'vegetable oil',
+  'neutral oil': 'vegetable oil',
+  pepper: 'black pepper',
+  onions: 'onion',
+  tomatoes: 'tomato',
+  potatoes: 'potato',
+  'spring onion': 'green onion',
+  'spring onions': 'green onion',
+  scallion: 'green onion',
+  scallions: 'green onion',
 }
 
 function lookupStaple(ingredientName: string): StapleEntry | null {
@@ -66,14 +85,34 @@ function lookupStaple(ingredientName: string): StapleEntry | null {
     return staples[name.slice(0, -1)]
   }
 
+  // Try generic aliases
+  if (GENERIC_ALIASES[name] && staples[GENERIC_ALIASES[name]]) {
+    return staples[GENERIC_ALIASES[name]]
+  }
+
+  // Try stripping suffix noise ("garlic cloves" → "garlic")
+  for (const suffix of SUFFIX_NOISE) {
+    if (name.endsWith(suffix)) {
+      const stripped = name.slice(0, -suffix.length)
+      if (staples[stripped]) return staples[stripped]
+      if (stripped.endsWith('s') && staples[stripped.slice(0, -1)]) {
+        return staples[stripped.slice(0, -1)]
+      }
+    }
+  }
+
   // Try common prefix removal: "fresh ", "dried ", "frozen ", "chopped ", "minced "
-  const prefixes = ['fresh ', 'dried ', 'frozen ', 'chopped ', 'minced ', 'diced ', 'sliced ', 'shredded ', 'grated ', 'ground ', 'raw ', 'cooked ', 'canned ', 'boneless skinless ', 'boneless ', 'skinless ']
+  const prefixes = ['fresh ', 'dried ', 'frozen ', 'chopped ', 'minced ', 'diced ', 'sliced ', 'shredded ', 'grated ', 'ground ', 'raw ', 'cooked ', 'canned ', 'boneless skinless ', 'boneless ', 'skinless ', 'crushed ']
   for (const prefix of prefixes) {
     if (name.startsWith(prefix)) {
       const stripped = name.slice(prefix.length)
       if (staples[stripped]) return staples[stripped]
       if (stripped.endsWith('s') && staples[stripped.slice(0, -1)]) {
         return staples[stripped.slice(0, -1)]
+      }
+      // Also try alias on the stripped name
+      if (GENERIC_ALIASES[stripped] && staples[GENERIC_ALIASES[stripped]]) {
+        return staples[GENERIC_ALIASES[stripped]]
       }
     }
   }
@@ -452,8 +491,10 @@ export async function estimateNutrition(
 
   // Use pre-computed usdaNames from Describe recipes, or run LLM normalization
   let normalized: NormalizedIngredient[] | null
+  let normSource: string
   if (preNormalized !== undefined) {
     normalized = preNormalized
+    normSource = 'preNormalized'
   } else if (recipe.usdaNames && Object.keys(recipe.usdaNames).length > 0) {
     // Convert usdaNames map to NormalizedIngredient[] — skip LLM call
     normalized = ingredients.map((ing) => ({
@@ -461,11 +502,22 @@ export async function estimateNutrition(
       name: recipe.usdaNames![ing.raw] ?? ing.ingredient,
       action: 'MATCH' as const,
     }))
+    normSource = 'usdaNames'
   } else {
     normalized = await normalizeIngredients(ingredients)
+    normSource = 'llm'
   }
 
+  console.log(`[Mise:Nutrition] normalization source: ${normSource}, result:`, normalized ? `${normalized.length} entries` : 'null (fallback to raw names)')
+
   const nameMap = buildNormalizedNameMap(ingredients, normalized)
+
+  // Log the name mapping for each ingredient
+  for (const ing of ingredients) {
+    const entry = nameMap[ing.raw]
+    const lookupName = entry?.name ?? ing.ingredient
+    console.log(`[Mise:Nutrition]   "${ing.ingredient}" → "${lookupName}" (${entry?.action ?? 'raw'})`)
+  }
 
   const results = await Promise.all(
     ingredients.map((ing) => estimateIngredient(ing, nameMap[ing.raw])),
