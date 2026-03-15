@@ -85,6 +85,11 @@ function lookupStaple(ingredientName: string): StapleEntry | null {
     return staples[name.slice(0, -1)]
   }
 
+  // Try with trailing 's' (LLM may return singular, cache has plural)
+  if (!name.endsWith('s') && staples[name + 's']) {
+    return staples[name + 's']
+  }
+
   // Try generic aliases
   if (GENERIC_ALIASES[name] && staples[GENERIC_ALIASES[name]]) {
     return staples[GENERIC_ALIASES[name]]
@@ -510,7 +515,7 @@ export async function estimateNutrition(
 
   console.log(`[Mise:Nutrition] normalization source: ${normSource}, result:`, normalized ? `${normalized.length} entries` : 'null (fallback to raw names)')
 
-  const nameMap = buildNormalizedNameMap(normalized)
+  const nameMap = buildNormalizedNameMap(ingredients, normalized)
 
   // Log the name mapping for each ingredient
   for (const ing of ingredients) {

@@ -61,14 +61,28 @@ export async function normalizeIngredients(
  * Build a lookup map from raw ingredient string → normalized name.
  * Falls back to the parsed ingredient name if normalization is unavailable.
  */
+/**
+ * Build a lookup map from raw ingredient string → normalized entry.
+ * Uses index-based mapping (ingredients[i] → normalized[i]) rather than
+ * raw string matching, since the LLM may not echo back exact raw strings.
+ */
 export function buildNormalizedNameMap(
+  ingredients: Ingredient[],
   normalized: NormalizedIngredient[] | null,
 ): Record<string, NormalizedIngredient> {
   const map: Record<string, NormalizedIngredient> = {}
   if (!normalized) return map
 
+  // Primary: index-based mapping (most reliable)
+  for (let i = 0; i < ingredients.length && i < normalized.length; i++) {
+    map[ingredients[i].raw] = normalized[i]
+  }
+
+  // Fallback: also map by raw string for any extras
   for (const entry of normalized) {
-    map[entry.raw] = entry
+    if (!map[entry.raw]) {
+      map[entry.raw] = entry
+    }
   }
 
   return map

@@ -121,6 +121,12 @@ describe('Staples cache alias resolution', () => {
     expect(result).not.toBeNull()
   })
 
+  it('resolves singular to plural (sesame seed → sesame seeds)', () => {
+    const result = lookupStaple('sesame seed')
+    expect(result).not.toBeNull()
+    expect(result!.fdcId).toBe(2707586)
+  })
+
   it('resolves crushed prefix (crushed ginger → ginger)', () => {
     const result = lookupStaple('crushed ginger')
     expect(result).not.toBeNull()

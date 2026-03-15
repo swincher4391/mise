@@ -141,17 +141,24 @@ describe('normalizeIngredients', () => {
 
 describe('buildNormalizedNameMap', () => {
   it('returns empty map when normalized is null', () => {
-    const map = buildNormalizedNameMap(null)
+    const ingredients = [makeIngredient({ raw: 'flour', ingredient: 'flour' })]
+    const map = buildNormalizedNameMap(ingredients, null)
     expect(Object.keys(map)).toHaveLength(0)
   })
 
-  it('maps raw ingredient strings to normalized entries', () => {
+  it('maps by index position (not raw string matching)', () => {
+    const ingredients = [
+      makeIngredient({ raw: '2 cups flour', ingredient: 'flour' }),
+      makeIngredient({ raw: '1 tsp salt', ingredient: 'salt' }),
+    ]
+    // LLM may return slightly different raw strings
     const normalized: NormalizedIngredient[] = [
-      { raw: '2 cups flour', name: 'all-purpose flour', action: 'MATCH' },
-      { raw: '1 tsp salt', name: 'salt', action: 'SKIP' },
+      { raw: '2 cups flour, sifted', name: 'all-purpose flour', action: 'MATCH' },
+      { raw: '1 tsp salt to taste', name: 'salt', action: 'SKIP' },
     ]
 
-    const map = buildNormalizedNameMap(normalized)
+    const map = buildNormalizedNameMap(ingredients, normalized)
+    // Should map by index: ingredients[0].raw → normalized[0]
     expect(map['2 cups flour'].name).toBe('all-purpose flour')
     expect(map['1 tsp salt'].action).toBe('SKIP')
   })
