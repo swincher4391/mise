@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import type { DayOfWeek, MealSlot, PlannedMeal } from '@domain/models/MealPlan.ts'
 import type { SavedRecipe } from '@domain/models/SavedRecipe.ts'
-import type { RecipeNutrition } from '@domain/models/RecipeNutrition.ts'
 import { DAY_LABELS } from '@application/mealplan/weekUtils.ts'
 import { estimateNutrition } from '@application/nutrition/estimateNutrition.ts'
 import { getCachedNutrition, setCachedNutrition } from '@infrastructure/db/nutritionCacheRepository.ts'
