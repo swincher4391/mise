@@ -255,5 +255,27 @@
   "wine": { "fdcId": 174837, "per100g": { "calories": 83, "protein": 0.1, "fat": 0, "carbs": 2.6, "fiber": 0 } },
   "white wine": { "fdcId": 174837, "per100g": { "calories": 82, "protein": 0.1, "fat": 0, "carbs": 2.6, "fiber": 0 } },
   "red wine": { "fdcId": 174836, "per100g": { "calories": 85, "protein": 0.1, "fat": 0, "carbs": 2.6, "fiber": 0 } },
-  "beer": { "fdcId": 174815, "per100g": { "calories": 43, "protein": 0.5, "fat": 0, "carbs": 3.6, "fiber": 0 } }
+  "beer": { "fdcId": 174815, "per100g": { "calories": 43, "protein": 0.5, "fat": 0, "carbs": 3.6, "fiber": 0 } },
+
+  "sesame seeds": { "fdcId": 2707586, "per100g": { "calories": 573, "protein": 17.7, "fat": 49.7, "carbs": 23.4, "fiber": 11.8 } },
+  "flax seeds": { "fdcId": 169414, "per100g": { "calories": 534, "protein": 18.3, "fat": 42.2, "carbs": 28.9, "fiber": 27.3 } },
+  "flaxseed": { "fdcId": 169414, "per100g": { "calories": 534, "protein": 18.3, "fat": 42.2, "carbs": 28.9, "fiber": 27.3 } },
+  "chia seeds": { "fdcId": 170554, "per100g": { "calories": 486, "protein": 16.5, "fat": 30.7, "carbs": 42.1, "fiber": 34.4 } },
+  "sunflower seeds": { "fdcId": 170562, "per100g": { "calories": 584, "protein": 20.8, "fat": 51.5, "carbs": 20.0, "fiber": 8.6 } },
+  "pumpkin seeds": { "fdcId": 170188, "per100g": { "calories": 559, "protein": 30.2, "fat": 49.1, "carbs": 10.7, "fiber": 6.0 } },
+  "poppy seeds": { "fdcId": 170583, "per100g": { "calories": 525, "protein": 17.9, "fat": 41.6, "carbs": 28.1, "fiber": 19.5 } },
+  "tahini": { "fdcId": 168604, "per100g": { "calories": 595, "protein": 17.0, "fat": 53.8, "carbs": 21.2, "fiber": 9.3 } },
+  "miso paste": { "fdcId": 172442, "per100g": { "calories": 199, "protein": 11.7, "fat": 6.0, "carbs": 26.5, "fiber": 5.4 } },
+  "miso": { "fdcId": 172442, "per100g": { "calories": 199, "protein": 11.7, "fat": 6.0, "carbs": 26.5, "fiber": 5.4 } },
+  "gochujang": { "fdcId": 174906, "per100g": { "calories": 131, "protein": 3.4, "fat": 1.6, "carbs": 27.0, "fiber": 3.0 } },
+  "hoisin sauce": { "fdcId": 174906, "per100g": { "calories": 220, "protein": 3.5, "fat": 3.4, "carbs": 44.0, "fiber": 2.5 } },
+  "oyster sauce": { "fdcId": 173476, "per100g": { "calories": 51, "protein": 1.4, "fat": 0, "carbs": 11.0, "fiber": 0 } },
+  "sriracha": { "fdcId": 171894, "per100g": { "calories": 93, "protein": 2.0, "fat": 0.9, "carbs": 19.0, "fiber": 2.0 } },
+  "coconut cream": { "fdcId": 170171, "per100g": { "calories": 330, "protein": 3.6, "fat": 34.7, "carbs": 6.6, "fiber": 0 } },
+  "coconut flakes": { "fdcId": 170170, "per100g": { "calories": 660, "protein": 6.9, "fat": 64.5, "carbs": 23.6, "fiber": 16.3 } },
+  "shredded coconut": { "fdcId": 170170, "per100g": { "calories": 660, "protein": 6.9, "fat": 64.5, "carbs": 23.6, "fiber": 16.3 } },
+  "cornichons": { "fdcId": 169225, "per100g": { "calories": 11, "protein": 0.3, "fat": 0.2, "carbs": 2.3, "fiber": 1.2 } },
+  "capers": { "fdcId": 169218, "per100g": { "calories": 23, "protein": 2.4, "fat": 0.9, "carbs": 1.7, "fiber": 3.2 } },
+  "anchovies": { "fdcId": 175139, "per100g": { "calories": 210, "protein": 29.2, "fat": 9.7, "carbs": 0, "fiber": 0 } },
+  "sardines": { "fdcId": 175139, "per100g": { "calories": 208, "protein": 24.6, "fat": 11.5, "carbs": 0, "fiber": 0 } }
 }
