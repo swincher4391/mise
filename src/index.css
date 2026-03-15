@@ -3951,6 +3951,23 @@ body {
   color: #ccc;
 }
 
+.nb-sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.nb-sortable:hover {
+  color: #333;
+}
+
+.nb-sorted {
+  color: #3a5a2c;
+}
+
+.nb-sort-arrow {
+  font-size: 0.6rem;
+}
+
 .nutrition-source {
   margin-top: 0.5rem;
   font-size: 0.7rem;

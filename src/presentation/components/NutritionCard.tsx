@@ -20,10 +20,14 @@ function ingredientFingerprint(recipe: Recipe | SavedRecipe): string {
   return recipe.ingredients.map((i) => i.raw).join('\n')
 }
 
+type SortKey = 'ingredient' | 'cal' | 'prot' | 'fat' | 'carbs' | 'fiber' | 'net'
+
 export function NutritionCard({ recipe, currentServings, purchase }: NutritionCardProps) {
   const [nutrition, setNutrition] = useState<RecipeNutrition | null>(null)
   const [loading, setLoading] = useState(false)
   const [expanded, setExpanded] = useState(false)
+  const [sortKey, setSortKey] = useState<SortKey | null>(null)
+  const [sortDesc, setSortDesc] = useState(true)
   const lastFingerprint = useRef('')
 
   // Source nutrition from JSON-LD is always free to display
@@ -135,41 +139,20 @@ export function NutritionCard({ recipe, currentServings, purchase }: NutritionCa
           </div>
 
           {perIngredient.length > 0 && (
-            <table className="nutrition-breakdown">
-              <thead>
-                <tr>
-                  <th>Ingredient</th>
-                  <th>Cal</th>
-                  <th>Prot</th>
-                  <th>Fat</th>
-                  <th>Carbs</th>
-                  <th>Fiber</th>
-                  <th>Net</th>
-                </tr>
-              </thead>
-              <tbody>
-                {perIngredient.map((item, i) => {
-                  const s = displayServings
-                  const cal = item.calories !== null ? Math.round(item.calories / s) : null
-                  const prot = item.protein !== null ? Math.round(item.protein / s * 10) / 10 : null
-                  const fat = item.fat !== null ? Math.round(item.fat / s * 10) / 10 : null
-                  const carbs = item.carbs !== null ? Math.round(item.carbs / s * 10) / 10 : null
-                  const fiber = item.fiber !== null ? Math.round(item.fiber / s * 10) / 10 : null
-                  const net = carbs !== null && fiber !== null ? Math.round((carbs - fiber) * 10) / 10 : null
-                  return (
-                  <tr key={i} className={!item.matched ? 'nb-unmatched' : item.calories === 0 ? 'nb-zero' : ''}>
-                    <td className="nb-ingredient">{item.ingredient}</td>
-                    <td>{item.matched ? cal : '–'}</td>
-                    <td>{item.matched ? `${prot}g` : '–'}</td>
-                    <td>{item.matched ? `${fat}g` : '–'}</td>
-                    <td>{item.matched ? `${carbs}g` : '–'}</td>
-                    <td>{item.matched ? `${fiber}g` : '–'}</td>
-                    <td>{item.matched ? `${net}g` : '–'}</td>
-                  </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+            <IngredientTable
+              perIngredient={perIngredient}
+              displayServings={displayServings}
+              sortKey={sortKey}
+              sortDesc={sortDesc}
+              onSort={(key) => {
+                if (sortKey === key) {
+                  setSortDesc(!sortDesc)
+                } else {
+                  setSortKey(key)
+                  setSortDesc(true)
+                }
+              }}
+            />
           )}
 
           <p className="nutrition-source">
@@ -188,5 +171,95 @@ function MacroItem({ label, value, unit }: { label: string; value: number; unit?
       <span className="macro-value">~{value}{unit}</span>
       <span className="macro-label">{label}</span>
     </div>
+  )
+}
+
+interface PerIngredientItem {
+  ingredient: string
+  calories: number | null
+  protein: number | null
+  fat: number | null
+  carbs: number | null
+  fiber: number | null
+  matched: boolean
+}
+
+interface IngredientTableProps {
+  perIngredient: PerIngredientItem[]
+  displayServings: number
+  sortKey: SortKey | null
+  sortDesc: boolean
+  onSort: (key: SortKey) => void
+}
+
+function IngredientTable({ perIngredient, displayServings, sortKey, sortDesc, onSort }: IngredientTableProps) {
+  const s = displayServings
+
+  const rows = useMemo(() => {
+    const mapped = perIngredient.map((item, i) => {
+      const cal = item.calories !== null ? Math.round(item.calories / s) : null
+      const prot = item.protein !== null ? Math.round(item.protein / s * 10) / 10 : null
+      const fat = item.fat !== null ? Math.round(item.fat / s * 10) / 10 : null
+      const carbs = item.carbs !== null ? Math.round(item.carbs / s * 10) / 10 : null
+      const fiber = item.fiber !== null ? Math.round(item.fiber / s * 10) / 10 : null
+      const net = carbs !== null && fiber !== null ? Math.round((carbs - fiber) * 10) / 10 : null
+      return { ...item, idx: i, cal, prot, fat, carbs, fiber, net }
+    })
+
+    if (!sortKey) return mapped
+
+    return [...mapped].sort((a, b) => {
+      if (sortKey === 'ingredient') {
+        const cmp = a.ingredient.localeCompare(b.ingredient)
+        return sortDesc ? -cmp : cmp
+      }
+      const av = a[sortKey] ?? -1
+      const bv = b[sortKey] ?? -1
+      return sortDesc ? bv - av : av - bv
+    })
+  }, [perIngredient, s, sortKey, sortDesc])
+
+  const columns: { key: SortKey; label: string }[] = [
+    { key: 'ingredient', label: 'Ingredient' },
+    { key: 'cal', label: 'Cal' },
+    { key: 'prot', label: 'Prot' },
+    { key: 'fat', label: 'Fat' },
+    { key: 'carbs', label: 'Carbs' },
+    { key: 'fiber', label: 'Fiber' },
+    { key: 'net', label: 'Net' },
+  ]
+
+  return (
+    <table className="nutrition-breakdown">
+      <thead>
+        <tr>
+          {columns.map((col) => (
+            <th
+              key={col.key}
+              className={`nb-sortable ${sortKey === col.key ? 'nb-sorted' : ''}`}
+              onClick={() => onSort(col.key)}
+            >
+              {col.label}
+              {sortKey === col.key && (
+                <span className="nb-sort-arrow">{sortDesc ? ' \u25BC' : ' \u25B2'}</span>
+              )}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((row) => (
+          <tr key={row.idx} className={!row.matched ? 'nb-unmatched' : row.calories === 0 ? 'nb-zero' : ''}>
+            <td className="nb-ingredient">{row.ingredient}</td>
+            <td>{row.matched ? row.cal : '–'}</td>
+            <td>{row.matched ? `${row.prot}g` : '–'}</td>
+            <td>{row.matched ? `${row.fat}g` : '–'}</td>
+            <td>{row.matched ? `${row.carbs}g` : '–'}</td>
+            <td>{row.matched ? `${row.fiber}g` : '–'}</td>
+            <td>{row.matched ? `${row.net}g` : '–'}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   )
 }
