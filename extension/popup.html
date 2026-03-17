@@ -5,24 +5,37 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      width: 320px;
+      width: 360px;
       font-family: system-ui, -apple-system, sans-serif;
       font-size: 14px;
       color: #1a1a1a;
       background: #fafaf5;
       padding: 16px;
     }
-    h1 {
-      font-size: 18px;
-      font-weight: 700;
-      color: #2d5016;
-      margin-bottom: 4px;
+    h1 { font-size: 18px; font-weight: 700; color: #2d5016; margin-bottom: 2px; }
+    .tagline { color: #666; font-size: 12px; margin-bottom: 12px; }
+    .tabs {
+      display: flex;
+      gap: 0;
+      margin-bottom: 12px;
+      border-bottom: 2px solid #e8e5dc;
     }
-    .tagline {
-      color: #666;
+    .tab {
+      flex: 1;
+      padding: 8px 4px;
+      text-align: center;
       font-size: 12px;
-      margin-bottom: 16px;
+      font-weight: 600;
+      color: #888;
+      background: none;
+      border: none;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      font-family: inherit;
     }
+    .tab.active { color: #2d5016; border-bottom-color: #2d5016; }
+    .tab:hover { color: #2d5016; }
     .btn {
       display: block;
       width: 100%;
@@ -35,10 +48,7 @@
       cursor: pointer;
       transition: background 0.15s;
     }
-    .btn-primary {
-      background: #2d5016;
-      color: white;
-    }
+    .btn-primary { background: #2d5016; color: white; }
     .btn-primary:hover { background: #3d6b1f; }
     .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
     .btn-secondary {
@@ -48,56 +58,191 @@
       margin-top: 8px;
     }
     .btn-secondary:hover { background: #2d5016; color: white; }
-    .status {
-      text-align: center;
-      padding: 12px;
-      color: #666;
-    }
-    .recipe-title {
-      font-weight: 600;
-      font-size: 15px;
-      margin: 12px 0 4px;
-    }
-    .recipe-source {
-      color: #666;
+    .btn-small {
+      display: inline-block;
+      width: auto;
+      padding: 4px 10px;
       font-size: 12px;
-      margin-bottom: 12px;
     }
+    .status { text-align: center; padding: 12px; color: #666; }
+    .recipe-header { margin-bottom: 12px; }
+    .recipe-title { font-weight: 600; font-size: 15px; margin-bottom: 2px; }
+    .recipe-meta { color: #888; font-size: 11px; display: flex; gap: 8px; flex-wrap: wrap; }
+    .recipe-meta span { background: #f0ede4; padding: 2px 6px; border-radius: 4px; }
     .error {
       color: #991b1b;
       background: #fef2f2;
       padding: 8px 12px;
       border-radius: 8px;
       font-size: 13px;
-      margin-top: 12px;
+      margin-top: 8px;
     }
     .hidden { display: none; }
+
+    /* Nutrition preview */
+    .nutrition-preview {
+      background: #f8f7f2;
+      border: 1px solid #e8e5dc;
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin: 10px 0;
+    }
+    .nutrition-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      margin-bottom: 6px;
+    }
+    .nutrition-macros {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .macro { text-align: center; }
+    .macro-value { font-weight: 700; font-size: 16px; color: #2d5016; display: block; }
+    .macro-label { font-size: 10px; color: #888; text-transform: uppercase; }
+
+    /* Serving scaler */
+    .scaler {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 8px 0;
+      font-size: 13px;
+      color: #555;
+    }
+    .scaler-btn {
+      width: 28px;
+      height: 28px;
+      border: 1px solid #ccc;
+      border-radius: 50%;
+      background: white;
+      font-size: 16px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: inherit;
+    }
+    .scaler-btn:hover { background: #f0ede4; }
+    .scaler-value { font-weight: 700; min-width: 20px; text-align: center; }
+
+    /* Ingredient list */
+    .ingredient-list {
+      max-height: 200px;
+      overflow-y: auto;
+      margin: 8px 0;
+      font-size: 12px;
+    }
+    .ingredient-item {
+      padding: 3px 0;
+      border-bottom: 1px solid #f0ede4;
+      display: flex;
+      gap: 4px;
+    }
+    .ing-qty { color: #2d5016; font-weight: 600; min-width: 50px; }
+    .ing-name { color: #333; }
+    .ing-prep { color: #999; font-style: italic; }
+
+    /* Paste mode */
+    .paste-area {
+      width: 100%;
+      min-height: 120px;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 13px;
+      resize: vertical;
+      margin-bottom: 8px;
+    }
+    .paste-area:focus { outline: 2px solid #2d5016; border-color: transparent; }
+    .paste-hint { font-size: 11px; color: #999; margin-bottom: 8px; }
+
+    /* Section toggle */
+    .section-toggle {
+      font-size: 12px;
+      color: #2d5016;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px 0;
+      font-family: inherit;
+    }
+    .section-toggle:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
   <h1>Mise</h1>
   <p class="tagline">Just the recipe.</p>
 
-  <div id="extract-view">
-    <button id="extract-btn" class="btn btn-primary">Extract Recipe</button>
+  <div class="tabs">
+    <button class="tab active" data-tab="extract">Extract</button>
+    <button class="tab" data-tab="paste">Paste</button>
   </div>
 
-  <div id="loading-view" class="hidden">
-    <div class="status">Extracting recipe...</div>
+  <!-- Extract tab -->
+  <div id="extract-tab">
+    <div id="extract-view">
+      <button id="extract-btn" class="btn btn-primary">Extract Recipe</button>
+    </div>
+
+    <div id="loading-view" class="hidden">
+      <div class="status">Extracting recipe...</div>
+    </div>
   </div>
 
+  <!-- Paste tab -->
+  <div id="paste-tab" class="hidden">
+    <p class="paste-hint">Paste recipe text from comments, DMs, or anywhere. First line becomes the title.</p>
+    <textarea id="paste-area" class="paste-area" placeholder="My Recipe&#10;&#10;Ingredients:&#10;- 2 cups flour&#10;- 1 cup sugar&#10;&#10;Instructions:&#10;1. Mix dry ingredients&#10;2. Bake at 350 for 25 min"></textarea>
+    <button id="paste-btn" class="btn btn-primary">Parse Recipe</button>
+  </div>
+
+  <!-- Result view (shared) -->
   <div id="result-view" class="hidden">
-    <div id="recipe-title" class="recipe-title"></div>
-    <div id="recipe-source" class="recipe-source"></div>
-    <button id="open-btn" class="btn btn-primary">Open in Mise</button>
+    <div class="recipe-header">
+      <div id="recipe-title" class="recipe-title"></div>
+      <div id="recipe-meta" class="recipe-meta"></div>
+    </div>
+
+    <!-- Serving scaler -->
+    <div class="scaler">
+      <span>Servings</span>
+      <button class="scaler-btn" id="serve-minus">&minus;</button>
+      <span class="scaler-value" id="serve-count">4</span>
+      <button class="scaler-btn" id="serve-plus">+</button>
+    </div>
+
+    <!-- Nutrition preview -->
+    <div id="nutrition-preview" class="nutrition-preview hidden">
+      <div class="nutrition-label">Estimated per serving</div>
+      <div class="nutrition-macros">
+        <div class="macro"><span class="macro-value" id="n-cal">--</span><span class="macro-label">Cal</span></div>
+        <div class="macro"><span class="macro-value" id="n-prot">--</span><span class="macro-label">Protein</span></div>
+        <div class="macro"><span class="macro-value" id="n-fat">--</span><span class="macro-label">Fat</span></div>
+        <div class="macro"><span class="macro-value" id="n-carbs">--</span><span class="macro-label">Carbs</span></div>
+        <div class="macro"><span class="macro-value" id="n-fiber">--</span><span class="macro-label">Fiber</span></div>
+      </div>
+    </div>
+
+    <!-- Ingredient list -->
+    <button class="section-toggle" id="toggle-ingredients">Show ingredients</button>
+    <div id="ingredient-list" class="ingredient-list hidden"></div>
+
+    <button id="open-btn" class="btn btn-primary" style="margin-top: 10px">Open in Mise</button>
     <button id="save-btn" class="btn btn-secondary">Save to Mise</button>
   </div>
 
+  <!-- Error view -->
   <div id="error-view" class="hidden">
     <div class="error" id="error-msg"></div>
-    <button id="retry-btn" class="btn btn-secondary" style="margin-top: 12px">Try Again</button>
+    <button id="retry-btn" class="btn btn-secondary" style="margin-top: 8px">Try Again</button>
   </div>
 
+  <script src="nutrition.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>
