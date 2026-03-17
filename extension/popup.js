@@ -233,6 +233,15 @@ extractBtn.addEventListener('click', async function() {
 
     if (response && response.type === 'RECIPE_DATA' && response.recipe) {
       showResult(response.recipe)
+    } else if (response && response.type === 'SOCIAL_TEXT') {
+      // Found caption text but couldn't auto-parse — switch to Paste tab with text pre-filled
+      pasteArea.value = (response.title ? response.title + '\n\n' : '') + response.text
+      for (var t = 0; t < tabBtns.length; t++) tabBtns[t].classList.remove('active')
+      for (var t2 = 0; t2 < tabBtns.length; t2++) { if (tabBtns[t2].getAttribute('data-tab') === 'paste') tabBtns[t2].classList.add('active') }
+      extractTab.classList.add('hidden')
+      pasteTab.classList.remove('hidden')
+      errorView.classList.remove('hidden')
+      errorMsg.textContent = 'Found caption text but could not auto-detect recipe structure. Edit below and click Parse Recipe.'
     } else if (response && response.type === 'BLOCKED_SITE') {
       showError(response.message)
     } else if (response && response.type === 'NO_RECIPE') {
