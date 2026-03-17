@@ -23,6 +23,8 @@ var pasteBtn = document.getElementById('paste-btn')
 var pasteArea = document.getElementById('paste-area')
 var openBtn = document.getElementById('open-btn')
 var saveBtn = document.getElementById('save-btn')
+var shareBtn = document.getElementById('share-btn')
+var pinBtn = document.getElementById('pin-btn')
 var retryBtn = document.getElementById('retry-btn')
 var recipeTitleEl = document.getElementById('recipe-title')
 var recipeMetaEl = document.getElementById('recipe-meta')
@@ -319,6 +321,123 @@ saveBtn.addEventListener('click', function() {
 retryBtn.addEventListener('click', function() {
   errorView.classList.add('hidden')
   extractView.classList.remove('hidden')
+})
+
+// =========================================================================
+// Share & Pin — builds compressed Mise share URL (api/r?d=...)
+// =========================================================================
+
+var SHARE_BASE = MISE_URL + '/api/r'
+
+function buildSharePayload(recipe) {
+  var payload = {
+    t: recipe.title || 'Untitled Recipe',
+    ig: recipe.rawIngredients || [],
+    st: (recipe.rawSteps || []).map(function(s) { return typeof s === 'string' ? s : s.text }),
+  }
+  if (recipe.author) payload.a = recipe.author
+  if (recipe.description) payload.d = recipe.description
+  if (recipe.imageUrl) payload.img = recipe.imageUrl
+  if (recipe.servings) payload.sv = recipe.servings
+  if (recipe.sourceUrl) payload.src = recipe.sourceUrl
+  if (recipe.keywords && recipe.keywords.length) payload.kw = recipe.keywords
+  if (recipe.cuisines && recipe.cuisines.length) payload.cu = recipe.cuisines
+  if (recipe.categories && recipe.categories.length) payload.cat = recipe.categories
+  return payload
+}
+
+async function compressPayload(payload) {
+  var json = JSON.stringify(payload)
+  var bytes = new TextEncoder().encode(json)
+
+  var cs = new CompressionStream('gzip')
+  var writer = cs.writable.getWriter()
+  writer.write(bytes)
+  writer.close()
+
+  var chunks = []
+  var reader = cs.readable.getReader()
+  while (true) {
+    var result = await reader.read()
+    if (result.done) break
+    chunks.push(result.value)
+  }
+
+  var totalLen = 0
+  for (var i = 0; i < chunks.length; i++) totalLen += chunks[i].length
+  var compressed = new Uint8Array(totalLen)
+  var offset = 0
+  for (var j = 0; j < chunks.length; j++) {
+    compressed.set(chunks[j], offset)
+    offset += chunks[j].length
+  }
+
+  // base64url encode (no padding)
+  var chunkSize = 8192
+  var binaryStr = ''
+  for (var k = 0; k < compressed.length; k += chunkSize) {
+    var slice = compressed.subarray(k, Math.min(k + chunkSize, compressed.length))
+    binaryStr += String.fromCharCode.apply(null, Array.from(slice))
+  }
+  var base64 = btoa(binaryStr)
+  return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+
+async function buildMiseShareUrl(recipe) {
+  var payload = buildSharePayload(recipe)
+  var encoded = await compressPayload(payload)
+  var url = SHARE_BASE + '?d=' + encoded
+
+  // Strip fields if URL too long (>6000 chars)
+  if (url.length > 6000 && payload.d) {
+    delete payload.d
+    encoded = await compressPayload(payload)
+    url = SHARE_BASE + '?d=' + encoded
+  }
+  if (url.length > 6000 && payload.img) {
+    delete payload.img
+    encoded = await compressPayload(payload)
+    url = SHARE_BASE + '?d=' + encoded
+  }
+  return url
+}
+
+// --- Share button: copy Mise link to clipboard ---
+shareBtn.addEventListener('click', async function() {
+  if (!currentRecipe) return
+  shareBtn.textContent = 'Building...'
+  shareBtn.disabled = true
+  try {
+    var url = await buildMiseShareUrl(currentRecipe)
+    await navigator.clipboard.writeText(url)
+    shareBtn.textContent = 'Copied!'
+    setTimeout(function() { shareBtn.textContent = 'Share'; shareBtn.disabled = false }, 2000)
+  } catch (e) {
+    shareBtn.textContent = 'Failed'
+    setTimeout(function() { shareBtn.textContent = 'Share'; shareBtn.disabled = false }, 2000)
+  }
+})
+
+// --- Pin to Pinterest button ---
+pinBtn.addEventListener('click', async function() {
+  if (!currentRecipe) return
+  pinBtn.textContent = 'Building...'
+  pinBtn.disabled = true
+  try {
+    var miseUrl = await buildMiseShareUrl(currentRecipe)
+    var pinUrl = 'https://pinterest.com/pin/create/button/?'
+      + 'url=' + encodeURIComponent(miseUrl)
+      + '&description=' + encodeURIComponent(currentRecipe.title || 'Recipe')
+    if (currentRecipe.imageUrl) {
+      pinUrl += '&media=' + encodeURIComponent(currentRecipe.imageUrl)
+    }
+    chrome.tabs.create({ url: pinUrl })
+    pinBtn.textContent = 'Pin to Pinterest'
+    pinBtn.disabled = false
+  } catch (e) {
+    pinBtn.textContent = 'Failed'
+    setTimeout(function() { pinBtn.textContent = 'Pin to Pinterest'; pinBtn.disabled = false }, 2000)
+  }
 })
 
 // =========================================================================
