@@ -222,6 +222,82 @@ toggleIngredientsBtn.addEventListener('click', function() {
   toggleIngredientsBtn.textContent = isHidden ? 'Show ingredients' : 'Hide ingredients'
 })
 
+// --- Vision extraction: screenshot + API ---
+async function tryVisionExtraction(title, transcriptText) {
+  loadingView.querySelector('.status').textContent = 'Analyzing video frame...'
+  showView(loadingView)
+
+  try {
+    // 1. Capture the visible tab
+    var capture = await new Promise(function(resolve) {
+      chrome.runtime.sendMessage({ type: 'CAPTURE_TAB' }, resolve)
+    })
+    if (!capture || capture.error || !capture.image) {
+      if (transcriptText) { showPasteWithText(title, transcriptText) }
+      else { showError('Could not capture video frame.') }
+      return
+    }
+
+    // 2. Send to Mise vision API
+    loadingView.querySelector('.status').textContent = 'Reading recipe from video...'
+    var apiResp = await fetch(MISE_URL + '/api/extract-image', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: capture.image }),
+    })
+
+    if (!apiResp.ok) {
+      if (transcriptText) { showPasteWithText(title, transcriptText) }
+      else { showError('Vision API failed. Try the Paste tab.') }
+      return
+    }
+
+    var data = await apiResp.json()
+
+    if (data.ingredients && data.ingredients.length > 0) {
+      var recipe = {
+        title: data.title || title || 'Video Recipe',
+        sourceUrl: '',
+        sourceDomain: 'youtube.com',
+        author: null,
+        description: null,
+        imageUrl: null,
+        servings: data.servings ? parseInt(data.servings, 10) || null : null,
+        servingsText: data.servings || null,
+        prepTimeMinutes: null,
+        cookTimeMinutes: null,
+        totalTimeMinutes: null,
+        rawIngredients: data.ingredients,
+        rawSteps: (data.steps || []).map(function(s, i) { return { order: i + 1, text: s } }),
+        keywords: [],
+        cuisines: [],
+        categories: [],
+        extractionLayer: 'vision',
+      }
+      showResult(recipe)
+    } else if (transcriptText) {
+      showPasteWithText(title, transcriptText)
+    } else {
+      showError('Could not extract recipe from video frame. Try the Paste tab.')
+    }
+  } catch (e) {
+    if (transcriptText) { showPasteWithText(title, transcriptText) }
+    else { showError('Vision extraction failed: ' + e.message) }
+  }
+}
+
+function showPasteWithText(title, text) {
+  pasteArea.value = (title ? title + '\n\n' : '') + text
+  for (var t = 0; t < tabBtns.length; t++) tabBtns[t].classList.remove('active')
+  for (var t2 = 0; t2 < tabBtns.length; t2++) {
+    if (tabBtns[t2].getAttribute('data-tab') === 'paste') tabBtns[t2].classList.add('active')
+  }
+  extractTab.classList.add('hidden')
+  pasteTab.classList.remove('hidden')
+  errorView.classList.remove('hidden')
+  errorMsg.textContent = 'Found caption text but could not auto-detect recipe structure. Edit below and click Parse Recipe.'
+}
+
 // --- Extract button ---
 extractBtn.addEventListener('click', async function() {
   showView(loadingView)
@@ -236,18 +312,23 @@ extractBtn.addEventListener('click', async function() {
     if (response && response.type === 'RECIPE_DATA' && response.recipe) {
       showResult(response.recipe)
     } else if (response && response.type === 'SOCIAL_TEXT') {
-      // Found caption text but couldn't auto-parse — switch to Paste tab with text pre-filled
-      pasteArea.value = (response.title ? response.title + '\n\n' : '') + response.text
-      for (var t = 0; t < tabBtns.length; t++) tabBtns[t].classList.remove('active')
-      for (var t2 = 0; t2 < tabBtns.length; t2++) { if (tabBtns[t2].getAttribute('data-tab') === 'paste') tabBtns[t2].classList.add('active') }
-      extractTab.classList.add('hidden')
-      pasteTab.classList.remove('hidden')
-      errorView.classList.remove('hidden')
-      errorMsg.textContent = 'Found caption text but could not auto-detect recipe structure. Edit below and click Parse Recipe.'
+      // Caption found but not parseable — try vision on YouTube, else show paste
+      var isYT = tab.url && tab.url.includes('youtube.com')
+      if (isYT) {
+        await tryVisionExtraction(response.title, response.text)
+      } else {
+        showPasteWithText(response.title, response.text)
+      }
     } else if (response && response.type === 'BLOCKED_SITE') {
       showError(response.message)
     } else if (response && response.type === 'NO_RECIPE') {
-      showError('No recipe found on this page. Try the Paste tab to paste recipe text directly.')
+      // On YouTube, try vision extraction before giving up
+      var isYTNoRecipe = tab.url && tab.url.includes('youtube.com')
+      if (isYTNoRecipe) {
+        await tryVisionExtraction(null, null)
+      } else {
+        showError('No recipe found on this page. Try the Paste tab to paste recipe text directly.')
+      }
     } else {
       showError('Could not communicate with page. Try refreshing.')
     }

@@ -59,6 +59,22 @@ chrome.runtime.onMessage.addListener(function(message, _sender, sendResponse) {
   return true
 })
 
+// --- Tab Screenshot Capture (for video frame OCR) ---
+
+chrome.runtime.onMessage.addListener(function(message, _sender, sendResponse) {
+  if (message.type !== 'CAPTURE_TAB') return false
+
+  chrome.tabs.captureVisibleTab(null, { format: 'jpeg', quality: 85 }, function(dataUrl) {
+    if (chrome.runtime.lastError) {
+      sendResponse({ error: chrome.runtime.lastError.message })
+    } else {
+      sendResponse({ image: dataUrl })
+    }
+  })
+
+  return true
+})
+
 // --- Badge Indicator ---
 
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
