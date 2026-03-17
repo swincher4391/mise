@@ -436,24 +436,57 @@ function extractTikTokCaption() {
   return null
 }
 
-// --- YouTube: extract description from rendered DOM ---
+// --- YouTube: extract description + captions from rendered DOM ---
 function extractYouTubeCaption() {
-  // YouTube renders the description in the DOM
+  // 1. Try video description from DOM
   var descEl = document.querySelector('#description-inner') || document.querySelector('ytd-text-inline-expander')
-  if (descEl && descEl.textContent.length >= 50) return descEl.textContent.trim()
+  if (descEl) {
+    var descText = descEl.textContent.trim()
+    if (descText.length >= 80) return descText
+  }
 
-  // For Shorts, try the title/caption area
-  var shortsTitle = document.querySelector('yt-formatted-string.title') || document.querySelector('h2.title')
-  if (shortsTitle && shortsTitle.textContent.length >= 30) return shortsTitle.textContent.trim()
+  // 2. Try shortDescription from player response
+  try {
+    var sd = window.ytInitialPlayerResponse.videoDetails.shortDescription
+    if (sd && sd.length >= 80) return sd
+  } catch (e) { /* */ }
 
-  // Fallback: og:description
+  // 3. Fallback: og:description (usually generic for Shorts)
   var ogMeta = document.querySelector('meta[property="og:description"]')
   if (ogMeta) {
     var ogText = decodeEntities(ogMeta.getAttribute('content') || '')
-    if (ogText.length >= 50) return ogText
+    if (ogText.length >= 80 && !/upload original content/i.test(ogText)) return ogText
   }
 
   return null
+}
+
+// Async: fetch YouTube captions via background worker (bypasses CORS)
+function extractYouTubeCaptions(callback) {
+  try {
+    var pr = window.ytInitialPlayerResponse
+    if (!pr || !pr.captions || !pr.captions.playerCaptionsTracklistRenderer) {
+      callback(null); return
+    }
+    var tracks = pr.captions.playerCaptionsTracklistRenderer.captionTracks
+    if (!tracks || tracks.length === 0) { callback(null); return }
+
+    // Prefer English, fall back to first track
+    var track = tracks[0]
+    for (var i = 0; i < tracks.length; i++) {
+      if (tracks[i].languageCode === 'en') { track = tracks[i]; break }
+    }
+
+    chrome.runtime.sendMessage({ type: 'FETCH_CAPTIONS', url: track.baseUrl }, function(response) {
+      if (response && response.transcript && response.transcript.length >= 50) {
+        callback(response.transcript)
+      } else {
+        callback(null)
+      }
+    })
+  } catch (e) {
+    callback(null)
+  }
 }
 
 // --- Facebook: extract post text from DOM ---
@@ -482,6 +515,8 @@ function extractFacebookCaption() {
 }
 
 // --- Unified social media extractor ---
+// Returns result synchronously for most platforms, or null.
+// For YouTube captions (async), use extractSocialMediaAsync.
 function extractSocialMedia() {
   var host = window.location.hostname.toLowerCase()
   var caption = null
@@ -493,7 +528,6 @@ function extractSocialMedia() {
 
   if (!caption || caption.length < 30) return null
 
-  // Parse the caption text into a recipe-like structure
   var title = document.querySelector('title')
   var titleText = title ? title.textContent.trim().replace(/\s*[|\u2013\u2014-]\s*(Instagram|TikTok|YouTube|Facebook).*$/i, '') : 'Social Media Recipe'
   var ogImage = document.querySelector('meta[property="og:image"]')
@@ -504,6 +538,40 @@ function extractSocialMedia() {
     image: ogImage ? ogImage.getAttribute('content') : null,
     _captionText: caption,
   }
+}
+
+// Async version: tries sync first, then falls back to YouTube captions
+function extractSocialMediaAsync(callback) {
+  var syncResult = extractSocialMedia()
+  if (syncResult) { callback(syncResult); return }
+
+  // For YouTube: try captions via background worker
+  var host = window.location.hostname.toLowerCase()
+  if (host.includes('youtube.com')) {
+    extractYouTubeCaptions(function(transcript) {
+      if (!transcript) { callback(null); return }
+
+      var title = document.querySelector('title')
+      var titleText = title ? title.textContent.trim().replace(/\s*[|\u2013\u2014-]\s*YouTube.*$/i, '') : 'YouTube Recipe'
+      // Also try to get the video title from player response
+      try {
+        var vt = window.ytInitialPlayerResponse.videoDetails.title
+        if (vt) titleText = vt.replace(/#\w+/g, '').trim()
+      } catch (e) { /* */ }
+
+      var ogImage = document.querySelector('meta[property="og:image"]')
+
+      callback({
+        '@type': 'Recipe',
+        name: titleText,
+        image: ogImage ? ogImage.getAttribute('content') : null,
+        _captionText: transcript,
+      })
+    })
+    return
+  }
+
+  callback(null)
 }
 
 // Build a recipe from parsed caption text
@@ -610,24 +678,24 @@ chrome.runtime.onMessage.addListener(function(message, _sender, sendResponse) {
       normalized.extractionLayer = layer
       sendResponse({ type: 'RECIPE_DATA', recipe: normalized })
     } else if (isSocialMediaPage()) {
-      // Layer 4: Social media caption extraction
-      var social = extractSocialMedia()
-      if (social) {
-        var socialRecipe = buildSocialRecipe(social, url)
-        if (socialRecipe.rawIngredients.length > 0 || socialRecipe.rawSteps.length > 0) {
-          sendResponse({ type: 'RECIPE_DATA', recipe: socialRecipe })
+      // Layer 4: Social media caption extraction (may be async for YT captions)
+      extractSocialMediaAsync(function(social) {
+        if (social) {
+          var socialRecipe = buildSocialRecipe(social, url)
+          if (socialRecipe.rawIngredients.length > 0 || socialRecipe.rawSteps.length > 0) {
+            sendResponse({ type: 'RECIPE_DATA', recipe: socialRecipe })
+          } else {
+            sendResponse({
+              type: 'SOCIAL_TEXT',
+              text: social._captionText,
+              title: social.name,
+              imageUrl: social.image,
+            })
+          }
         } else {
-          // Found caption but couldn't parse recipe structure — send raw text
-          sendResponse({
-            type: 'SOCIAL_TEXT',
-            text: social._captionText,
-            title: social.name,
-            imageUrl: social.image,
-          })
+          sendResponse({ type: 'NO_RECIPE' })
         }
-      } else {
-        sendResponse({ type: 'NO_RECIPE' })
-      }
+      })
     } else {
       sendResponse({ type: 'NO_RECIPE' })
     }

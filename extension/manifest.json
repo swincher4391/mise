@@ -4,6 +4,7 @@
   "version": "2.0.0",
   "description": "Extract recipes from any page with one click. Nutrition preview, ingredient parsing, and instant save to Mise.",
   "permissions": ["activeTab", "contextMenus"],
+  "host_permissions": ["*://*.youtube.com/*", "*://*.googlevideo.com/*"],
   "background": {
     "service_worker": "background.js"
   },

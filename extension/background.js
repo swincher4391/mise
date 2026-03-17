@@ -33,6 +33,32 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   }
 })
 
+// --- YouTube Caption Fetch (bypasses page CORS) ---
+
+chrome.runtime.onMessage.addListener(function(message, _sender, sendResponse) {
+  if (message.type !== 'FETCH_CAPTIONS') return false
+
+  fetch(message.url).then(function(resp) {
+    if (!resp.ok) throw new Error('HTTP ' + resp.status)
+    return resp.text()
+  }).then(function(xml) {
+    var lines = []
+    var re = /<text[^>]*>([\s\S]*?)<\/text>/g
+    var m
+    while ((m = re.exec(xml)) !== null) {
+      var text = m[1].trim()
+        .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&apos;/g, "'")
+      if (text && text !== '\n') lines.push(text)
+    }
+    sendResponse({ transcript: lines.join(' ') })
+  }).catch(function(e) {
+    sendResponse({ error: e.message })
+  })
+
+  return true
+})
+
 // --- Badge Indicator ---
 
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
