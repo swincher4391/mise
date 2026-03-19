@@ -222,30 +222,49 @@ toggleIngredientsBtn.addEventListener('click', function() {
   toggleIngredientsBtn.textContent = isHidden ? 'Show ingredients' : 'Hide ingredients'
 })
 
-// --- Vision extraction: video frame grids + transcript → API ---
+// --- Extract YouTube video ID from URL ---
+function extractYouTubeVideoId(url) {
+  if (!url) return null
+  var m = url.match(/(?:shorts\/|youtu\.be\/|[?&]v=)([a-zA-Z0-9_-]{11})/)
+  return m ? m[1] : null
+}
+
+// --- Vision extraction: video frame grids + LLM-structured transcript → API ---
 async function tryVisionExtraction(title, transcriptText) {
-  loadingView.querySelector('.status').textContent = 'Capturing video frames...'
+  loadingView.querySelector('.status').textContent = 'Analyzing video...'
   showView(loadingView)
 
   try {
-    // 1. Get the active tab to send message to content script
     var activeTabs = await chrome.tabs.query({ active: true, currentWindow: true })
     var tab = activeTabs[0]
+    var videoId = tab ? extractYouTubeVideoId(tab.url) : null
 
-    // 2. Capture frame grids from the video element (36 frames → 4 x 3x3 grids)
-    var frameResult = null
-    if (tab && tab.id) {
-      frameResult = await new Promise(function(resolve) {
-        chrome.tabs.sendMessage(tab.id, { type: 'CAPTURE_VIDEO_FRAMES' }, function(resp) {
-          if (chrome.runtime.lastError) { resolve(null); return }
-          resolve(resp)
-        })
+    // Run in parallel: frame grids + LLM-structured transcript
+    var framePromise = new Promise(function(resolve) {
+      if (!tab || !tab.id) { resolve(null); return }
+      chrome.tabs.sendMessage(tab.id, { type: 'CAPTURE_VIDEO_FRAMES' }, function(resp) {
+        if (chrome.runtime.lastError) { resolve(null); return }
+        resolve(resp)
       })
-    }
+    })
+
+    var structuredTranscriptPromise = (function() {
+      if (!videoId) return Promise.resolve(transcriptText || null)
+      // Call yt-transcript endpoint — it fetches captions + structures via LLM
+      return fetch(MISE_URL + '/api/yt-transcript?videoId=' + videoId)
+        .then(function(r) { return r.ok ? r.json() : null })
+        .then(function(data) { return data && data.text ? data.text : transcriptText || null })
+        .catch(function() { return transcriptText || null })
+    })()
+
+    // Wait for both
+    var results = await Promise.all([framePromise, structuredTranscriptPromise])
+    var frameResult = results[0]
+    var structuredTranscript = results[1]
 
     var grids = frameResult && frameResult.grids ? frameResult.grids : null
 
-    // 3. Fallback: single tab screenshot if frame capture failed
+    // Fallback: single tab screenshot if frame capture failed
     if (!grids) {
       loadingView.querySelector('.status').textContent = 'Capturing screenshot...'
       var capture = await new Promise(function(resolve) {
@@ -256,17 +275,47 @@ async function tryVisionExtraction(title, transcriptText) {
       }
     }
 
+    // If we got a structured transcript with ingredients, try parsing it directly first
+    if (structuredTranscript && /ingredients/i.test(structuredTranscript)) {
+      var parsed = parseTextRecipe(structuredTranscript)
+      if (parsed.ingredientLines.length >= 2) {
+        var recipe = {
+          title: parsed.title || title || 'Video Recipe',
+          sourceUrl: tab ? tab.url : '',
+          sourceDomain: 'youtube.com',
+          author: null,
+          description: null,
+          imageUrl: null,
+          servings: null,
+          servingsText: null,
+          prepTimeMinutes: null,
+          cookTimeMinutes: null,
+          totalTimeMinutes: null,
+          rawIngredients: parsed.ingredientLines,
+          rawSteps: parsed.stepLines.map(function(s, i) { return { order: i + 1, text: s } }),
+          keywords: [],
+          cuisines: [],
+          categories: [],
+          extractionLayer: 'transcript',
+        }
+        showResult(recipe)
+        return
+      }
+    }
+
     if (!grids || grids.length === 0) {
-      if (transcriptText) { showPasteWithText(title, transcriptText) }
+      if (structuredTranscript) { showPasteWithText(title, structuredTranscript) }
+      else if (transcriptText) { showPasteWithText(title, transcriptText) }
       else { showError('Could not capture video frames.') }
       return
     }
 
-    // 4. Send grids + transcript to Mise vision API
+    // Send grids + structured transcript to vision API
     loadingView.querySelector('.status').textContent = 'Reading recipe from ' + (grids.length > 1 ? grids.length + ' frame grids' : 'video') + '...'
 
     var body = { images: grids }
-    if (transcriptText) body.transcript = transcriptText
+    if (structuredTranscript) body.transcript = structuredTranscript
+    else if (transcriptText) body.transcript = transcriptText
 
     var apiResp = await fetch(MISE_URL + '/api/extract-image', {
       method: 'POST',
