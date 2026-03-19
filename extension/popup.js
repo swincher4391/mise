@@ -249,12 +249,16 @@ async function tryVisionExtraction(title, transcriptText) {
     })
 
     var structuredTranscriptPromise = (function() {
-      if (!videoId) return Promise.resolve(transcriptText || null)
-      // Call yt-transcript endpoint — it fetches captions + structures via LLM
-      return fetch(MISE_URL + '/api/yt-transcript?videoId=' + videoId)
+      if (!transcriptText || transcriptText.length < 30) return Promise.resolve(null)
+      // Send raw transcript to structuring endpoint (LLM converts spoken text → recipe format)
+      return fetch(MISE_URL + '/api/structure-transcript', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transcript: transcriptText }),
+      })
         .then(function(r) { return r.ok ? r.json() : null })
-        .then(function(data) { return data && data.text ? data.text : transcriptText || null })
-        .catch(function() { return transcriptText || null })
+        .then(function(data) { return data && data.text ? data.text : transcriptText })
+        .catch(function() { return transcriptText })
     })()
 
     // Wait for both
