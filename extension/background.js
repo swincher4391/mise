@@ -77,33 +77,32 @@ chrome.runtime.onMessage.addListener(function(message, _sender, sendResponse) {
 
 // --- Badge Indicator ---
 
-chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
-  if (changeInfo.status !== 'complete') return
-
-  try {
-    const response = await chrome.tabs.sendMessage(tabId, { type: 'DETECT_RECIPE' })
-    if (response?.hasRecipe) {
-      chrome.action.setBadgeText({ text: '✓', tabId })
-      chrome.action.setBadgeBackgroundColor({ color: '#2d5016', tabId })
-    } else {
-      chrome.action.setBadgeText({ text: '', tabId })
+function updateBadge(tabId) {
+  // Verify tab exists before sending message
+  chrome.tabs.get(tabId, function(tab) {
+    if (chrome.runtime.lastError || !tab || !tab.url || tab.url.startsWith('chrome://')) {
+      chrome.action.setBadgeText({ text: '', tabId: tabId }).catch(function() {})
+      return
     }
-  } catch {
-    // Content script not injected (chrome:// pages, etc.)
-    chrome.action.setBadgeText({ text: '', tabId })
-  }
+    chrome.tabs.sendMessage(tabId, { type: 'DETECT_RECIPE' }, function(response) {
+      if (chrome.runtime.lastError) {
+        chrome.action.setBadgeText({ text: '', tabId: tabId }).catch(function() {})
+        return
+      }
+      if (response && response.hasRecipe) {
+        chrome.action.setBadgeText({ text: '\u2713', tabId: tabId })
+        chrome.action.setBadgeBackgroundColor({ color: '#2d5016', tabId: tabId })
+      } else {
+        chrome.action.setBadgeText({ text: '', tabId: tabId })
+      }
+    })
+  })
+}
+
+chrome.tabs.onUpdated.addListener(function(tabId, changeInfo) {
+  if (changeInfo.status === 'complete') updateBadge(tabId)
 })
 
-chrome.tabs.onActivated.addListener(async ({ tabId }) => {
-  try {
-    const response = await chrome.tabs.sendMessage(tabId, { type: 'DETECT_RECIPE' })
-    if (response?.hasRecipe) {
-      chrome.action.setBadgeText({ text: '✓', tabId })
-      chrome.action.setBadgeBackgroundColor({ color: '#2d5016', tabId })
-    } else {
-      chrome.action.setBadgeText({ text: '', tabId })
-    }
-  } catch {
-    chrome.action.setBadgeText({ text: '', tabId })
-  }
+chrome.tabs.onActivated.addListener(function(info) {
+  updateBadge(info.tabId)
 })
