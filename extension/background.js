@@ -77,26 +77,26 @@ chrome.runtime.onMessage.addListener(function(message, _sender, sendResponse) {
 
 // --- Badge Indicator ---
 
+function safeBadge(tabId, text, color) {
+  try {
+    chrome.action.setBadgeText({ text: text, tabId: tabId })
+    if (color) chrome.action.setBadgeBackgroundColor({ color: color, tabId: tabId })
+  } catch (e) { /* tab gone */ }
+}
+
 function updateBadge(tabId) {
-  // Verify tab exists before sending message
-  chrome.tabs.get(tabId, function(tab) {
-    if (chrome.runtime.lastError || !tab || !tab.url || tab.url.startsWith('chrome://')) {
-      chrome.action.setBadgeText({ text: '', tabId: tabId }).catch(function() {})
-      return
-    }
-    chrome.tabs.sendMessage(tabId, { type: 'DETECT_RECIPE' }, function(response) {
-      if (chrome.runtime.lastError) {
-        chrome.action.setBadgeText({ text: '', tabId: tabId }).catch(function() {})
-        return
-      }
-      if (response && response.hasRecipe) {
-        chrome.action.setBadgeText({ text: '\u2713', tabId: tabId })
-        chrome.action.setBadgeBackgroundColor({ color: '#2d5016', tabId: tabId })
-      } else {
-        chrome.action.setBadgeText({ text: '', tabId: tabId })
-      }
+  try {
+    chrome.tabs.get(tabId, function(tab) {
+      if (chrome.runtime.lastError) return
+      if (!tab || !tab.url || tab.url.startsWith('chrome')) { safeBadge(tabId, ''); return }
+      try {
+        chrome.tabs.sendMessage(tabId, { type: 'DETECT_RECIPE' }, function(response) {
+          if (chrome.runtime.lastError) return
+          safeBadge(tabId, response && response.hasRecipe ? '\u2713' : '', '#2d5016')
+        })
+      } catch (e) { /* content script not ready */ }
     })
-  })
+  } catch (e) { /* extension context invalidated */ }
 }
 
 chrome.tabs.onUpdated.addListener(function(tabId, changeInfo) {
