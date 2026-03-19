@@ -13,24 +13,27 @@ const EXTRACTION_PROMPT = `Extract the recipe from this image. Return ONLY valid
 }
 If this is not a recipe image, return: {"error": "No recipe found in image"}`
 
-const VIDEO_EXTRACTION_PROMPT = `These images are frame grids captured from a cooking video. Each grid is a 3x3 tile of 9 sequential frames showing the recipe being prepared.
+const VIDEO_EXTRACTION_PROMPT = `These images are frame grids from a cooking video. Each grid is a 2x2 tile of 4 sequential frames.
 
 TRANSCRIPT_PLACEHOLDER
 
-Extract the COMPLETE recipe from the video frames and transcript. Look for:
-- On-screen text showing ingredients and quantities
-- Visual cues of ingredients being added
-- Cooking steps shown in the video
+IMPORTANT RULES:
+- ONLY include ingredients and steps that you can clearly SEE as on-screen text or HEAR in the transcript
+- Do NOT guess, infer, or make up ingredients that aren't explicitly shown or mentioned
+- If the transcript mentions specific quantities (e.g. "one and a half cups of cottage cheese"), use those EXACT quantities
+- If you cannot clearly read or hear an ingredient, do NOT include it
+- Prefer transcript quantities over visual guesses
 
 Return ONLY valid JSON:
 {
   "title": "Recipe Name",
-  "ingredients": ["1 cup flour", "2 eggs"],
-  "steps": ["Preheat oven to 350F", "Mix dry ingredients"],
+  "ingredients": ["1.5 cups cottage cheese", "0.5 cup buffalo sauce"],
+  "steps": ["Step explicitly shown or spoken"],
   "servings": "4" or null,
   "prepTime": "15 min" or null,
   "cookTime": "30 min" or null
-}`
+}
+If you cannot identify any recipe, return: {"error": "No recipe found"}`
 
 async function uploadToTempHost(base64DataUrl: string): Promise<string> {
   // Strip the data URL prefix to get raw base64

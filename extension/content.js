@@ -639,9 +639,9 @@ function buildSocialRecipe(captionData, url) {
 // Seeks through <video> element, captures frames to canvas, tiles into grids
 // =========================================================================
 
-var FRAMES_PER_GRID = 9 // 3x3
+var FRAMES_PER_GRID = 4 // 2x2 — larger frames for readable text
 var NUM_GRIDS = 2 // Keep payload under Vercel 4.5MB body limit
-var TOTAL_FRAMES = FRAMES_PER_GRID * NUM_GRIDS // 18
+var TOTAL_FRAMES = FRAMES_PER_GRID * NUM_GRIDS // 8 key frames
 
 function captureVideoFrameGrids(callback) {
   var video = document.querySelector('video')
@@ -662,9 +662,9 @@ function captureVideoFrameGrids(callback) {
   var frameWidth = video.videoWidth || 360
   var frameHeight = video.videoHeight || 640
 
-  // Scale frames down for grid — target ~120px wide per frame to keep grids small
-  // A 3x3 grid of 120x213 frames = 360x640 grid image ≈ 30-50KB JPEG
-  var scale = Math.min(1, 120 / frameWidth)
+  // Scale frames for 2x2 grid — target ~270px wide per frame for readable text
+  // A 2x2 grid of 270x480 frames = 540x960 grid image ≈ 60-100KB JPEG
+  var scale = Math.min(1, 270 / frameWidth)
   var fw = Math.round(frameWidth * scale)
   var fh = Math.round(frameHeight * scale)
 
@@ -714,7 +714,7 @@ function captureVideoFrameGrids(callback) {
 
     // Build 3x3 grid images
     var grids = []
-    var cols = 3, rows = 3
+    var cols = 2, rows = 2
     var gridW = fw * cols
     var gridH = fh * rows
 
