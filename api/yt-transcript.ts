@@ -77,10 +77,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           messages: [
             {
               role: 'user',
-              content: `Below is a raw auto-generated caption transcript from a cooking video. Extract and structure it into a recipe. Return ONLY the recipe as plain text with:
+              content: `Below is a raw auto-generated caption transcript from a cooking video. Extract and structure it into a recipe.
+
+CRITICAL RULES:
+- Include EVERY ingredient mentioned, with EXACT quantities spoken (e.g. "one and a half cups" → "1.5 cups", "twenty-four ounces" → "24 oz")
+- Use the SPECIFIC ingredient names spoken (e.g. "fat-free milk" not just "milk", "garlic salt" not just "salt", "protein pasta" not just "pasta", "smoked paprika" not just "paprika")
+- Include EXACT cooking methods mentioned (e.g. "air fryer at 375" not "oven", "blend" not "mix")
+- Include EXACT times mentioned (e.g. "15 minutes" not omitted)
+- Do NOT summarize, generalize, or omit details. Be literal and precise.
+- If the speaker says a brand name or specific product (e.g. "mac and cheese packet"), include it
+
+Return ONLY the recipe as plain text with:
 - Title on the first line
-- "Ingredients:" section with each ingredient on its own line, prefixed with "- "
-- "Instructions:" section with numbered steps
+- "Ingredients:" section with each ingredient on its own line, prefixed with "- " with quantities
+- "Instructions:" section with numbered steps including times and temperatures
 
 If the transcript does not contain a recipe, return an empty string.
 
