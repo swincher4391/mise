@@ -222,28 +222,56 @@ toggleIngredientsBtn.addEventListener('click', function() {
   toggleIngredientsBtn.textContent = isHidden ? 'Show ingredients' : 'Hide ingredients'
 })
 
-// --- Vision extraction: screenshot + API ---
+// --- Vision extraction: video frame grids + transcript → API ---
 async function tryVisionExtraction(title, transcriptText) {
-  loadingView.querySelector('.status').textContent = 'Analyzing video frame...'
+  loadingView.querySelector('.status').textContent = 'Capturing video frames...'
   showView(loadingView)
 
   try {
-    // 1. Capture the visible tab
-    var capture = await new Promise(function(resolve) {
-      chrome.runtime.sendMessage({ type: 'CAPTURE_TAB' }, resolve)
-    })
-    if (!capture || capture.error || !capture.image) {
+    // 1. Get the active tab to send message to content script
+    var activeTabs = await chrome.tabs.query({ active: true, currentWindow: true })
+    var tab = activeTabs[0]
+
+    // 2. Capture frame grids from the video element (36 frames → 4 x 3x3 grids)
+    var frameResult = null
+    if (tab && tab.id) {
+      frameResult = await new Promise(function(resolve) {
+        chrome.tabs.sendMessage(tab.id, { type: 'CAPTURE_VIDEO_FRAMES' }, function(resp) {
+          if (chrome.runtime.lastError) { resolve(null); return }
+          resolve(resp)
+        })
+      })
+    }
+
+    var grids = frameResult && frameResult.grids ? frameResult.grids : null
+
+    // 3. Fallback: single tab screenshot if frame capture failed
+    if (!grids) {
+      loadingView.querySelector('.status').textContent = 'Capturing screenshot...'
+      var capture = await new Promise(function(resolve) {
+        chrome.runtime.sendMessage({ type: 'CAPTURE_TAB' }, resolve)
+      })
+      if (capture && capture.image) {
+        grids = [capture.image]
+      }
+    }
+
+    if (!grids || grids.length === 0) {
       if (transcriptText) { showPasteWithText(title, transcriptText) }
-      else { showError('Could not capture video frame.') }
+      else { showError('Could not capture video frames.') }
       return
     }
 
-    // 2. Send to Mise vision API
-    loadingView.querySelector('.status').textContent = 'Reading recipe from video...'
+    // 4. Send grids + transcript to Mise vision API
+    loadingView.querySelector('.status').textContent = 'Reading recipe from ' + (grids.length > 1 ? grids.length + ' frame grids' : 'video') + '...'
+
+    var body = { images: grids }
+    if (transcriptText) body.transcript = transcriptText
+
     var apiResp = await fetch(MISE_URL + '/api/extract-image', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ image: capture.image }),
+      body: JSON.stringify(body),
     })
 
     if (!apiResp.ok) {
@@ -257,7 +285,7 @@ async function tryVisionExtraction(title, transcriptText) {
     if (data.ingredients && data.ingredients.length > 0) {
       var recipe = {
         title: data.title || title || 'Video Recipe',
-        sourceUrl: '',
+        sourceUrl: tab ? tab.url : '',
         sourceDomain: 'youtube.com',
         author: null,
         description: null,
@@ -278,7 +306,7 @@ async function tryVisionExtraction(title, transcriptText) {
     } else if (transcriptText) {
       showPasteWithText(title, transcriptText)
     } else {
-      showError('Could not extract recipe from video frame. Try the Paste tab.')
+      showError('Could not extract recipe from video. Try the Paste tab.')
     }
   } catch (e) {
     if (transcriptText) { showPasteWithText(title, transcriptText) }

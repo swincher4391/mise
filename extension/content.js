@@ -635,12 +635,129 @@ function buildSocialRecipe(captionData, url) {
 }
 
 // =========================================================================
+// Video frame grid capture (for vision extraction)
+// Seeks through <video> element, captures frames to canvas, tiles into grids
+// =========================================================================
+
+var FRAMES_PER_GRID = 9 // 3x3
+var NUM_GRIDS = 4
+var TOTAL_FRAMES = FRAMES_PER_GRID * NUM_GRIDS // 36
+
+function captureVideoFrameGrids(callback) {
+  var video = document.querySelector('video')
+  if (!video || !video.duration || video.duration === Infinity) {
+    callback(null)
+    return
+  }
+
+  var duration = video.duration
+  var wasPaused = video.paused
+  var originalTime = video.currentTime
+
+  // Mute to avoid audio during seeking
+  var wasMuted = video.muted
+  video.muted = true
+  video.pause()
+
+  var frameWidth = video.videoWidth || 360
+  var frameHeight = video.videoHeight || 640
+
+  // Scale frames down for grid (each frame ~180px wide in grid)
+  var scale = Math.min(1, 180 / frameWidth)
+  var fw = Math.round(frameWidth * scale)
+  var fh = Math.round(frameHeight * scale)
+
+  var timestamps = []
+  for (var i = 0; i < TOTAL_FRAMES; i++) {
+    timestamps.push((duration * (i + 0.5)) / TOTAL_FRAMES)
+  }
+
+  var frames = []
+  var frameIdx = 0
+
+  function captureNext() {
+    if (frameIdx >= timestamps.length) {
+      finishCapture()
+      return
+    }
+
+    video.currentTime = timestamps[frameIdx]
+    video.onseeked = function() {
+      try {
+        var canvas = document.createElement('canvas')
+        canvas.width = fw
+        canvas.height = fh
+        var ctx = canvas.getContext('2d')
+        ctx.drawImage(video, 0, 0, fw, fh)
+        frames.push(canvas)
+      } catch (e) { /* cross-origin video, skip frame */ }
+      frameIdx++
+      captureNext()
+    }
+    // Timeout in case onseeked doesn't fire
+    setTimeout(function() {
+      if (frameIdx < timestamps.length) {
+        frameIdx++
+        captureNext()
+      }
+    }, 1000)
+  }
+
+  function finishCapture() {
+    // Restore video state
+    video.currentTime = originalTime
+    video.muted = wasMuted
+    if (!wasPaused) video.play()
+
+    if (frames.length < 4) { callback(null); return }
+
+    // Build 3x3 grid images
+    var grids = []
+    var cols = 3, rows = 3
+    var gridW = fw * cols
+    var gridH = fh * rows
+
+    for (var g = 0; g < NUM_GRIDS; g++) {
+      var startIdx = g * FRAMES_PER_GRID
+      var gridFrames = frames.slice(startIdx, startIdx + FRAMES_PER_GRID)
+      if (gridFrames.length === 0) break
+
+      var gridCanvas = document.createElement('canvas')
+      gridCanvas.width = gridW
+      gridCanvas.height = gridH
+      var gctx = gridCanvas.getContext('2d')
+      gctx.fillStyle = '#000'
+      gctx.fillRect(0, 0, gridW, gridH)
+
+      for (var f = 0; f < gridFrames.length; f++) {
+        var col = f % cols
+        var row = Math.floor(f / cols)
+        gctx.drawImage(gridFrames[f], col * fw, row * fh, fw, fh)
+      }
+
+      grids.push(gridCanvas.toDataURL('image/jpeg', 0.8))
+    }
+
+    callback(grids.length > 0 ? grids : null)
+  }
+
+  captureNext()
+}
+
+// =========================================================================
 // Message listener
 // =========================================================================
 
 chrome.runtime.onMessage.addListener(function(message, _sender, sendResponse) {
   if (message.type === 'DETECT_RECIPE') {
     sendResponse({ hasRecipe: hasRecipeOnPage() })
+    return true
+  }
+
+  if (message.type === 'CAPTURE_VIDEO_FRAMES') {
+    captureVideoFrameGrids(function(grids) {
+      sendResponse({ grids: grids })
+    })
     return true
   }
 

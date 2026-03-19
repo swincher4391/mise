@@ -13,6 +13,25 @@ const EXTRACTION_PROMPT = `Extract the recipe from this image. Return ONLY valid
 }
 If this is not a recipe image, return: {"error": "No recipe found in image"}`
 
+const VIDEO_EXTRACTION_PROMPT = `These images are frame grids captured from a cooking video. Each grid is a 3x3 tile of 9 sequential frames showing the recipe being prepared.
+
+TRANSCRIPT_PLACEHOLDER
+
+Extract the COMPLETE recipe from the video frames and transcript. Look for:
+- On-screen text showing ingredients and quantities
+- Visual cues of ingredients being added
+- Cooking steps shown in the video
+
+Return ONLY valid JSON:
+{
+  "title": "Recipe Name",
+  "ingredients": ["1 cup flour", "2 eggs"],
+  "steps": ["Preheat oven to 350F", "Mix dry ingredients"],
+  "servings": "4" or null,
+  "prepTime": "15 min" or null,
+  "cookTime": "30 min" or null
+}`
+
 async function uploadToTempHost(base64DataUrl: string): Promise<string> {
   // Strip the data URL prefix to get raw base64
   const base64Data = base64DataUrl.replace(/^data:image\/\w+;base64,/, '')
@@ -114,17 +133,75 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: 'HF_API_KEY not configured on server' })
   }
 
-  const { image, imageUrl: directUrl } = req.body ?? {}
+  const { image, imageUrl: directUrl, images, transcript } = req.body ?? {}
 
+  // Multi-image mode (video frame grids + optional transcript)
+  if (images && Array.isArray(images) && images.length > 0) {
+    try {
+      // Upload all grid images in parallel
+      const imageUrls = await Promise.all(
+        images.slice(0, 4).map((img: string) => uploadToTempHost(img))
+      )
+
+      // Build prompt with transcript context if available
+      let prompt = VIDEO_EXTRACTION_PROMPT
+      if (transcript && typeof transcript === 'string' && transcript.length > 10) {
+        prompt = prompt.replace(
+          'TRANSCRIPT_PLACEHOLDER',
+          `Here is the spoken transcript from the video:\n"${transcript.slice(0, 2000)}"\n`
+        )
+      } else {
+        prompt = prompt.replace('TRANSCRIPT_PLACEHOLDER', '')
+      }
+
+      // Build multi-image content array
+      const content: any[] = [{ type: 'text', text: prompt }]
+      for (const url of imageUrls) {
+        content.push({ type: 'image_url', image_url: { url } })
+      }
+
+      const response = await fetch('https://router.huggingface.co/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'Qwen/Qwen2.5-VL-7B-Instruct:hyperbolic',
+          messages: [{ role: 'user', content }],
+          max_tokens: 2048,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        return res.status(502).json({
+          error: `HF API error (${response.status}): ${errorText.slice(0, 200)}`,
+        })
+      }
+
+      const data = await response.json()
+      const respContent = data.choices?.[0]?.message?.content ?? ''
+      const jsonMatch = respContent.match(/\{[\s\S]*\}/)
+      if (!jsonMatch) {
+        return res.status(502).json({ error: 'No JSON found in model response' })
+      }
+      return res.status(200).json(JSON.parse(jsonMatch[0]))
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error'
+      return res.status(502).json({ error: `Failed to extract recipe: ${message}` })
+    }
+  }
+
+  // Single-image mode (original behavior)
   if (!image && !directUrl) {
-    return res.status(400).json({ error: 'Missing image or imageUrl field in request body' })
+    return res.status(400).json({ error: 'Missing image, imageUrl, or images field in request body' })
   }
 
   if (image) {
     if (typeof image !== 'string') {
       return res.status(400).json({ error: 'image must be a string' })
     }
-    // Validate base64 size (rough estimate — base64 is ~33% larger than raw)
     const estimatedBytes = (image.length * 3) / 4
     if (estimatedBytes > MAX_IMAGE_SIZE) {
       return res.status(400).json({ error: 'Image exceeds 5MB limit' })
@@ -136,8 +213,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // Proxy image URL through tmpfiles.org so HuggingFace can access it
-    // (many CDNs like Facebook block non-browser requests)
     const imageUrl = directUrl
       ? await proxyImageToTempHost(directUrl)
       : await uploadToTempHost(image)
@@ -172,8 +247,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const data = await response.json()
     const content = data.choices?.[0]?.message?.content ?? ''
-
-    // Extract JSON from the response (model may wrap in markdown code blocks)
     const jsonMatch = content.match(/\{[\s\S]*\}/)
     if (!jsonMatch) {
       return res.status(502).json({ error: 'No JSON found in model response' })
