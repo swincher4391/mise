@@ -436,6 +436,50 @@ function extractTikTokCaption() {
   return null
 }
 
+// Extract the first balanced {...} JSON object that follows a marker string.
+// Brace-counting (string-aware) so we don't mis-match on nested braces.
+function extractJsonObjectAfter(text, marker) {
+  var idx = text.indexOf(marker)
+  if (idx === -1) return null
+  var start = text.indexOf('{', idx)
+  if (start === -1) return null
+  var depth = 0, inStr = false, esc = false
+  for (var i = start; i < text.length; i++) {
+    var c = text[i]
+    if (inStr) {
+      if (esc) esc = false
+      else if (c === '\\') esc = true
+      else if (c === '"') inStr = false
+    } else if (c === '"') inStr = true
+    else if (c === '{') depth++
+    else if (c === '}') {
+      depth--
+      if (depth === 0) return text.slice(start, i + 1)
+    }
+  }
+  return null
+}
+
+// Read ytInitialPlayerResponse. Content scripts run in an isolated world and
+// can't see the page's window.ytInitialPlayerResponse, so parse it out of the
+// inline <script> that YouTube embeds in the document.
+function getYtPlayerResponse() {
+  try {
+    if (window.ytInitialPlayerResponse) return window.ytInitialPlayerResponse
+  } catch (e) { /* */ }
+  var scripts = document.querySelectorAll('script')
+  for (var i = 0; i < scripts.length; i++) {
+    var t = scripts[i].textContent
+    if (t && t.indexOf('ytInitialPlayerResponse') !== -1) {
+      var json = extractJsonObjectAfter(t, 'ytInitialPlayerResponse')
+      if (json) {
+        try { return JSON.parse(json) } catch (e) { /* keep scanning */ }
+      }
+    }
+  }
+  return null
+}
+
 // --- YouTube: extract description + captions from rendered DOM ---
 function extractYouTubeCaption() {
   // 1. Try video description from DOM
@@ -447,7 +491,7 @@ function extractYouTubeCaption() {
 
   // 2. Try shortDescription from player response
   try {
-    var sd = window.ytInitialPlayerResponse.videoDetails.shortDescription
+    var sd = getYtPlayerResponse().videoDetails.shortDescription
     if (sd && sd.length >= 80) return sd
   } catch (e) { /* */ }
 
@@ -464,7 +508,7 @@ function extractYouTubeCaption() {
 // Async: fetch YouTube captions via background worker (bypasses CORS)
 function extractYouTubeCaptions(callback) {
   try {
-    var pr = window.ytInitialPlayerResponse
+    var pr = getYtPlayerResponse()
     if (!pr || !pr.captions || !pr.captions.playerCaptionsTracklistRenderer) {
       callback(null); return
     }
@@ -540,38 +584,43 @@ function extractSocialMedia() {
   }
 }
 
-// Async version: tries sync first, then falls back to YouTube captions
+// Async version. For YouTube, fetch the actual caption track (the spoken
+// transcript) FIRST \u2014 the DOM "description" is usually channel boilerplate or
+// page chrome, not the recipe, so preferring the sync extractor there grabbed
+// junk and skipped the real captions. Other platforms resolve synchronously.
 function extractSocialMediaAsync(callback) {
-  var syncResult = extractSocialMedia()
-  if (syncResult) { callback(syncResult); return }
-
-  // For YouTube: try captions via background worker
   var host = window.location.hostname.toLowerCase()
+
   if (host.includes('youtube.com')) {
     extractYouTubeCaptions(function(transcript) {
-      if (!transcript) { callback(null); return }
+      if (transcript) {
+        var title = document.querySelector('title')
+        var titleText = title ? title.textContent.trim().replace(/\s*[|\u2013\u2014-]\s*YouTube.*$/i, '') : 'YouTube Recipe'
+        // Prefer the video title from player response
+        try {
+          var vt = getYtPlayerResponse().videoDetails.title
+          if (vt) titleText = vt.replace(/#\w+/g, '').trim()
+        } catch (e) { /* */ }
 
-      var title = document.querySelector('title')
-      var titleText = title ? title.textContent.trim().replace(/\s*[|\u2013\u2014-]\s*YouTube.*$/i, '') : 'YouTube Recipe'
-      // Also try to get the video title from player response
-      try {
-        var vt = window.ytInitialPlayerResponse.videoDetails.title
-        if (vt) titleText = vt.replace(/#\w+/g, '').trim()
-      } catch (e) { /* */ }
+        var ogImage = document.querySelector('meta[property="og:image"]')
 
-      var ogImage = document.querySelector('meta[property="og:image"]')
+        callback({
+          '@type': 'Recipe',
+          name: titleText,
+          image: ogImage ? ogImage.getAttribute('content') : null,
+          _captionText: transcript,
+        })
+        return
+      }
 
-      callback({
-        '@type': 'Recipe',
-        name: titleText,
-        image: ogImage ? ogImage.getAttribute('content') : null,
-        _captionText: transcript,
-      })
+      // No caption track available \u2014 fall back to the DOM description extractor
+      callback(extractSocialMedia())
     })
     return
   }
 
-  callback(null)
+  // Non-YouTube platforms are synchronous
+  callback(extractSocialMedia())
 }
 
 // Build a recipe from parsed caption text
