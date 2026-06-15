@@ -14,10 +14,9 @@ const WHISPER_URL = 'https://router.huggingface.co/hf-inference/models/openai/wh
 const VISION_URL = 'https://router.huggingface.co/v1/chat/completions'
 const VISION_MODEL = 'Qwen/Qwen2.5-VL-7B-Instruct:hyperbolic'
 // Frame OCR needs the vision model above; structuring an audio transcript is a
-// pure-text task. Qwen3-30B-A3B is an MoE with only 3B active params: priced
-// like a tiny model (HF free-tier friendly) but far better than the old 7B.
-// No provider suffix: the router auto-selects the fastest provider with failover.
-const STRUCTURE_MODEL = process.env.STRUCTURE_MODEL || 'Qwen/Qwen3-30B-A3B-Instruct-2507'
+// pure-text task — use a 70B text model. Pinned to Hyperbolic, the provider this
+// account has enabled (same as the vision model). Override via STRUCTURE_MODEL.
+const STRUCTURE_MODEL = process.env.STRUCTURE_MODEL || 'meta-llama/Llama-3.3-70B-Instruct:hyperbolic'
 
 /** Sends WAV audio to Whisper and optionally structures the transcript via LLM. */
 async function runAudioPipeline(
