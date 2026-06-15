@@ -11,8 +11,10 @@ export const maxDuration = 30
 const VISION_URL = 'https://router.huggingface.co/v1/chat/completions'
 // Structuring is a pure-text task — use a large text instruct model (not the
 // small 7B vision model), which follows the literal-extraction rules far more
-// reliably. Override via STRUCTURE_MODEL env var if needed.
-const STRUCTURE_MODEL = process.env.STRUCTURE_MODEL || 'Qwen/Qwen2.5-72B-Instruct:hyperbolic'
+// reliably. No provider suffix: the router auto-selects the fastest available
+// provider and fails over if one is down. Override via STRUCTURE_MODEL env var
+// (e.g. append ':cheapest' or a specific provider) if needed.
+const STRUCTURE_MODEL = process.env.STRUCTURE_MODEL || 'Qwen/Qwen3-235B-A22B-Instruct-2507'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*')
