@@ -9,12 +9,13 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 export const maxDuration = 30
 
 const VISION_URL = 'https://router.huggingface.co/v1/chat/completions'
-// Structuring is a pure-text task — use a large text instruct model (not the
-// small 7B vision model), which follows the literal-extraction rules far more
-// reliably. No provider suffix: the router auto-selects the fastest available
-// provider and fails over if one is down. Override via STRUCTURE_MODEL env var
-// (e.g. append ':cheapest' or a specific provider) if needed.
-const STRUCTURE_MODEL = process.env.STRUCTURE_MODEL || 'Qwen/Qwen3-235B-A22B-Instruct-2507'
+// Structuring is a pure-text task — use a text instruct model (not the small 7B
+// vision model) for reliable literal extraction. Qwen3-30B-A3B is an MoE with
+// only 3B active params, so it's priced like a tiny model (good for the HF free
+// tier) while far outperforming the old 7B. No provider suffix: the router
+// auto-selects the fastest available provider with failover. Override via
+// STRUCTURE_MODEL env var (e.g. a larger model or ':cheapest') if needed.
+const STRUCTURE_MODEL = process.env.STRUCTURE_MODEL || 'Qwen/Qwen3-30B-A3B-Instruct-2507'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*')
