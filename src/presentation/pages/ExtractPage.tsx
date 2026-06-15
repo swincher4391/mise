@@ -8,7 +8,7 @@ import { UpgradePrompt } from '@presentation/components/UpgradePrompt.tsx'
 import { BatchImportPage } from '@presentation/pages/BatchImportPage.tsx'
 import { RecipeChat } from '@presentation/components/RecipeChat.tsx'
 import { RecipeDiscover } from '@presentation/components/RecipeDiscover.tsx'
-import { isTikTokUrl, isYouTubeShortsUrl, isInstagramUrl } from '@application/extraction/extractInstagramCaption.ts'
+import { isTikTokUrl, isYouTubeUrl, isInstagramUrl } from '@application/extraction/extractInstagramCaption.ts'
 import { useVideoExtractionLimit } from '@presentation/hooks/useVideoExtractionLimit.ts'
 import type { VideoPlatform } from '@infrastructure/usage/videoExtractionStore.ts'
 import { createManualRecipe } from '@application/extraction/createManualRecipe.ts'
@@ -119,7 +119,7 @@ export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRec
 
   const detectVideoPlatform = (url: string): VideoPlatform | null => {
     if (isTikTokUrl(url)) return 'tiktok'
-    if (isYouTubeShortsUrl(url)) return 'youtube'
+    if (isYouTubeUrl(url)) return 'youtube'
     if (isInstagramUrl(url)) return 'instagram'
     return null
   }

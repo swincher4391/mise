@@ -183,12 +183,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   res.setHeader('Access-Control-Allow-Origin', '*')
 
-  // YouTube is handled by the dedicated /api/yt-transcript edge endpoint.
-  // Block YouTube from the Puppeteer function to prevent 60s hangs.
+  // YouTube captions are handled by the dedicated /api/yt-transcript endpoint.
+  // The unified analyze-video (whisper + frames) path is allowed for YouTube as
+  // the fallback route when captions aren't available server-side. The legacy
+  // single-purpose debug modes stay blocked to avoid 60s Puppeteer hangs.
   const isYouTube = /youtube\.com|youtu\.be/i.test(targetUrl)
-  if (isYouTube && (mode === 'transcribe' || mode === 'ocr-frames' || mode === 'analyze-video')) {
+  if (isYouTube && (mode === 'transcribe' || mode === 'ocr-frames')) {
     return res.status(400).json({
-      error: 'Use /api/yt-transcript for YouTube videos',
+      error: 'Use /api/yt-transcript for YouTube captions',
     })
   }
 

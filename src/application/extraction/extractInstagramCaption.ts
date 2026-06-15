@@ -89,6 +89,15 @@ export function isYouTubeShortsUrl(url: string): boolean {
 }
 
 /**
+ * Check if a URL is any YouTube video (watch, shorts, youtu.be, embed, live).
+ * Used to route every YouTube link through the video pipeline (captions →
+ * whisper) rather than the generic webpage extractor.
+ */
+export function isYouTubeUrl(url: string): boolean {
+  return /youtube\.com\/(?:watch\?|shorts\/|live\/|embed\/)/i.test(url) || /youtu\.be\//i.test(url)
+}
+
+/**
  * Extract full caption from Instagram's embedded JSON (primary method).
  * Instagram includes `"caption":{"text":"..."}` in Relay-style JSON blobs
  * within <script> tags. This returns the complete, untruncated caption.

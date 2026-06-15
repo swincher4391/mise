@@ -8,7 +8,7 @@ import { extractHeuristic } from '@application/extraction/extractHeuristic.ts'
 import { normalizeRecipe } from '@application/extraction/normalizeRecipe.ts'
 import { extractImageRecipe, extractImageFromUrl } from '@infrastructure/ocr/extractImageRecipe.ts'
 import { createImageRecipe } from '@application/extraction/createImageRecipe.ts'
-import { isInstagramUrl, isTikTokUrl, isYouTubeShortsUrl, extractInstagramShortcode, extractCaptionFromJson, extractCaptionFromMeta, extractTikTokCaption, toInstagramEmbedUrl, extractCaptionFromEmbed } from '@application/extraction/extractInstagramCaption.ts'
+import { isInstagramUrl, isTikTokUrl, isYouTubeUrl, extractInstagramShortcode, extractCaptionFromJson, extractCaptionFromMeta, extractTikTokCaption, toInstagramEmbedUrl, extractCaptionFromEmbed } from '@application/extraction/extractInstagramCaption.ts'
 import { isFacebookUrl, extractFacebookPostText } from '@application/extraction/extractFacebookPost.ts'
 import { parseTextRecipe } from '@application/extraction/parseTextRecipe.ts'
 import { createManualRecipe } from '@application/extraction/createManualRecipe.ts'
@@ -126,21 +126,42 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
       // Short-form video platforms — skip HTML fetch entirely and go straight
       // to video analysis since these sites block proxied requests
       // and never have structured recipe data.
-      const isShortVideo = isTikTokUrl(url) || isYouTubeShortsUrl(url)
+      const isShortVideo = isTikTokUrl(url) || isYouTubeUrl(url)
       if (isShortVideo) {
-        const platform = isTikTokUrl(url) ? 'TikTok' : 'YouTube Short'
-        const isYT = isYouTubeShortsUrl(url)
+        const isYT = isYouTubeUrl(url)
+        const platform = isTikTokUrl(url) ? 'TikTok' : 'YouTube video'
 
         if (isYT) {
-          // YouTube Shorts: use dedicated transcript endpoint
-          setExtractionStatus({ message: 'Extracting captions…', step: 1, totalSteps: 1 })
+          // YouTube: every link routes through the video pipeline.
+          // Route 1 — captions via the yt-transcript endpoint (fast).
+          setExtractionStatus({ message: 'Extracting captions…', step: 1, totalSteps: 2 })
+          let captionText: string | null = null
           try {
-            const transcript = await transcribeYouTubeVideo(url)
-            const found = tryParseVideoResult(transcript, url)
+            captionText = await transcribeYouTubeVideo(url)
+            const found = tryParseVideoResult(captionText, url)
             if (found) { setRecipe(found); return }
           } catch {
-            // Transcription failed
+            // Captions unavailable server-side (datacenter IP blocked) — fall through
           }
+
+          // Route 2 — whisper: capture the video and transcribe its audio + frames.
+          setExtractionStatus({ message: 'Transcribing audio…', step: 2, totalSteps: 2, timed: true })
+          const cached = await getCachedExtraction(url).catch(() => null)
+          if (cached) {
+            const found = tryBestVideoResult(captionText, cached.transcript, cached.ocrText, url)
+            if (found) { setRecipe(found); return }
+          }
+          try {
+            const result = await analyzeVideo(url)
+            cacheExtraction(url, result).catch(() => {})
+            const found = tryBestVideoResult(captionText, result.transcript, result.ocrText, url)
+            if (found) { setRecipe(found); return }
+          } catch {
+            // Whisper route failed
+          }
+
+          setError("Couldn't extract a recipe from this YouTube video. Captions aren't available server-side and audio transcription didn't find a recipe — try the Mise Chrome extension, which reads captions directly in your browser.")
+          return
         } else {
           // TikTok: try caption text first (fast), fall back to video analysis (slow).
           // Captions often have ingredients while transcripts have instructions,
