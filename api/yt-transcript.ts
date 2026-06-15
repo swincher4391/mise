@@ -19,17 +19,39 @@ const VISION_URL = 'https://router.huggingface.co/v1/chat/completions'
 const STRUCTURE_MODEL = process.env.STRUCTURE_MODEL || 'Qwen/Qwen3-30B-A3B-Instruct-2507'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  const videoId = req.query.videoId
-  if (!videoId || typeof videoId !== 'string' || !/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
-    return res.status(400).json({ error: 'Missing or invalid videoId parameter' })
-  }
+  res.setHeader('Access-Control-Allow-Origin', '*')
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+
+  if (req.method === 'OPTIONS') return res.status(204).end()
 
   const hfKey = process.env.HF_API_KEY
   if (!hfKey) {
     return res.status(500).json({ error: 'HF_API_KEY not configured' })
   }
 
-  res.setHeader('Access-Control-Allow-Origin', '*')
+  // POST: structure raw transcript text the caller already has (e.g. the Chrome
+  // extension, which can fetch YouTube captions client-side when the server —
+  // on a datacenter IP — cannot).
+  if (req.method === 'POST') {
+    const { transcript } = req.body ?? {}
+    if (!transcript || typeof transcript !== 'string' || transcript.length < 30) {
+      return res.status(400).json({ error: 'Missing or too short transcript' })
+    }
+    try {
+      const structured = await structureTranscript(transcript.slice(0, 12000), hfKey)
+      return res.status(200).json({ text: structured || transcript })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error'
+      return res.status(502).json({ error: message, text: null })
+    }
+  }
+
+  // GET: fetch captions server-side by videoId, then structure.
+  const videoId = req.query.videoId
+  if (!videoId || typeof videoId !== 'string' || !/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
+    return res.status(400).json({ error: 'Missing or invalid videoId parameter' })
+  }
 
   try {
     // Try multiple approaches in order of reliability
@@ -71,18 +93,38 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Structure raw caption text into a recipe via LLM
     try {
-      const structureResponse = await fetch(VISION_URL, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${hfKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: STRUCTURE_MODEL,
-          messages: [
-            {
-              role: 'user',
-              content: `Below is a raw auto-generated caption transcript from a cooking video. Extract and structure it into a recipe.
+      const structured = await structureTranscript(transcript, hfKey)
+      if (structured) {
+        return res.status(200).json({ text: structured })
+      }
+    } catch {
+      // Structuring failed — return raw transcript
+    }
+
+    return res.status(200).json({ text: transcript })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error'
+    return res.status(502).json({ error: message, text: null })
+  }
+}
+
+/**
+ * Structure raw caption/transcript text into a recipe via LLM.
+ * Returns the cleaned recipe text, or '' if the model returns nothing usable.
+ */
+async function structureTranscript(rawText: string, hfKey: string): Promise<string> {
+  const response = await fetch(VISION_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${hfKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: STRUCTURE_MODEL,
+      messages: [
+        {
+          role: 'user',
+          content: `Below is a raw auto-generated caption transcript from a cooking video. Extract and structure it into a recipe.
 
 CRITICAL RULES:
 - Include EVERY ingredient mentioned, with EXACT quantities spoken (e.g. "one and a half cups" → "1.5 cups", "twenty-four ounces" → "24 oz")
@@ -100,31 +142,18 @@ Return ONLY the recipe as plain text with:
 If the transcript does not contain a recipe, return an empty string.
 
 Transcript:
-${transcript}`,
-            },
-          ],
-          max_tokens: 2048,
-        }),
-        signal: AbortSignal.timeout(30000),
-      })
+${rawText}`,
+        },
+      ],
+      max_tokens: 2048,
+    }),
+    signal: AbortSignal.timeout(30000),
+  })
 
-      if (structureResponse.ok) {
-        const structureData = await structureResponse.json()
-        const structured = structureData.choices?.[0]?.message?.content ?? ''
-        const cleaned = structured.replace(/```\w*\n?/g, '').replace(/\*\*/g, '').trim()
-        if (cleaned) {
-          return res.status(200).json({ text: cleaned })
-        }
-      }
-    } catch {
-      // Structuring failed — return raw transcript
-    }
-
-    return res.status(200).json({ text: transcript })
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error'
-    return res.status(502).json({ error: message, text: null })
-  }
+  if (!response.ok) return ''
+  const data = await response.json()
+  const content = data.choices?.[0]?.message?.content ?? ''
+  return content.replace(/```\w*\n?/g, '').replace(/\*\*/g, '').trim()
 }
 
 /**

@@ -1,3 +1,10 @@
+/**
+ * Instacart "Get Ingredients" link creation.
+ * One function serving both flows (kept merged to stay under Vercel's
+ * serverless-function limit), discriminated by the `?type=` query param:
+ *   - ?type=recipe → recipe page  (POST /idp/v1/products/recipe)
+ *   - ?type=list   → shopping list (POST /idp/v1/products/products_link)
+ */
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { setPublicCors } from '../_lib/cors.js'
 
@@ -19,25 +26,44 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: 'INSTACART_API_KEY not configured' })
   }
 
-  const body = req.body
-  if (!body || !body.title || !Array.isArray(body.ingredients) || body.ingredients.length === 0) {
-    return res.status(400).json({ error: 'title and ingredients array are required' })
+  const type = req.query.type
+  if (type !== 'recipe' && type !== 'list') {
+    return res.status(400).json({ error: 'Query param type must be "recipe" or "list"' })
   }
 
-  try {
-    const requestBody: Record<string, unknown> = {
+  const body = req.body
+  let instacartPath: string
+  let requestBody: Record<string, unknown>
+
+  if (type === 'recipe') {
+    if (!body || !body.title || !Array.isArray(body.ingredients) || body.ingredients.length === 0) {
+      return res.status(400).json({ error: 'title and ingredients array are required' })
+    }
+    requestBody = {
       title: body.title,
       ingredients: body.ingredients,
     }
-
     if (body.image_url) requestBody.image_url = body.image_url
     if (body.author) requestBody.author = body.author
     if (body.servings) requestBody.servings = body.servings
     if (body.cooking_time) requestBody.cooking_time = body.cooking_time
     if (body.instructions) requestBody.instructions = body.instructions
     requestBody.landing_page_configuration = { enable_pantry_items: true }
+    instacartPath = '/idp/v1/products/recipe'
+  } else {
+    if (!body || !Array.isArray(body.line_items) || body.line_items.length === 0) {
+      return res.status(400).json({ error: 'line_items array is required' })
+    }
+    requestBody = {
+      title: body.title ?? 'Shopping List',
+      line_items: body.line_items,
+      landing_page_configuration: { enable_pantry_items: true },
+    }
+    instacartPath = '/idp/v1/products/products_link'
+  }
 
-    const response = await fetch(`${INSTACART_BASE}/idp/v1/products/recipe`, {
+  try {
+    const response = await fetch(`${INSTACART_BASE}${instacartPath}`, {
       method: 'POST',
       headers: {
         'Accept': 'application/json',

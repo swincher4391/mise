@@ -29,7 +29,7 @@ describe('createShoppingList', () => {
     const result = await createShoppingList('Test List', items, [])
 
     expect(result.url).toBe('https://instacart.com/store/list/123')
-    expect(fetchMock).toHaveBeenCalledWith('/api/grocery/instacart-shopping-list', {
+    expect(fetchMock).toHaveBeenCalledWith('/api/grocery/instacart?type=list', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: expect.any(String),
@@ -82,7 +82,7 @@ describe('createRecipePage', () => {
     const result = await createRecipePage(recipe)
 
     expect(result.url).toBe('https://instacart.com/store/recipes/456')
-    expect(fetchMock).toHaveBeenCalledWith('/api/grocery/instacart-recipe', {
+    expect(fetchMock).toHaveBeenCalledWith('/api/grocery/instacart?type=recipe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: expect.any(String),

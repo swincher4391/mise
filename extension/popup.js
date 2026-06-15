@@ -250,8 +250,8 @@ async function tryVisionExtraction(title, transcriptText) {
 
     var structuredTranscriptPromise = (function() {
       if (!transcriptText || transcriptText.length < 30) return Promise.resolve(null)
-      // Send raw transcript to structuring endpoint (LLM converts spoken text → recipe format)
-      return fetch(MISE_URL + '/api/structure-transcript', {
+      // POST raw transcript to yt-transcript (LLM converts spoken text → recipe format)
+      return fetch(MISE_URL + '/api/yt-transcript', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ transcript: transcriptText }),

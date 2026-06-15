@@ -198,8 +198,8 @@ function instacartPlugin(): Plugin {
       const apiKey = env.INSTACART_API_KEY
       const baseUrl = env.INSTACART_API_URL ?? 'https://connect.instacart.com'
 
-      // Shopping list endpoint
-      server.middlewares.use('/api/grocery/instacart-shopping-list', async (req, res) => {
+      // Merged Instacart endpoint — discriminated by ?type=recipe|list
+      server.middlewares.use('/api/grocery/instacart', async (req, res) => {
         if (req.method === 'OPTIONS') {
           res.writeHead(204, { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' })
           return res.end()
@@ -207,61 +207,42 @@ function instacartPlugin(): Plugin {
         if (req.method !== 'POST') return jsonResponse(res, 405, { error: 'Method not allowed' })
         if (!apiKey) return jsonResponse(res, 500, { error: 'INSTACART_API_KEY not configured' })
 
+        const type = new URL(req.url ?? '', 'http://localhost').searchParams.get('type')
+        if (type !== 'recipe' && type !== 'list') {
+          return jsonResponse(res, 400, { error: 'Query param type must be "recipe" or "list"' })
+        }
+
         try {
           const body = JSON.parse(await readBody(req))
-          if (!Array.isArray(body.line_items) || body.line_items.length === 0) {
-            return jsonResponse(res, 400, { error: 'line_items array is required' })
-          }
 
-          const response = await fetch(`${baseUrl}/idp/v1/products/products_link`, {
-            method: 'POST',
-            headers: {
-              'Accept': 'application/json',
-              'Authorization': `Bearer ${apiKey}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
+          let instacartPath: string
+          let requestBody: Record<string, unknown>
+          if (type === 'recipe') {
+            if (!body.title || !Array.isArray(body.ingredients) || body.ingredients.length === 0) {
+              return jsonResponse(res, 400, { error: 'title and ingredients array are required' })
+            }
+            instacartPath = '/idp/v1/products/recipe'
+            requestBody = body
+          } else {
+            if (!Array.isArray(body.line_items) || body.line_items.length === 0) {
+              return jsonResponse(res, 400, { error: 'line_items array is required' })
+            }
+            instacartPath = '/idp/v1/products/products_link'
+            requestBody = {
               title: body.title ?? 'Shopping List',
               line_items: body.line_items,
               landing_page_configuration: body.landing_page_configuration,
-            }),
-          })
-
-          if (!response.ok) {
-            const errorText = await response.text()
-            return jsonResponse(res, response.status, { error: `Instacart API error (${response.status}): ${errorText.slice(0, 200)}` })
+            }
           }
 
-          const data: any = await response.json()
-          jsonResponse(res, 200, { url: data.products_link_url })
-        } catch (err: any) {
-          jsonResponse(res, 502, { error: err.message })
-        }
-      })
-
-      // Recipe endpoint
-      server.middlewares.use('/api/grocery/instacart-recipe', async (req, res) => {
-        if (req.method === 'OPTIONS') {
-          res.writeHead(204, { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' })
-          return res.end()
-        }
-        if (req.method !== 'POST') return jsonResponse(res, 405, { error: 'Method not allowed' })
-        if (!apiKey) return jsonResponse(res, 500, { error: 'INSTACART_API_KEY not configured' })
-
-        try {
-          const body = JSON.parse(await readBody(req))
-          if (!body.title || !Array.isArray(body.ingredients) || body.ingredients.length === 0) {
-            return jsonResponse(res, 400, { error: 'title and ingredients array are required' })
-          }
-
-          const response = await fetch(`${baseUrl}/idp/v1/products/recipe`, {
+          const response = await fetch(`${baseUrl}${instacartPath}`, {
             method: 'POST',
             headers: {
               'Accept': 'application/json',
               'Authorization': `Bearer ${apiKey}`,
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify(body),
+            body: JSON.stringify(requestBody),
           })
 
           if (!response.ok) {

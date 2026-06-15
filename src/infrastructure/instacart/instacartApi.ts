@@ -15,7 +15,7 @@ export async function createShoppingList(
 ): Promise<InstacartResult> {
   const body = mapGroceryListToInstacart(title, items, manualItems)
 
-  const response = await fetch('/api/grocery/instacart-shopping-list', {
+  const response = await fetch('/api/grocery/instacart?type=list', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -35,7 +35,7 @@ export async function createRecipePage(
 ): Promise<InstacartResult> {
   const body = mapRecipeToInstacart(recipe, normalizedNames)
 
-  const response = await fetch('/api/grocery/instacart-recipe', {
+  const response = await fetch('/api/grocery/instacart?type=recipe', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
