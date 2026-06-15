@@ -152,15 +152,18 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
             if (found) { setRecipe(found); return }
           }
           try {
-            const result = await analyzeVideo(url)
+            // YouTube streams are often DRM-protected and can't be captured;
+            // bound the wait so a stalled capture fails fast (~45s) rather than
+            // hanging until the function's 60s maxDuration.
+            const result = await analyzeVideo(url, 45000)
             cacheExtraction(url, result).catch(() => {})
             const found = tryBestVideoResult(captionText, result.transcript, result.ocrText, url)
             if (found) { setRecipe(found); return }
           } catch {
-            // Whisper route failed
+            // Whisper route failed or timed out
           }
 
-          setError("Couldn't extract a recipe from this YouTube video. Captions aren't available server-side and audio transcription didn't find a recipe — try the Mise Chrome extension, which reads captions directly in your browser.")
+          setError("Couldn't extract a recipe from this YouTube video. Captions aren't available server-side and audio couldn't be captured (YouTube streams are DRM-protected) — use the Mise Chrome extension, which reads captions directly in your browser.")
           return
         } else {
           // TikTok: try caption text first (fast), fall back to video analysis (slow).
