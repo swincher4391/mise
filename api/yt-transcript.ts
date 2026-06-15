@@ -150,7 +150,10 @@ ${rawText}`,
     signal: AbortSignal.timeout(30000),
   })
 
-  if (!response.ok) return ''
+  if (!response.ok) {
+    const errText = await response.text()
+    throw new Error(`LLM ${response.status}: ${errText.slice(0, 300)}`)
+  }
   const data = await response.json()
   const content = data.choices?.[0]?.message?.content ?? ''
   return content.replace(/```\w*\n?/g, '').replace(/\*\*/g, '').trim()
