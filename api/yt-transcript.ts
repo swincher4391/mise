@@ -11,12 +11,12 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 export const maxDuration = 30
 
 const VISION_URL = 'https://router.huggingface.co/v1/chat/completions'
-// Structuring captions is a pure-text task — use a 70B text instruct model (not
-// the small 7B vision model) for reliable literal extraction. Pinned to
-// Hyperbolic, the provider this account has enabled (same as the vision model).
-// Override via STRUCTURE_MODEL env var, e.g. enable featherless-ai and use
-// 'Qwen/Qwen3-30B-A3B-Instruct-2507' for a cheaper MoE.
-const STRUCTURE_MODEL = process.env.STRUCTURE_MODEL || 'meta-llama/Llama-3.3-70B-Instruct:hyperbolic'
+// Structuring captions is a pure-text task — use a text instruct model (not the
+// small 7B vision model) for reliable literal extraction. Qwen3-30B-A3B is an
+// MoE with only 3B active params: priced like a tiny model (HF free-tier
+// friendly) but far better than the old 7B. Pinned to featherless-ai, the
+// provider that serves it. Override via STRUCTURE_MODEL env var.
+const STRUCTURE_MODEL = process.env.STRUCTURE_MODEL || 'Qwen/Qwen3-30B-A3B-Instruct-2507:featherless-ai'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*')
