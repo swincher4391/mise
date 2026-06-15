@@ -9,7 +9,10 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 export const maxDuration = 30
 
 const VISION_URL = 'https://router.huggingface.co/v1/chat/completions'
-const VISION_MODEL = 'Qwen/Qwen2.5-VL-7B-Instruct:hyperbolic'
+// Structuring is a pure-text task — use a large text instruct model (not the
+// small 7B vision model), which follows the literal-extraction rules far more
+// reliably. Override via STRUCTURE_MODEL env var if needed.
+const STRUCTURE_MODEL = process.env.STRUCTURE_MODEL || 'Qwen/Qwen2.5-72B-Instruct:hyperbolic'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -35,7 +38,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: VISION_MODEL,
+        model: STRUCTURE_MODEL,
         messages: [
           {
             role: 'user',
@@ -57,7 +60,7 @@ Return ONLY the recipe as plain text with:
 If the transcript does not contain a recipe, return an empty string.
 
 Transcript:
-${transcript.slice(0, 3000)}`,
+${transcript.slice(0, 12000)}`,
           },
         ],
         max_tokens: 2048,

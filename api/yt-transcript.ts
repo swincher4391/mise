@@ -11,7 +11,9 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 export const maxDuration = 30
 
 const VISION_URL = 'https://router.huggingface.co/v1/chat/completions'
-const VISION_MODEL = 'Qwen/Qwen2.5-VL-7B-Instruct:hyperbolic'
+// Structuring captions is a pure-text task — use a large text instruct model
+// (not the small 7B vision model) for reliable literal extraction.
+const STRUCTURE_MODEL = process.env.STRUCTURE_MODEL || 'Qwen/Qwen2.5-72B-Instruct:hyperbolic'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const videoId = req.query.videoId
@@ -73,7 +75,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: VISION_MODEL,
+          model: STRUCTURE_MODEL,
           messages: [
             {
               role: 'user',

@@ -13,6 +13,9 @@ export const maxDuration = 60
 const WHISPER_URL = 'https://router.huggingface.co/hf-inference/models/openai/whisper-large-v3'
 const VISION_URL = 'https://router.huggingface.co/v1/chat/completions'
 const VISION_MODEL = 'Qwen/Qwen2.5-VL-7B-Instruct:hyperbolic'
+// Frame OCR needs the vision model above; structuring an audio transcript is a
+// pure-text task, so use a larger text model for reliable literal extraction.
+const STRUCTURE_MODEL = process.env.STRUCTURE_MODEL || 'Qwen/Qwen2.5-72B-Instruct:hyperbolic'
 
 /** Sends WAV audio to Whisper and optionally structures the transcript via LLM. */
 async function runAudioPipeline(
@@ -51,7 +54,7 @@ async function runAudioPipeline(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: VISION_MODEL,
+        model: STRUCTURE_MODEL,
         messages: [
           {
             role: 'user',
