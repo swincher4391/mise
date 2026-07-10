@@ -69,16 +69,56 @@ function formatTime(minutes: number): string {
 }
 
 /** Build a generated (non-copyrightable) description from recipe facts. */
+/** Drop a leading quantity/unit so "24 oz chicken breast" reads as "chicken breast". */
+function ingredientName(raw: string): string {
+  return stripCostAnnotations(raw)
+    .replace(/^[\d\s./¼½¾⅓⅔⅛-]+/, '')
+    .replace(/^(?:oz|ounces?|lbs?|pounds?|g|grams?|kg|ml|l|cups?|tbsps?|tsps?|tablespoons?|teaspoons?|cloves?|sprigs?|cans?|packets?|sticks?|slices?|pinch(?:es)?)\b\s*/i, '')
+    .replace(/,.*$/, '')
+    .trim()
+}
+
+/**
+ * The text under every shared link. "A recipe with 3 ingredients and 3 steps"
+ * is 40 characters of nothing — it describes the *shape* of the recipe, not the
+ * food. Unfurlers want 80–125 characters, and a reader wants to know what's in
+ * it, so lead with the actual ingredients and fall back to the brand promise
+ * when the recipe is too sparse to fill the line.
+ */
 function buildGeneratedDesc(p: SharePayload): string {
   const parts: string[] = []
-  parts.push(`A recipe with ${p.ig.length} ingredient${p.ig.length === 1 ? '' : 's'}`)
-  if (p.st.length > 0) parts[0] += ` and ${p.st.length} step${p.st.length === 1 ? '' : 's'}`
-  if (p.tt) parts.push(`ready in ${formatTime(p.tt)}`)
-  else if (p.ct) parts.push(`${formatTime(p.ct)} cook time`)
-  if (p.sv) parts.push(`serves ${p.sv}`)
+
+  const named = p.ig.map(ingredientName).filter((n) => n.length > 1 && n.length < 32)
+  if (named.length) {
+    const lead = named.slice(0, 3).join(', ')
+    parts.push(named.length > 3 ? `${lead}, and ${named.length - 3} more` : lead)
+  }
+
+  const facts: string[] = []
+  if (p.tt) facts.push(`ready in ${formatTime(p.tt)}`)
+  else if (p.ct) facts.push(`${formatTime(p.ct)} cook time`)
+  if (p.sv) facts.push(`serves ${p.sv}`)
+  if (p.st.length) facts.push(`${p.st.length} step${p.st.length === 1 ? '' : 's'}`)
+  if (facts.length) parts.push(facts.join(', '))
+
   if (p.cat?.length) parts.push(p.cat.join(', ').toLowerCase())
   if (p.cu?.length) parts.push(p.cu.join(', ').toLowerCase())
-  return parts.join('. ') + '.'
+
+  // Nothing usable came out of the payload — say something rather than nothing.
+  if (!parts.length) {
+    parts.push(`A recipe with ${p.ig.length} ingredient${p.ig.length === 1 ? '' : 's'}`)
+  }
+
+  const capitalize = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) : s)
+  let desc = parts.map(capitalize).join('. ') + '.'
+
+  // Pad a thin description up to the range unfurlers reward.
+  if (desc.length < 80) desc += ' Just the recipe: clean ingredients and steps, with no ads, no life story and no pop-ups.'
+
+  // Keep inside the SERP snippet, cutting on a word boundary.
+  if (desc.length > 160) desc = desc.slice(0, 157).replace(/\s+\S*$/, '') + '…'
+
+  return desc
 }
 
 export function buildRecipeHtml(payload: SharePayload, shareUrl?: string, encodedData?: string): string {
