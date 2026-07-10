@@ -55,7 +55,11 @@ export function initAnalytics() {
     capture_pageview: true,
     capture_pageleave: true,
     persistence: 'localStorage',
-    person_profiles: 'always',
+    // Privacy-first alignment (see docs/analytics-consent-posture.md): create a
+    // person profile only once a user identifies at purchase, not for every
+    // anonymous visitor. Event-based funnels and first-touch attribution still
+    // work; we just don't build person profiles for people who never buy.
+    person_profiles: 'identified_only',
     loaded: captureFirstTouchAttribution,
   })
 }

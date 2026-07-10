@@ -3879,6 +3879,17 @@ body {
 }
 
 /* App Version */
+.offline-banner {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: #8a5a1a;
+  color: #fff;
+  text-align: center;
+  font-size: 0.85rem;
+  padding: 0.5rem 1rem;
+}
+
 .app-footer {
   margin-top: 2rem;
   padding: 1.25rem 1rem 1.5rem;

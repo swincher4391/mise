@@ -7,6 +7,7 @@ import { LibraryPage } from '@presentation/pages/LibraryPage.tsx'
 import { GroceryPage } from '@presentation/pages/GroceryPage.tsx'
 import { TopNav } from '@presentation/components/BottomNav.tsx'
 import { InstallBanner } from '@presentation/components/InstallBanner.tsx'
+import { OfflineBanner } from '@presentation/components/OfflineBanner.tsx'
 import { useExtensionImport } from '@presentation/hooks/useExtensionImport.ts'
 import { useShareTarget } from '@presentation/hooks/useShareTarget.ts'
 import { usePurchase } from '@presentation/hooks/usePurchase.ts'
@@ -121,6 +122,7 @@ function App() {
 
   return (
     <>
+      <OfflineBanner />
       <TopNav current={view} onChange={(v) => { trackEvent('nav_switched', { view: v }); navigate(v) }} />
       {renderPage()}
       {installPrompt.showInstallBanner && (
