@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { timingSafeEqual } from 'node:crypto'
 import Stripe from 'stripe'
 import { setPublicCors } from './_lib/cors.js'
-import { failureCount, recordFailure, clearFailures } from './_lib/rateLimit.js'
+import { enforceRateLimit, failureCount, recordFailure, clearFailures } from './_lib/rateLimit.js'
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -33,6 +33,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET' && req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
+
+  // Per-IP throttle on top of the per-email PIN lockout below. Unthrottled,
+  // the email path is an enumeration oracle (which emails have purchased) and
+  // the session path hits Stripe on every call.
+  const allowed = await enforceRateLimit(req, res, {
+    name: 'verify-purchase',
+    limit: 20,
+    windowSec: 600,
+    dailyGlobalLimit: 2000,
+  })
+  if (!allowed) return
 
   // GET: only for session_id verification (Stripe redirect)
   // POST: for email/pin verification (keeps sensitive data out of URLs/logs)

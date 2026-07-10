@@ -55,3 +55,7 @@ thumbnail.jpg
 # Partner agreements and brand assets (private, not source)
 *.pdf
 Instacart_logos-*.zip
+
+# Stray root icons — the manifest uses public/ icons, these are duplicates
+/icon-192.svg
+/icon-192 (1).png

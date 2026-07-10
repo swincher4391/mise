@@ -2,6 +2,11 @@ import { defineConfig, loadEnv, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import path from 'path'
+import { readFileSync } from 'fs'
+
+// Single source of truth for the displayed app version — injected at build time
+// so the UI string can never drift from the deployed package.json version.
+const appVersion = JSON.parse(readFileSync(path.resolve(__dirname, 'package.json'), 'utf8')).version
 
 function imageExtractPlugin(): Plugin {
   return {
@@ -930,6 +935,9 @@ function corsProxyPlugin(): Plugin {
 }
 
 export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(appVersion),
+  },
   plugins: [
     imageExtractPlugin(),
     recipeChatPlugin(),

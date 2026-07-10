@@ -1,5 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import Stripe from 'stripe'
+import { ALLOWED_ORIGINS } from './_lib/cors.js'
+import { enforceRateLimit } from './_lib/rateLimit.js'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -8,6 +10,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (req.method === 'OPTIONS') return res.status(204).end()
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+
+  // Creating a Stripe Checkout session is a rare, human-paced action. Without a
+  // limit this can be scripted to mass-create sessions — cost, noise, and a
+  // fraud signal on the Stripe account.
+  const allowed = await enforceRateLimit(req, res, {
+    name: 'create-checkout',
+    limit: 10,
+    windowSec: 600,
+    dailyGlobalLimit: 500,
+  })
+  if (!allowed) return
 
   const secretKey = process.env.STRIPE_SECRET_KEY
   const priceId = process.env.STRIPE_PRICE_ID
@@ -21,11 +34,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // CWE-601: Validate redirect URLs against allowed origins
-  const allowedOrigins = ['https://mise.swinch.dev', 'https://mise-recipe.vercel.app']
   const isAllowed = (url: string) => {
     try {
-      const parsed = new URL(url)
-      return allowedOrigins.includes(parsed.origin)
+      return ALLOWED_ORIGINS.includes(new URL(url).origin)
     } catch {
       return false
     }
@@ -46,7 +57,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(200).json({ url: session.url })
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error'
-    return res.status(500).json({ error: `Checkout failed: ${message}` })
+    console.error('create-checkout: Stripe error', err)
+    return res.status(500).json({ error: 'Could not start checkout. Please try again.' })
   }
 }
