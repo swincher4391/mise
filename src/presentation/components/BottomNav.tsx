@@ -5,10 +5,13 @@ interface TopNavProps {
   onChange: (view: View) => void
 }
 
+// 'extract' is the default view and the core action, so it leads. Previously
+// 'plan' sat leftmost, landing a first-time visitor's eye on a meal planner.
+// Labelled 'Add' because 'Extract' also names a sub-tab one row below.
 const TABS: { view: View; label: string }[] = [
-  { view: 'plan', label: 'Plan' },
-  { view: 'extract', label: 'Extract' },
+  { view: 'extract', label: 'Add' },
   { view: 'library', label: 'Library' },
+  { view: 'plan', label: 'Plan' },
   { view: 'grocery', label: 'Shop' },
 ]
 

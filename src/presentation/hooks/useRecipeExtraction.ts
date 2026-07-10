@@ -34,6 +34,7 @@ interface UseRecipeExtractionResult {
   extractFromImage: (imageBase64: string) => Promise<void>
   setRecipe: (recipe: Recipe | null) => void
   clearOcrText: () => void
+  clearError: () => void
 }
 
 /**
@@ -246,7 +247,7 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
       const isKnownBlocked = BLOCKED_DOMAINS.some(d => urlHostname === d || urlHostname.endsWith('.' + d))
 
       if (isKnownBlocked) {
-        setError(`${urlHostname.replace(/^www\./, '')} blocks automated access. Open the recipe in your browser and use the Paste tab to copy the recipe text, or use the Mise bookmarklet to import directly.`)
+        setError(`${urlHostname.replace(/^www\./, '')} blocks automated access.`)
         return
       }
 
@@ -431,6 +432,7 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
   }, [])
 
   const clearOcrText = useCallback(() => setOcrText(null), [])
+  const clearError = useCallback(() => setError(null), [])
 
-  return { recipe, isLoading, error, ocrText, extractionStatus, extract, extractFromImage, setRecipe, clearOcrText }
+  return { recipe, isLoading, error, ocrText, extractionStatus, extract, extractFromImage, setRecipe, clearOcrText, clearError }
 }

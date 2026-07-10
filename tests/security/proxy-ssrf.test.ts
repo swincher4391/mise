@@ -170,27 +170,27 @@ describe('CWE-350: DNS rebinding protection — isBlockedAfterResolve', () => {
   })
 
   it('blocks domain resolving to loopback', async () => {
-    mockLookup.mockResolvedValueOnce({ address: '127.0.0.1', family: 4 })
+    mockLookup.mockResolvedValueOnce([{ address: '127.0.0.1', family: 4 }] as never)
     expect(await isBlockedAfterResolve('http://evil.com/')).toBe(true)
   })
 
   it('blocks domain resolving to cloud metadata IP', async () => {
-    mockLookup.mockResolvedValueOnce({ address: '169.254.169.254', family: 4 })
+    mockLookup.mockResolvedValueOnce([{ address: '169.254.169.254', family: 4 }] as never)
     expect(await isBlockedAfterResolve('http://evil.com/')).toBe(true)
   })
 
   it('blocks domain resolving to private class A', async () => {
-    mockLookup.mockResolvedValueOnce({ address: '10.0.0.1', family: 4 })
+    mockLookup.mockResolvedValueOnce([{ address: '10.0.0.1', family: 4 }] as never)
     expect(await isBlockedAfterResolve('http://evil.com/')).toBe(true)
   })
 
   it('blocks domain resolving to private class B', async () => {
-    mockLookup.mockResolvedValueOnce({ address: '172.16.0.1', family: 4 })
+    mockLookup.mockResolvedValueOnce([{ address: '172.16.0.1', family: 4 }] as never)
     expect(await isBlockedAfterResolve('http://evil.com/')).toBe(true)
   })
 
   it('blocks domain resolving to private class C', async () => {
-    mockLookup.mockResolvedValueOnce({ address: '192.168.1.1', family: 4 })
+    mockLookup.mockResolvedValueOnce([{ address: '192.168.1.1', family: 4 }] as never)
     expect(await isBlockedAfterResolve('http://evil.com/')).toBe(true)
   })
 
@@ -200,7 +200,7 @@ describe('CWE-350: DNS rebinding protection — isBlockedAfterResolve', () => {
   })
 
   it('allows domain resolving to public IP', async () => {
-    mockLookup.mockResolvedValueOnce({ address: '142.250.80.46', family: 4 })
+    mockLookup.mockResolvedValueOnce([{ address: '142.250.80.46', family: 4 }] as never)
     expect(await isBlockedAfterResolve('https://www.allrecipes.com/')).toBe(false)
   })
 
@@ -211,5 +211,73 @@ describe('CWE-350: DNS rebinding protection — isBlockedAfterResolve', () => {
 
   it('blocks malformed URLs', async () => {
     expect(await isBlockedAfterResolve('not-a-url')).toBe(true)
+  })
+})
+
+/**
+ * A hostname resolving to IPv6 bypassed the IPv4-only blocklist entirely:
+ * isBlockedUrl only rejects IPv6 *literals*, not names that resolve to IPv6.
+ */
+describe('CWE-918: SSRF protection — IPv6 resolutions', () => {
+  beforeEach(() => {
+    mockLookup.mockReset()
+  })
+
+  it('blocks a domain resolving to IPv6 loopback', async () => {
+    mockLookup.mockResolvedValueOnce([{ address: '::1', family: 6 }] as never)
+    expect(await isBlockedAfterResolve('http://evil.com/')).toBe(true)
+  })
+
+  it('blocks IPv4-mapped loopback in dotted form', async () => {
+    mockLookup.mockResolvedValueOnce([{ address: '::ffff:127.0.0.1', family: 6 }] as never)
+    expect(await isBlockedAfterResolve('http://evil.com/')).toBe(true)
+  })
+
+  it('blocks IPv4-mapped cloud metadata in hex-quad form', async () => {
+    // ::ffff:a9fe:a9fe === 169.254.169.254
+    mockLookup.mockResolvedValueOnce([{ address: '::ffff:a9fe:a9fe', family: 6 }] as never)
+    expect(await isBlockedAfterResolve('http://evil.com/')).toBe(true)
+  })
+
+  it('blocks unique-local (fc00::/7) addresses', async () => {
+    mockLookup.mockResolvedValueOnce([{ address: 'fd12:3456::1', family: 6 }] as never)
+    expect(await isBlockedAfterResolve('http://evil.com/')).toBe(true)
+  })
+
+  it('blocks link-local (fe80::/10) addresses, including a zone index', async () => {
+    mockLookup.mockResolvedValueOnce([{ address: 'fe80::1%eth0', family: 6 }] as never)
+    expect(await isBlockedAfterResolve('http://evil.com/')).toBe(true)
+  })
+
+  it('blocks NAT64-embedded metadata', async () => {
+    mockLookup.mockResolvedValueOnce([{ address: '64:ff9b::169.254.169.254', family: 6 }] as never)
+    expect(await isBlockedAfterResolve('http://evil.com/')).toBe(true)
+  })
+
+  it('allows a public IPv6 address', async () => {
+    mockLookup.mockResolvedValueOnce([{ address: '2607:f8b0:4004:c07::71', family: 6 }] as never)
+    expect(await isBlockedAfterResolve('https://www.allrecipes.com/')).toBe(false)
+  })
+
+  it('allows a legitimate dual-stack host', async () => {
+    mockLookup.mockResolvedValueOnce([
+      { address: '142.250.80.46', family: 4 },
+      { address: '2607:f8b0:4004:c07::71', family: 6 },
+    ] as never)
+    expect(await isBlockedAfterResolve('https://www.allrecipes.com/')).toBe(false)
+  })
+
+  // The whole point of resolving every record rather than just the first.
+  it('blocks when any record in a multi-record answer is private', async () => {
+    mockLookup.mockResolvedValueOnce([
+      { address: '142.250.80.46', family: 4 },
+      { address: '::1', family: 6 },
+    ] as never)
+    expect(await isBlockedAfterResolve('http://evil.com/')).toBe(true)
+  })
+
+  it('blocks an empty DNS answer', async () => {
+    mockLookup.mockResolvedValueOnce([] as never)
+    expect(await isBlockedAfterResolve('http://evil.com/')).toBe(true)
   })
 })

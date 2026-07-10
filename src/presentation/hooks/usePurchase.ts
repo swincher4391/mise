@@ -9,7 +9,8 @@ export interface PurchaseState {
   isPaid: boolean
   isLoading: boolean
   email: string | null
-  upgrade: () => void
+  /** Rejects if the checkout session can't be created, so callers can surface it. */
+  upgrade: () => Promise<void>
   restore: (email: string, pin?: string) => Promise<{ paid: boolean, needsPin?: boolean }>
 }
 
@@ -57,23 +58,21 @@ export function usePurchase(): PurchaseState {
     }
   }, [])
 
+  // Deliberately rethrows: swallowing this left the user staring at an
+  // unresponsive "Upgrade Now" button at the moment they decided to pay.
   const upgrade = useCallback(async () => {
     trackEvent('upgrade_initiated')
-    try {
-      const res = await fetch('/api/create-checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          successUrl: window.location.origin + '/?session_id={CHECKOUT_SESSION_ID}',
-          cancelUrl: window.location.href,
-        }),
-      })
-      if (!res.ok) throw new Error('Failed to create checkout session')
-      const { url } = await res.json()
-      window.location.href = url
-    } catch (err) {
-      console.error('Checkout error:', err)
-    }
+    const res = await fetch('/api/create-checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        successUrl: window.location.origin + '/?session_id={CHECKOUT_SESSION_ID}',
+        cancelUrl: window.location.href,
+      }),
+    })
+    if (!res.ok) throw new Error('Failed to create checkout session')
+    const { url } = await res.json()
+    window.location.href = url
   }, [])
 
   const restore = useCallback(async (restoreEmail: string, pin?: string): Promise<{ paid: boolean, needsPin?: boolean }> => {

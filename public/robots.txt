@@ -1,6 +1,23 @@
 User-agent: *
-Allow: /api/r
+# Shared recipe pages are the only crawlable surface. Everything else under
+# /api either costs money per request (headless Chromium, LLM inference) or is
+# a fetch proxy that has no business being indexed.
+#
+# The Allow rules are anchored: a bare `Allow: /api/r` is a prefix match and
+# would also allow /api/recipe-discover and /api/recipe-chat.
+Allow: /api/r?
+Allow: /api/r$
+Disallow: /api/
+
+# Spelled out for crawlers that don't implement longest-match precedence.
+Disallow: /api/recipe-discover
+Disallow: /api/recipe-chat
+Disallow: /api/extract-image
+Disallow: /api/yt-transcript
 Disallow: /api/proxy
 Disallow: /api/proxy-browser
+Disallow: /api/grocery/
+Disallow: /api/create-checkout
+Disallow: /api/verify-purchase
 
 Sitemap: https://mise.swinch.dev/sitemap.xml

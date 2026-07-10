@@ -2,6 +2,8 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 // @ts-ignore -- @sparticuz/chromium default export typing mismatch
 import chromium from '@sparticuz/chromium'
 import puppeteer from 'puppeteer-core'
+import { safeFetch } from './_lib/safeFetch.js'
+import { enforceRateLimit } from './_lib/rateLimit.js'
 
 export const maxDuration = 60
 
@@ -10,16 +12,17 @@ async function enrichResults(
 ) {
   const enriched = await Promise.allSettled(
     results.map(async (r) => {
-      const controller = new AbortController()
-      const timeout = setTimeout(() => controller.abort(), 5000)
       try {
-        const res = await fetch(r.sourceUrl, {
-          signal: controller.signal,
+        // These URLs come from scraped search-result HTML, not from us. A
+        // poisoned or spoofed result page could otherwise point this
+        // server-side fetch at an internal host — on the initial URL or via a
+        // redirect, so every hop is validated.
+        const res = await safeFetch(r.sourceUrl, {
           headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
             'Accept': 'text/html',
           },
-          redirect: 'follow',
+          timeoutMs: 5000,
         })
         const text = await res.text()
         const chunk = text.slice(0, 100_000)
@@ -51,9 +54,7 @@ async function enrichResults(
             ?? chunk.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i)
           if (ogMatch) r.image = ogMatch[1]
         }
-      } catch { /* timeout or fetch error */ } finally {
-        clearTimeout(timeout)
-      }
+      } catch { /* blocked URL, timeout, or fetch error — keep the unenriched result */ }
       return r
     })
   )
@@ -203,6 +204,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
+
+  // Spins up a headless Chromium and fetches up to 12 result pages per call.
+  const allowed = await enforceRateLimit(req, res, {
+    name: 'recipe-discover',
+    limit: 15,
+    windowSec: 600,
+    dailyGlobalLimit: 1000,
+  })
+  if (!allowed) return
 
   const query = req.query.q
   if (!query || typeof query !== 'string') {

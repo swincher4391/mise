@@ -45,6 +45,60 @@ body {
   margin-top: 0.25rem;
 }
 
+/* Value proposition — what a first-time visitor reads before anything else */
+.app-value-prop {
+  max-width: 34rem;
+  margin: 0 auto 1.25rem;
+  text-align: center;
+  color: #5c5346;
+  font-size: 0.98rem;
+  line-height: 1.5;
+}
+
+.app-platforms,
+.app-free-note {
+  display: block;
+  margin-top: 0.5rem;
+  font-size: 0.82rem;
+  letter-spacing: 0.01em;
+}
+
+.app-platforms {
+  color: #7d8b6a;
+  font-weight: 600;
+}
+
+.app-free-note {
+  color: #8a8172;
+}
+
+.app-pricing-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: #2d5016;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.app-pricing-link:hover {
+  color: #3f6d22;
+}
+
+.video-quota-note {
+  max-width: 34rem;
+  margin: 0 auto 1rem;
+  padding: 0.6rem 0.9rem;
+  border-radius: 8px;
+  background: #f4f2e8;
+  color: #6b5e4d;
+  font-size: 0.86rem;
+  text-align: center;
+}
+
 /* URL Input */
 .url-input {
   display: flex;
@@ -246,9 +300,26 @@ body {
   margin-bottom: 0.5rem;
 }
 
-.error-suggestions ul {
+.error-suggestions ul,
+.error-suggestions ol {
   margin-left: 1.25rem;
   color: #991b1b;
+}
+
+.error-action-btn {
+  margin-top: 0.85rem;
+  padding: 0.6rem 1.1rem;
+  border: 0;
+  border-radius: 8px;
+  background: #2d5016;
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.error-action-btn:hover {
+  background: #3f6d22;
 }
 
 /* Recipe Display */

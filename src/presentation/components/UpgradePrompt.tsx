@@ -2,7 +2,7 @@ import { useState } from 'react'
 
 interface UpgradePromptProps {
   feature: string
-  onUpgrade: () => void
+  onUpgrade: () => void | Promise<void>
   onRestore: (email: string, pin?: string) => Promise<{ paid: boolean, needsPin?: boolean }>
   onClose: () => void
 }
@@ -14,6 +14,20 @@ export function UpgradePrompt({ feature, onUpgrade, onRestore, onClose }: Upgrad
   const [needsPin, setNeedsPin] = useState(false)
   const [restoreError, setRestoreError] = useState<string | null>(null)
   const [restoring, setRestoring] = useState(false)
+  const [upgradeError, setUpgradeError] = useState<string | null>(null)
+  const [upgrading, setUpgrading] = useState(false)
+
+  const handleUpgrade = async () => {
+    setUpgrading(true)
+    setUpgradeError(null)
+    try {
+      // On success this navigates to Stripe, so `upgrading` stays true.
+      await onUpgrade()
+    } catch {
+      setUpgradeError("Couldn't reach checkout. Check your connection and try again.")
+      setUpgrading(false)
+    }
+  }
 
   const handleRestore = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -52,9 +66,14 @@ export function UpgradePrompt({ feature, onUpgrade, onRestore, onClose }: Upgrad
           </ul>
         </div>
 
-        <button className="upgrade-buy-btn" onClick={onUpgrade}>
-          Upgrade Now
+        <button className="upgrade-buy-btn" onClick={handleUpgrade} disabled={upgrading}>
+          {upgrading ? 'Opening checkout…' : 'Upgrade Now'}
         </button>
+        {upgradeError && (
+          <p className="upgrade-restore-error" role="alert">
+            {upgradeError}
+          </p>
+        )}
 
         {!showRestore ? (
           <button className="upgrade-restore-link" onClick={() => setShowRestore(true)}>

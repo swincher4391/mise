@@ -1,6 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
+import { safeFetch } from './_lib/safeFetch.js'
+import { enforceRateLimit } from './_lib/rateLimit.js'
 
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024 // 5MB
+const MAX_IMAGE_REDIRECTS = 3
 
 const EXTRACTION_PROMPT = `Extract the recipe from this image. Return ONLY valid JSON with this structure:
 {
@@ -75,18 +78,29 @@ async function uploadToTempHost(base64DataUrl: string): Promise<string> {
   return pageUrl.replace('tmpfiles.org/', 'tmpfiles.org/dl/')
 }
 
+/**
+ * This endpoint republishes whatever it fetches to a public host, so an
+ * unchecked redirect into a private range would exfiltrate internal content.
+ * safeFetch validates every hop before connecting.
+ */
 async function proxyImageToTempHost(url: string): Promise<string> {
-  const resp = await fetch(url, {
+  const resp = await safeFetch(url, {
     headers: {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
       'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
     },
-    redirect: 'follow',
+    maxRedirects: MAX_IMAGE_REDIRECTS,
+    timeoutMs: 15_000,
   })
+
   if (!resp.ok) throw new Error(`Failed to fetch image (${resp.status})`)
 
   const contentType = resp.headers.get('content-type') ?? 'image/jpeg'
   if (!contentType.startsWith('image/')) throw new Error('URL does not point to an image')
+
+  // Reject oversize before buffering when the server declares a length.
+  const declaredLength = Number(resp.headers.get('content-length') ?? 0)
+  if (declaredLength > MAX_IMAGE_SIZE) throw new Error('Image exceeds 5MB limit')
 
   const buffer = Buffer.from(await resp.arrayBuffer())
   if (buffer.length > MAX_IMAGE_SIZE) throw new Error('Image exceeds 5MB limit')
@@ -130,6 +144,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
+
+  // Each call runs a vision model over up to 4 images. Unauthenticated, so
+  // rate limiting is the only thing bounding the inference bill.
+  const allowed = await enforceRateLimit(req, res, {
+    name: 'extract-image',
+    limit: 10,
+    windowSec: 600,
+    dailyGlobalLimit: 1000,
+  })
+  if (!allowed) return
 
   const apiKey = process.env.HF_API_KEY
   if (!apiKey) {
@@ -177,10 +201,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       })
 
       if (!response.ok) {
-        const errorText = await response.text()
-        return res.status(502).json({
-          error: `HF API error (${response.status}): ${errorText.slice(0, 200)}`,
-        })
+        // Log upstream detail server-side; don't reflect provider internals.
+        console.error('extract-image: HF error', response.status, await response.text())
+        return res.status(502).json({ error: 'Image extraction is temporarily unavailable.' })
       }
 
       const data = await response.json()
@@ -242,10 +265,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     })
 
     if (!response.ok) {
-      const errorText = await response.text()
-      return res.status(502).json({
-        error: `HF API error (${response.status}): ${errorText.slice(0, 200)}`,
-      })
+      console.error('extract-image: HF error', response.status, await response.text())
+      return res.status(502).json({ error: 'Image extraction is temporarily unavailable.' })
     }
 
     const data = await response.json()

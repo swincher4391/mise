@@ -16,6 +16,18 @@ export interface CaptureResult {
  * and captures it via direct fetch or MediaRecorder.
  * Closes the browser internally after capture.
  */
+/**
+ * Validate the URL the browser actually landed on. Re-resolves rather than only
+ * pattern-matching: a redirect to a hostname that resolves to a private IP
+ * passes isBlockedUrl. The page has already loaded by this point, so this stops
+ * the captured content from being used, not the request itself.
+ */
+async function assertFinalUrlAllowed(finalUrl: string): Promise<void> {
+  if (isBlockedUrl(finalUrl) || (await isBlockedAfterResolve(finalUrl))) {
+    throw new Error('Redirect target URL not allowed')
+  }
+}
+
 export async function launchAndCaptureVideo(
   url: string,
   opts?: CaptureOptions
@@ -42,17 +54,17 @@ export async function launchAndCaptureVideo(
       const ytId = url.match(/(?:shorts\/|youtu\.be\/|[?&]v=)([^&?/\s]{11})/)?.[1]
       const watchUrl = ytId ? `https://www.youtube.com/watch?v=${ytId}` : url
       await page.goto(watchUrl, { waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {})
-      if (isBlockedUrl(page.url())) throw new Error('Redirect target URL not allowed')
+      await assertFinalUrlAllowed(page.url())
       await new Promise((r) => setTimeout(r, 5000))
     } else if (isTikTok) {
       await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {})
-      if (isBlockedUrl(page.url())) throw new Error('Redirect target URL not allowed')
+      await assertFinalUrlAllowed(page.url())
       // Wait for video element to appear (TikTok never reaches networkidle)
       await page.waitForSelector('video', { timeout: 10000 }).catch(() => {})
       await new Promise((r) => setTimeout(r, 2000))
     } else {
       await page.goto(url, { waitUntil: 'networkidle2', timeout: 20000 }).catch(() => {})
-      if (isBlockedUrl(page.url())) throw new Error('Redirect target URL not allowed')
+      await assertFinalUrlAllowed(page.url())
     }
 
     // Try clicking play to trigger video load (YouTube auto-plays)

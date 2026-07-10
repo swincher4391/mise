@@ -1,17 +1,33 @@
 interface ErrorDisplayProps {
   error: string
+  /** Switches to the Paste tab — the reliable fallback for blocked sites. */
+  onUsePasteTab?: () => void
 }
 
 const isBotBlocked = (error: string) => error.includes('Chrome extension')
 const isInstagram = (error: string) => error.includes('Instagram')
+const isSiteBlocked = (error: string) => error.includes('blocks automated access')
 
-export function ErrorDisplay({ error }: ErrorDisplayProps) {
+export function ErrorDisplay({ error, onUsePasteTab }: ErrorDisplayProps) {
   return (
     <div className="error-display">
       <h2>Couldn't extract recipe</h2>
       <p>{error}</p>
       <div className="error-suggestions">
-        {isBotBlocked(error) ? (
+        {isSiteBlocked(error) ? (
+          <>
+            <p>This site actively blocks automated readers. Two ways around it:</p>
+            <ol>
+              <li>Open the recipe, select the ingredients and steps, copy them, then paste them here.</li>
+              <li>Install the Mise Chrome extension, which reads the page directly in your browser.</li>
+            </ol>
+            {onUsePasteTab && (
+              <button className="error-action-btn" onClick={onUsePasteTab}>
+                Paste the recipe instead
+              </button>
+            )}
+          </>
+        ) : isBotBlocked(error) ? (
           <>
             <p><strong>Mise Chrome Extension</strong></p>
             <p>

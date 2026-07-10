@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { isBlockedUrl, isBlockedAfterResolve } from './_lib/ssrf.js'
+import { safeFetch } from './_lib/safeFetch.js'
+import { enforceRateLimit } from './_lib/rateLimit.js'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const targetUrl = req.query.url
@@ -7,16 +8,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Missing ?url= parameter' })
   }
 
-  if (isBlockedUrl(targetUrl)) {
-    return res.status(403).json({ error: 'URL not allowed' })
-  }
-
-  if (await isBlockedAfterResolve(targetUrl)) {
-    return res.status(403).json({ error: 'URL resolves to a blocked address' })
-  }
+  // Generous — this is the core extraction path — but bounded so the proxy
+  // can't be used as free bandwidth. Checked before the SSRF resolve so a
+  // flood can't drive DNS lookups either.
+  const allowed = await enforceRateLimit(req, res, {
+    name: 'proxy',
+    limit: 60,
+    windowSec: 600,
+    dailyGlobalLimit: 10_000,
+  })
+  if (!allowed) return
 
   try {
-    const response = await fetch(targetUrl, {
+    // safeFetch validates the initial URL and every redirect hop before
+    // connecting, so a redirect into a private range never issues a request.
+    const response = await safeFetch(targetUrl, {
       headers: {
         'User-Agent':
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
@@ -30,12 +36,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         'Sec-Fetch-User': '?1',
         'Upgrade-Insecure-Requests': '1',
       },
-      redirect: 'follow',
+      timeoutMs: 15_000,
     })
-
-    if (isBlockedUrl(response.url)) {
-      return res.status(403).json({ error: 'Redirect target URL not allowed' })
-    }
 
     const html = await response.text()
     res.setHeader('Content-Type', 'text/html; charset=utf-8')
@@ -46,6 +48,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).send(html)
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'
+    if (message === 'URL is not allowed') {
+      return res.status(403).json({ error: 'URL not allowed' })
+    }
     return res.status(502).json({ error: `Failed to fetch URL: ${message}` })
   }
 }
