@@ -69,6 +69,18 @@ function formatTime(minutes: number): string {
 }
 
 /** Build a generated (non-copyrightable) description from recipe facts. */
+/**
+ * Social previews reward >=80 characters and truncate around 125.
+ * Longest pad first — the shorter one is the fallback when the recipe already
+ * fills most of the line.
+ */
+const MIN_DESC = 80
+const MAX_DESC = 125
+const DESC_PADS = [
+  ' Just the recipe: clean ingredients and steps, no ads and no life story.',
+  ' Just the recipe — no ads, no life story.',
+]
+
 /** Drop a leading quantity/unit so "24 oz chicken breast" reads as "chicken breast". */
 function ingredientName(raw: string): string {
   return stripCostAnnotations(raw)
@@ -112,11 +124,15 @@ function buildGeneratedDesc(p: SharePayload): string {
   const capitalize = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) : s)
   let desc = parts.map(capitalize).join('. ') + '.'
 
-  // Pad a thin description up to the range unfurlers reward.
-  if (desc.length < 80) desc += ' Just the recipe: clean ingredients and steps, with no ads, no life story and no pop-ups.'
+  // Social previews truncate around 125 characters and reward at least 80.
+  // Pad a thin description with the longest tail that still fits the window.
+  if (desc.length < MIN_DESC) {
+    const pad = DESC_PADS.find((p) => desc.length + p.length <= MAX_DESC)
+    if (pad) desc += pad
+  }
 
-  // Keep inside the SERP snippet, cutting on a word boundary.
-  if (desc.length > 160) desc = desc.slice(0, 157).replace(/\s+\S*$/, '') + '…'
+  // Cut on a word boundary rather than mid-word.
+  if (desc.length > MAX_DESC) desc = desc.slice(0, MAX_DESC - 1).replace(/\s+\S*$/, '') + '…'
 
   return desc
 }

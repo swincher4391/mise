@@ -35,16 +35,32 @@ describe('share page og:description', () => {
     expect(desc(BUFFALO)).toContain('and 1 more')
   })
 
+  // Social previews truncate around 125 characters — the ceiling is the
+  // constraint that actually matters, and 144 chars got flagged in production.
   it('lands in the 80-125 character range unfurlers reward', () => {
     const d = desc(BUFFALO)
     expect(d.length).toBeGreaterThanOrEqual(80)
-    expect(d.length).toBeLessThanOrEqual(160)
+    expect(d.length).toBeLessThanOrEqual(125)
   })
 
   it('pads a sparse recipe up to a usable length', () => {
     const d = desc({ t: 'Toast', ig: ['bread'], st: ['Toast it'] })
     expect(d.length).toBeGreaterThanOrEqual(80)
+    expect(d.length).toBeLessThanOrEqual(125)
     expect(d).toContain('no ads')
+  })
+
+  it('never exceeds 125 characters for any shape of recipe', () => {
+    const shapes = [
+      BUFFALO,
+      { ...BUFFALO, tt: 45, sv: 4 },
+      { ...BUFFALO, tt: 120, sv: 12, cat: ['dinner'], cu: ['american'] },
+      { t: 'Toast', ig: ['bread'], st: [] },
+      { t: 'X', ig: [], st: [] },
+    ]
+    for (const s of shapes) {
+      expect(desc(s).length, JSON.stringify(s).slice(0, 60)).toBeLessThanOrEqual(125)
+    }
   })
 
   it('includes timing and servings when present', () => {
@@ -53,18 +69,19 @@ describe('share page og:description', () => {
     expect(d).toContain('serves 4')
   })
 
-  it('never exceeds the SERP snippet limit, and cuts on a word boundary', () => {
+  it('truncates on a word boundary when the recipe overflows', () => {
     const d = desc({
       t: 'Long',
-      ig: Array.from({ length: 30 }, (_, i) => `${i + 1} cups ingredient number ${i}`),
+      ig: ['1 cup all purpose flour', '2 large eggs', '1 stick unsalted butter'],
       st: ['step'],
-      cat: ['dinner'],
-      cu: ['american'],
+      cat: ['slow cooker comfort food dinners for a crowd'],
+      cu: ['modern american southern fusion barbecue'],
       tt: 120,
       sv: 8,
     })
-    expect(d.length).toBeLessThanOrEqual(160)
-    expect(d).not.toMatch(/\s\S+…$/) // no half-word before the ellipsis
+    expect(d.length).toBeLessThanOrEqual(125)
+    expect(d.endsWith('…')).toBe(true)
+    expect(d).not.toMatch(/\s…$/) // no dangling space before the ellipsis
   })
 
   it('falls back gracefully when no ingredient survives cleaning', () => {
