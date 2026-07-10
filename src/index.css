@@ -300,9 +300,26 @@ body {
   margin-bottom: 0.5rem;
 }
 
-.error-suggestions ul {
+.error-suggestions ul,
+.error-suggestions ol {
   margin-left: 1.25rem;
   color: #991b1b;
+}
+
+.error-action-btn {
+  margin-top: 0.85rem;
+  padding: 0.6rem 1.1rem;
+  border: 0;
+  border-radius: 8px;
+  background: #2d5016;
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.error-action-btn:hover {
+  background: #3f6d22;
 }
 
 /* Recipe Display */

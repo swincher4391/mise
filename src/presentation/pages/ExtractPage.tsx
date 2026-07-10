@@ -290,7 +290,12 @@ export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRec
               )}
             </div>
           )}
-          {error && <ErrorDisplay error={error} />}
+          {error && (
+            <ErrorDisplay
+              error={error}
+              onUsePasteTab={() => { setActiveTab('paste'); trackEvent('error_recovery_paste') }}
+            />
+          )}
           {/* Also offered after an error: a failed first paste is exactly when
               someone needs to see that the product does work. */}
           {!recipe && !isLoading && (
