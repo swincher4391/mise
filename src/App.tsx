@@ -130,7 +130,15 @@ function App() {
       <a href="https://peerpush.net/p/mise" target="_blank" rel="noopener" className="peerpush-badge">
         <img src="https://peerpush.net/p/mise/badge.png" alt="Mise on PeerPush" width={230} />
       </a>
-      <div className="app-version">v{__APP_VERSION__} · <a href="https://privacy.swinch.dev" target="_blank" rel="noopener noreferrer">Privacy</a></div>
+      <footer className="app-footer">
+        <nav className="app-footer-links">
+          <a href="/terms">Terms</a>
+          <a href="/support">Support</a>
+          <a href="/affiliate-disclosure">Affiliate Disclosure</a>
+          <a href="https://privacy.swinch.dev" target="_blank" rel="noopener noreferrer">Privacy</a>
+        </nav>
+        <div className="app-version">v{__APP_VERSION__}</div>
+      </footer>
     </>
   )
 }

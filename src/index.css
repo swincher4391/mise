@@ -3879,11 +3879,32 @@ body {
 }
 
 /* App Version */
+.app-footer {
+  margin-top: 2rem;
+  padding: 1.25rem 1rem 1.5rem;
+  border-top: 1px solid #ece9de;
+  text-align: center;
+}
+.app-footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.4rem 1rem;
+  font-size: 0.8rem;
+}
+.app-footer-links a {
+  color: #8a8172;
+  text-decoration: none;
+}
+.app-footer-links a:hover {
+  color: #2d5016;
+  text-decoration: underline;
+}
 .app-version {
   text-align: center;
   font-size: 0.7rem;
   color: #bbb;
-  padding: 1rem 0 0.5rem;
+  padding: 0.6rem 0 0;
 }
 .app-version a {
   color: #bbb;
