@@ -233,6 +233,13 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
       }
 
       // Domains that block all datacenter IPs (both fetch and headless browser).
+      // Sites that hard-block our datacenter IP (both the plain proxy and the
+      // headless-browser fallback get a bot/paywall page, never the recipe).
+      // Listing them here short-circuits to the instant recovery UI instead of
+      // a ~60s Puppeteer round-trip that dead-ends in the same block.
+      // The People Inc. network (simplyrecipes, seriouseats, foodandwine,
+      // marthastewart, plus allrecipes/eatingwell below) serves HTTP 402 to
+      // datacenter ranges — verified 2026-07.
       const BLOCKED_DOMAINS = [
         'allrecipes.com',
         'foodnetwork.com',
@@ -242,6 +249,10 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
         'myrecipes.com',
         'southernliving.com',
         'thekitchn.com',
+        'simplyrecipes.com',
+        'seriouseats.com',
+        'foodandwine.com',
+        'marthastewart.com',
       ]
       const urlHostname = (() => { try { return new URL(url).hostname.toLowerCase() } catch { return '' } })()
       const isKnownBlocked = BLOCKED_DOMAINS.some(d => urlHostname === d || urlHostname.endsWith('.' + d))
