@@ -7,6 +7,7 @@
  * from residential IPs but blocked from most datacenter IPs).
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node'
+import { enforceRateLimit } from './_lib/rateLimit.js'
 
 export const maxDuration = 30
 
@@ -25,6 +26,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (req.method === 'OPTIONS') return res.status(204).end()
 
+  // Spends Supadata credits (GET, 100/month) and LLM tokens (POST) per call.
+  // CORS stays wildcard: the Chrome extension calls this from its own origin.
+  const allowed = await enforceRateLimit(req, res, {
+    name: 'yt-transcript',
+    limit: 15,
+    windowSec: 600,
+    dailyGlobalLimit: 1500,
+  })
+  if (!allowed) return
+
   const hfKey = process.env.HF_API_KEY
   if (!hfKey) {
     return res.status(500).json({ error: 'HF_API_KEY not configured' })
@@ -42,8 +53,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const structured = await structureTranscript(transcript.slice(0, 12000), hfKey)
       return res.status(200).json({ text: structured || transcript })
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown error'
-      return res.status(502).json({ error: message, text: null })
+      // Full provider error to the server log; generic message to the client.
+      console.error('yt-transcript: structuring failed', err)
+      return res.status(502).json({ error: 'Transcript structuring is temporarily unavailable.', text: null })
     }
   }
 

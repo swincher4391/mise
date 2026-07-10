@@ -4,7 +4,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
  * Allowed origins for cookie-authenticated endpoints.
  * Falls back to wildcard only for truly public endpoints.
  */
-const ALLOWED_ORIGINS = [
+export const ALLOWED_ORIGINS = [
   'https://mise.swinch.dev',
   'https://mise-recipe.vercel.app',
 ]

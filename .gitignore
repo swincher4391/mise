@@ -46,3 +46,12 @@ New Text Document.txt
 # Dev screenshots and scripts
 screenshots/
 scripts/
+Screenshot *.png
+test-results/
+videos/
+thumbnail.jpg
+*.webp
+
+# Partner agreements and brand assets (private, not source)
+*.pdf
+Instacart_logos-*.zip

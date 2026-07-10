@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
+import { enforceRateLimit } from './_lib/rateLimit.js'
 
 const NORMALIZE_SYSTEM_PROMPT = `You are a food ingredient normalizer. Given a list of raw ingredient strings from a recipe, map each to a clean USDA-friendly base ingredient name.
 
@@ -57,6 +58,13 @@ IMPORTANT: Never include the recipe-json block unless the user explicitly asks t
 
 const MAX_MESSAGES = 10
 
+// Pin the provider. With no suffix the HF router auto-selects, but only from
+// providers enabled on the account — neither of these models is served by
+// Hyperbolic, so the un-pinned form fails with `model_not_supported`. Both are
+// live on featherless-ai. Override via env if the account's providers change.
+const CHAT_MODEL = process.env.CHAT_MODEL || 'Qwen/Qwen3-14B:featherless-ai'
+const NORMALIZE_MODEL = process.env.NORMALIZE_MODEL || 'Qwen/Qwen2.5-7B-Instruct:featherless-ai'
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -70,6 +78,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
+
+  // Streams up to 2048 tokens of LLM output per call, unauthenticated.
+  // Conversational, so the per-IP allowance is higher than the one-shot
+  // extraction endpoints.
+  const allowed = await enforceRateLimit(req, res, {
+    name: 'recipe-chat',
+    limit: 30,
+    windowSec: 600,
+    dailyGlobalLimit: 2000,
+  })
+  if (!allowed) return
 
   const apiKey = process.env.HF_API_KEY
   if (!apiKey) {
@@ -92,7 +111,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'Qwen/Qwen2.5-7B-Instruct',
+          model: NORMALIZE_MODEL,
           messages: [
             { role: 'system', content: NORMALIZE_SYSTEM_PROMPT },
             { role: 'user', content: JSON.stringify(ingredients) },
@@ -106,7 +125,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!response.ok) {
         const errorText = await response.text()
         console.error(`[Normalize] HF API error ${response.status}:`, errorText.slice(0, 500))
-        return res.status(502).json({ error: `HF API error (${response.status}): ${errorText.slice(0, 200)}` })
+        return res.status(502).json({ error: 'Nutrition lookup is temporarily unavailable.' })
       }
 
       const data = await response.json()
@@ -156,7 +175,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'Qwen/Qwen3-14B',
+        model: CHAT_MODEL,
         messages: fullMessages,
         max_tokens: 2048,
         temperature: 0.7,
@@ -166,7 +185,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (!response.ok) {
       const errorText = await response.text()
-      res.write(`data: ${JSON.stringify({ error: `HF API error (${response.status}): ${errorText.slice(0, 200)}` })}\n\n`)
+      console.error(`[Chat] HF API error ${response.status}:`, errorText.slice(0, 500))
+      res.write(`data: ${JSON.stringify({ error: 'The recipe assistant is temporarily unavailable.' })}\n\n`)
       res.write('data: [DONE]\n\n')
       return res.end()
     }

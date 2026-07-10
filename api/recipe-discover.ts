@@ -2,6 +2,8 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 // @ts-ignore -- @sparticuz/chromium default export typing mismatch
 import chromium from '@sparticuz/chromium'
 import puppeteer from 'puppeteer-core'
+import { isBlockedUrl, isBlockedAfterResolve } from './_lib/ssrf.js'
+import { enforceRateLimit } from './_lib/rateLimit.js'
 
 export const maxDuration = 60
 
@@ -10,6 +12,13 @@ async function enrichResults(
 ) {
   const enriched = await Promise.allSettled(
     results.map(async (r) => {
+      // These URLs come from scraped search-result HTML, not from us. A poisoned
+      // or spoofed result page could otherwise point this server-side fetch at
+      // an internal host.
+      if (isBlockedUrl(r.sourceUrl) || (await isBlockedAfterResolve(r.sourceUrl))) {
+        return r
+      }
+
       const controller = new AbortController()
       const timeout = setTimeout(() => controller.abort(), 5000)
       try {
@@ -203,6 +212,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
+
+  // Spins up a headless Chromium and fetches up to 12 result pages per call.
+  const allowed = await enforceRateLimit(req, res, {
+    name: 'recipe-discover',
+    limit: 15,
+    windowSec: 600,
+    dailyGlobalLimit: 1000,
+  })
+  if (!allowed) return
 
   const query = req.query.q
   if (!query || typeof query !== 'string') {

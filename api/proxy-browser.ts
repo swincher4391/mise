@@ -7,6 +7,7 @@ import { launchAndCaptureVideo } from './_lib/videoCapture.js'
 import { extractWavFromVideo } from './_lib/audioExtraction.js'
 import { extractFrameGrids, uploadFramesInParallel } from './_lib/frameExtraction.js'
 import { isBlockedUrl, isBlockedAfterResolve } from './_lib/ssrf.js'
+import { enforceRateLimit } from './_lib/rateLimit.js'
 
 export const maxDuration = 60
 
@@ -171,6 +172,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Missing ?url= parameter' })
   }
 
+  const mode = req.query.mode
+
+  res.setHeader('Access-Control-Allow-Origin', '*')
+
+  // The most expensive endpoint in the app: a headless Chromium per call, and
+  // for analyze-video also Whisper plus two LLM calls. Checked before the SSRF
+  // resolve so a flood can't drive DNS lookups either. analyze-video gets a
+  // much tighter allowance than plain HTML rendering.
+  const isAnalyze = mode === 'analyze-video'
+  const allowed = await enforceRateLimit(req, res, {
+    name: isAnalyze ? 'proxy-browser-analyze' : 'proxy-browser',
+    limit: isAnalyze ? 5 : 20,
+    windowSec: 600,
+    dailyGlobalLimit: isAnalyze ? 300 : 3000,
+  })
+  if (!allowed) return
+
   if (isBlockedUrl(targetUrl)) {
     return res.status(403).json({ error: 'URL not allowed' })
   }
@@ -178,10 +196,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (await isBlockedAfterResolve(targetUrl)) {
     return res.status(403).json({ error: 'URL resolves to a blocked address' })
   }
-
-  const mode = req.query.mode
-
-  res.setHeader('Access-Control-Allow-Origin', '*')
 
   // YouTube captions are handled by the dedicated /api/yt-transcript endpoint.
   // The unified analyze-video (whisper + frames) path is allowed for YouTube as

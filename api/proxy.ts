@@ -1,11 +1,23 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { isBlockedUrl, isBlockedAfterResolve } from './_lib/ssrf.js'
+import { enforceRateLimit } from './_lib/rateLimit.js'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const targetUrl = req.query.url
   if (!targetUrl || typeof targetUrl !== 'string') {
     return res.status(400).json({ error: 'Missing ?url= parameter' })
   }
+
+  // Generous — this is the core extraction path — but bounded so the proxy
+  // can't be used as free bandwidth. Checked before the SSRF resolve so a
+  // flood can't drive DNS lookups either.
+  const allowed = await enforceRateLimit(req, res, {
+    name: 'proxy',
+    limit: 60,
+    windowSec: 600,
+    dailyGlobalLimit: 10_000,
+  })
+  if (!allowed) return
 
   if (isBlockedUrl(targetUrl)) {
     return res.status(403).json({ error: 'URL not allowed' })
@@ -33,7 +45,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       redirect: 'follow',
     })
 
-    if (isBlockedUrl(response.url)) {
+    // Re-resolve the final URL: a redirect to a hostname that *resolves* to a
+    // private IP passes the pattern check but not the DNS check.
+    if (isBlockedUrl(response.url) || (await isBlockedAfterResolve(response.url))) {
       return res.status(403).json({ error: 'Redirect target URL not allowed' })
     }
 

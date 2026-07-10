@@ -7,6 +7,7 @@
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { setPublicCors } from '../_lib/cors.js'
+import { enforceRateLimit } from '../_lib/rateLimit.js'
 
 const INSTACART_BASE = process.env.INSTACART_API_URL ?? 'https://connect.instacart.com'
 
@@ -20,6 +21,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
+
+  // Calls our Instacart partner API with the affiliate key. Abuse here risks
+  // the partner relationship, not just cost.
+  const allowed = await enforceRateLimit(req, res, {
+    name: 'instacart',
+    limit: 20,
+    windowSec: 600,
+    dailyGlobalLimit: 3000,
+  })
+  if (!allowed) return
 
   const apiKey = process.env.INSTACART_API_KEY
   if (!apiKey) {
@@ -74,9 +85,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     })
 
     if (!response.ok) {
-      const errorText = await response.text()
+      console.error('instacart: API error', response.status, await response.text())
       return res.status(response.status).json({
-        error: `Instacart API error (${response.status}): ${errorText.slice(0, 200)}`,
+        error: 'Could not create the Instacart list right now. Please try again.',
       })
     }
 

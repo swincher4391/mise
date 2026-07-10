@@ -1,5 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { kv } from '@vercel/kv'
+import { decodeSharePayload } from './_lib/sharePayload.js'
+import { enforceRateLimit } from './_lib/rateLimit.js'
+import { ALLOWED_ORIGINS } from './_lib/cors.js'
 
 const KV_KEY = 'sitemap:urls'
 const SHARE_BASE = 'https://mise.swinch.dev/api/r'
@@ -11,7 +14,13 @@ const MAX_ENTRIES = 10_000
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'OPTIONS') {
-    res.setHeader('Access-Control-Allow-Origin', '*')
+    // POST is origin-restricted, so the preflight must echo an allowlisted
+    // origin rather than a wildcard.
+    const origin = req.headers.origin ?? ''
+    if (ALLOWED_ORIGINS.includes(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin)
+      res.setHeader('Vary', 'Origin')
+    }
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS')
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
     return res.status(204).end()
@@ -32,11 +41,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   return res.status(405).json({ error: 'Method not allowed' })
 }
 
-/** POST: add a share URL to the sitemap */
+/**
+ * POST: add a share URL to the sitemap.
+ *
+ * Called by the client when a user shares a recipe, so it can't require a
+ * secret. Instead: the payload must decode to a real recipe (no arbitrary
+ * blobs), only our own origins get a CORS grant, and writes are rate limited.
+ * Together these stop the endpoint from being used to poison the public
+ * sitemap with attacker-controlled pages under our domain.
+ */
 async function handleAdd(req: VercelRequest, res: VercelResponse) {
+  const origin = req.headers.origin ?? ''
+  if (origin && !ALLOWED_ORIGINS.includes(origin)) {
+    return res.status(403).json({ error: 'Forbidden' })
+  }
+
+  const allowed = await enforceRateLimit(req, res, {
+    name: 'sitemap-add',
+    limit: 20,
+    windowSec: 600,
+    dailyGlobalLimit: 5000,
+  })
+  if (!allowed) return
+
   const { d } = req.body ?? {}
-  if (!d || typeof d !== 'string' || d.length > 12_000) {
+  if (!d || typeof d !== 'string') {
     return res.status(400).json({ error: 'Missing or invalid d parameter' })
+  }
+
+  // Reject anything that isn't a well-formed, correctly-sized recipe payload.
+  try {
+    decodeSharePayload(d)
+  } catch {
+    return res.status(400).json({ error: 'Invalid recipe payload' })
   }
 
   try {
@@ -47,11 +84,14 @@ async function handleAdd(req: VercelRequest, res: VercelResponse) {
 
     await kv.zadd(KV_KEY, { score: Date.now(), member: d })
 
-    res.setHeader('Access-Control-Allow-Origin', '*')
+    if (origin) {
+      res.setHeader('Access-Control-Allow-Origin', origin)
+      res.setHeader('Vary', 'Origin')
+    }
     return res.status(200).json({ ok: true })
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error'
-    return res.status(500).json({ error: message })
+    console.error('sitemap-xml: KV write failed', err)
+    return res.status(500).json({ error: 'Failed to record share' })
   }
 }
 

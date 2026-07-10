@@ -1,38 +1,28 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
+import { timingSafeEqual } from 'node:crypto'
 import Stripe from 'stripe'
 import { setPublicCors } from './_lib/cors.js'
-
-// In-memory rate limiting for PIN attempts (resets on cold start)
-const failedAttempts = new Map<string, { count: number; resetAt: number }>()
-const MAX_PIN_ATTEMPTS = 5
-const LOCKOUT_MS = 15 * 60 * 1000 // 15 minutes
-
-function checkRateLimit(email: string): boolean {
-  const key = email.toLowerCase()
-  const entry = failedAttempts.get(key)
-  if (!entry) return true
-  if (Date.now() > entry.resetAt) {
-    failedAttempts.delete(key)
-    return true
-  }
-  return entry.count < MAX_PIN_ATTEMPTS
-}
-
-function recordFailedAttempt(email: string): void {
-  const key = email.toLowerCase()
-  const entry = failedAttempts.get(key)
-  if (!entry || Date.now() > entry.resetAt) {
-    failedAttempts.set(key, { count: 1, resetAt: Date.now() + LOCKOUT_MS })
-  } else {
-    entry.count++
-  }
-}
-
-function clearFailedAttempts(email: string): void {
-  failedAttempts.delete(email.toLowerCase())
-}
+import { failureCount, recordFailure, clearFailures } from './_lib/rateLimit.js'
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+const MAX_PIN_ATTEMPTS = 5
+const PIN_LOCKOUT_SEC = 15 * 60
+
+/**
+ * Length-independent constant-time comparison. `timingSafeEqual` throws on
+ * length mismatch, which would itself leak the PIN's length.
+ */
+function pinMatches(provided: string, expected: string): boolean {
+  const a = Buffer.from(provided, 'utf8')
+  const b = Buffer.from(expected, 'utf8')
+  if (a.length !== b.length) {
+    // Still burn a comparison so the timing doesn't depend on length.
+    timingSafeEqual(a, a)
+    return false
+  }
+  return timingSafeEqual(a, b)
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   setPublicCors(res)
@@ -68,17 +58,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (compEmail.toLowerCase() === email.toLowerCase()) {
         if (!pin) return res.status(200).json({ paid: false, needsPin: true, email })
 
-        // Rate limit PIN attempts
-        if (!checkRateLimit(email)) {
+        // The PIN is the only credential guarding a comped account, so the
+        // attempt counter must be shared across serverless instances — an
+        // in-memory map gives an attacker a fresh budget per warm lambda.
+        const subject = email.toLowerCase()
+        if ((await failureCount('pin', subject)) >= MAX_PIN_ATTEMPTS) {
           return res.status(429).json({ error: 'Too many PIN attempts. Try again later.' })
         }
 
-        if (pin === compPin) {
-          clearFailedAttempts(email)
+        if (pinMatches(pin, compPin ?? '')) {
+          await clearFailures('pin', subject)
           return res.status(200).json({ paid: true, email })
         }
 
-        recordFailedAttempt(email)
+        await recordFailure('pin', subject, PIN_LOCKOUT_SEC)
         return res.status(200).json({ paid: false, email })
       }
     }
@@ -115,7 +108,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const hasPaid = payments.data.some((pi) => pi.status === 'succeeded')
     return res.status(200).json({ paid: hasPaid, email })
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error'
-    return res.status(500).json({ error: `Verification failed: ${message}` })
+    console.error('verify-purchase: Stripe error', err)
+    return res.status(500).json({ error: 'Verification failed. Please try again.' })
   }
 }
