@@ -295,7 +295,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // (allrecipes, food network, etc.) never reach network idle within timeout.
       await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 20000 })
 
-      if (isBlockedUrl(page.url())) {
+      // Re-resolve, not just pattern-match: a redirect to a hostname that
+      // resolves to a private IP passes isBlockedUrl. The browser has already
+      // navigated at this point, so this stops the content reaching the client
+      // rather than stopping the request.
+      const finalUrl = page.url()
+      if (isBlockedUrl(finalUrl) || (await isBlockedAfterResolve(finalUrl))) {
         return res.status(403).json({ error: 'Redirect target URL not allowed' })
       }
 
