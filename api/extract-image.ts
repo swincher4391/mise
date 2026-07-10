@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { isBlockedUrl, isBlockedAfterResolve } from './_lib/ssrf.js'
+import { safeFetch } from './_lib/safeFetch.js'
 import { enforceRateLimit } from './_lib/rateLimit.js'
 
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024 // 5MB
@@ -79,43 +79,21 @@ async function uploadToTempHost(base64DataUrl: string): Promise<string> {
 }
 
 /**
- * Fetches a URL as an image, re-validating against the SSRF blocklist at every
- * redirect hop. This endpoint republishes whatever it fetches to a public host,
- * so an unchecked redirect into a private range would exfiltrate internal
- * content — redirects are followed manually rather than by fetch().
+ * This endpoint republishes whatever it fetches to a public host, so an
+ * unchecked redirect into a private range would exfiltrate internal content.
+ * safeFetch validates every hop before connecting.
  */
-async function fetchImageSafely(startUrl: string): Promise<Response> {
-  let url = startUrl
-
-  for (let hop = 0; hop <= MAX_IMAGE_REDIRECTS; hop++) {
-    if (isBlockedUrl(url) || (await isBlockedAfterResolve(url))) {
-      throw new Error('URL is not allowed')
-    }
-
-    const resp = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-        'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
-      },
-      redirect: 'manual',
-    })
-
-    if (resp.status >= 300 && resp.status < 400) {
-      const location = resp.headers.get('location')
-      if (!location) throw new Error(`Failed to fetch image (${resp.status})`)
-      url = new URL(location, url).toString()
-      continue
-    }
-
-    if (!resp.ok) throw new Error(`Failed to fetch image (${resp.status})`)
-    return resp
-  }
-
-  throw new Error('Too many redirects')
-}
-
 async function proxyImageToTempHost(url: string): Promise<string> {
-  const resp = await fetchImageSafely(url)
+  const resp = await safeFetch(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+      'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+    },
+    maxRedirects: MAX_IMAGE_REDIRECTS,
+    timeoutMs: 15_000,
+  })
+
+  if (!resp.ok) throw new Error(`Failed to fetch image (${resp.status})`)
 
   const contentType = resp.headers.get('content-type') ?? 'image/jpeg'
   if (!contentType.startsWith('image/')) throw new Error('URL does not point to an image')

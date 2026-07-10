@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { isBlockedUrl, isBlockedAfterResolve } from './_lib/ssrf.js'
+import { safeFetch } from './_lib/safeFetch.js'
 import { enforceRateLimit } from './_lib/rateLimit.js'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -19,16 +19,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   })
   if (!allowed) return
 
-  if (isBlockedUrl(targetUrl)) {
-    return res.status(403).json({ error: 'URL not allowed' })
-  }
-
-  if (await isBlockedAfterResolve(targetUrl)) {
-    return res.status(403).json({ error: 'URL resolves to a blocked address' })
-  }
-
   try {
-    const response = await fetch(targetUrl, {
+    // safeFetch validates the initial URL and every redirect hop before
+    // connecting, so a redirect into a private range never issues a request.
+    const response = await safeFetch(targetUrl, {
       headers: {
         'User-Agent':
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
@@ -42,14 +36,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         'Sec-Fetch-User': '?1',
         'Upgrade-Insecure-Requests': '1',
       },
-      redirect: 'follow',
+      timeoutMs: 15_000,
     })
-
-    // Re-resolve the final URL: a redirect to a hostname that *resolves* to a
-    // private IP passes the pattern check but not the DNS check.
-    if (isBlockedUrl(response.url) || (await isBlockedAfterResolve(response.url))) {
-      return res.status(403).json({ error: 'Redirect target URL not allowed' })
-    }
 
     const html = await response.text()
     res.setHeader('Content-Type', 'text/html; charset=utf-8')
@@ -60,6 +48,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).send(html)
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'
+    if (message === 'URL is not allowed') {
+      return res.status(403).json({ error: 'URL not allowed' })
+    }
     return res.status(502).json({ error: `Failed to fetch URL: ${message}` })
   }
 }

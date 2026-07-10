@@ -130,6 +130,27 @@ describe('verify-purchase PIN rate limiting', () => {
     expect(afterTtl.body).toMatchObject({ paid: false, email: 'user@example.com' })
   })
 
+  // A JSON number/object reaches Buffer.from() in the constant-time compare,
+  // which throws ERR_INVALID_ARG_TYPE outside the handler's try/catch.
+  it('does not crash when the PIN is not a string', async () => {
+    process.env.COMPED_EMAILS = 'user@example.com:1111'
+    const handler = await loadHandler()
+
+    for (const pin of [1111, { toString: () => '1111' }, ['1111'], true]) {
+      const res = createResponse()
+      const req = {
+        method: 'POST',
+        body: { email: 'user@example.com', pin },
+        query: {},
+        headers: {},
+      } as unknown as VercelRequest
+
+      await expect(handler(req, res)).resolves.not.toThrow()
+      expect(res.statusCode).toBe(200)
+      expect(res.body).toMatchObject({ paid: false, needsPin: true })
+    }
+  })
+
   it('tracks failed attempts independently per email', async () => {
     process.env.COMPED_EMAILS = 'first@example.com:1111,second@example.com:2222'
     const handler = await loadHandler()

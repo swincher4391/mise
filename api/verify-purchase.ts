@@ -56,7 +56,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     for (const entry of compedEntries) {
       const [compEmail, compPin] = entry.split(':')
       if (compEmail.toLowerCase() === email.toLowerCase()) {
-        if (!pin) return res.status(200).json({ paid: false, needsPin: true, email })
+        // Must be a string: a JSON number or object would throw inside
+        // Buffer.from below, and this branch sits outside the try/catch.
+        if (typeof pin !== 'string' || !pin) {
+          return res.status(200).json({ paid: false, needsPin: true, email })
+        }
 
         // The PIN is the only credential guarding a comped account, so the
         // attempt counter must be shared across serverless instances — an

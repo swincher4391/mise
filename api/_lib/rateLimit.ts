@@ -63,14 +63,29 @@ export function getClientIp(req: VercelRequest): string {
 /** Increment a fixed window, returning the post-increment count. */
 async function bump(key: string, windowSec: number): Promise<number> {
   if (kvConfigured()) {
+    let count: number | null = null
     try {
-      const count = await kv.incr(key)
-      // Only the request that created the key sets its TTL.
-      if (count === 1) await kv.expire(key, windowSec)
-      return count
+      count = await kv.incr(key)
     } catch {
-      // KV unreachable — fall through to the in-memory window rather than
+      // KV unreachable — fall through to the in-memory window below rather than
       // failing the user's request.
+    }
+
+    if (count !== null) {
+      // Setting the TTL is best-effort and must not discard the authoritative
+      // count: if expire alone fails we'd otherwise fall through and return a
+      // per-lambda count of 1, silently undercounting the limiter.
+      try {
+        // A key with no TTL never resets. That can happen if a previous request
+        // was killed between incr and expire, and for failure keys — whose name
+        // has no window component — it would lock the subject out permanently.
+        if (count === 1 || (await kv.ttl(key)) < 0) {
+          await kv.expire(key, windowSec)
+        }
+      } catch {
+        // Leave the count as-is; the next request re-attempts the TTL.
+      }
+      return count
     }
   }
 
