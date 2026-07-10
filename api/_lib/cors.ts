@@ -9,6 +9,26 @@ export const ALLOWED_ORIGINS = [
   'https://mise-recipe.vercel.app',
 ]
 
+/**
+ * True when the request has no Origin (curl, server-to-server), comes from an
+ * allowlisted production origin, or is same-origin as the deployment itself.
+ *
+ * The same-origin case matters because browsers send Origin on every POST, so a
+ * bare allowlist would reject the app's own writes from localhost and from
+ * Vercel preview deployments.
+ */
+export function isAllowedOrigin(req: VercelRequest): boolean {
+  const origin = req.headers.origin
+  if (!origin) return true
+  if (ALLOWED_ORIGINS.includes(origin)) return true
+
+  try {
+    return new URL(origin).host === req.headers.host
+  } catch {
+    return false
+  }
+}
+
 /** Set restrictive CORS headers for endpoints that use cookies */
 export function setAuthenticatedCors(req: VercelRequest, res: VercelResponse): void {
   const origin = req.headers.origin ?? ''

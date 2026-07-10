@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { kv } from '@vercel/kv'
 import { decodeSharePayload } from './_lib/sharePayload.js'
 import { enforceRateLimit } from './_lib/rateLimit.js'
-import { ALLOWED_ORIGINS } from './_lib/cors.js'
+import { ALLOWED_ORIGINS, isAllowedOrigin } from './_lib/cors.js'
 
 const KV_KEY = 'sitemap:urls'
 const SHARE_BASE = 'https://mise.swinch.dev/api/r'
@@ -52,7 +52,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
  */
 async function handleAdd(req: VercelRequest, res: VercelResponse) {
   const origin = req.headers.origin ?? ''
-  if (origin && !ALLOWED_ORIGINS.includes(origin)) {
+  if (!isAllowedOrigin(req)) {
     return res.status(403).json({ error: 'Forbidden' })
   }
 
