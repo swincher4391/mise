@@ -108,6 +108,51 @@ describe('rate limiter — KV path', () => {
     expect(await enforceRateLimit(req, res, { name: 'proxy', limit: 2, windowSec: 600 })).toBe(false)
   })
 
+  // A silent downgrade to per-instance counters is exactly the failure mode
+  // this project has been bitten by. It must announce itself.
+  it('warns loudly in production when KV is not configured', async () => {
+    delete process.env.KV_REST_API_URL
+    delete process.env.KV_REST_API_TOKEN
+    process.env.VERCEL_ENV = 'production'
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const { recordFailure } = await load()
+    await recordFailure('pin', 'a@b.com', 900)
+    await recordFailure('pin', 'a@b.com', 900)
+
+    expect(spy).toHaveBeenCalledTimes(1) // once per cold start, not per request
+    expect(spy.mock.calls[0][0]).toMatch(/KV_REST_API_URL.*not set/s)
+
+    spy.mockRestore()
+    delete process.env.VERCEL_ENV
+  })
+
+  it('warns when KV is configured but unreachable', async () => {
+    kv.incr.mockRejectedValue(new Error('ECONNREFUSED'))
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const { recordFailure } = await load()
+    await recordFailure('pin', 'a@b.com', 900)
+
+    expect(spy).toHaveBeenCalledOnce()
+    expect(spy.mock.calls[0][0]).toMatch(/KV unreachable/)
+
+    spy.mockRestore()
+  })
+
+  it('stays quiet in dev when KV is simply absent', async () => {
+    delete process.env.KV_REST_API_URL
+    delete process.env.KV_REST_API_TOKEN
+    delete process.env.VERCEL_ENV
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const { recordFailure } = await load()
+    await recordFailure('pin', 'a@b.com', 900)
+
+    expect(spy).not.toHaveBeenCalled()
+    spy.mockRestore()
+  })
+
   it('clears failures via kv.del', async () => {
     const { clearFailures } = await load()
     kv.del.mockResolvedValue(1)

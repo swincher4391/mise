@@ -42,9 +42,36 @@ interface Counter {
 
 const memoryCounters = new Map<string, Counter>()
 
-/** True when the KV connection env vars are present. */
+/** Warn once per cold start, not once per request. */
+let warnedNoKv = false
+let warnedKvDown = false
+
+/**
+ * `@vercel/kv` reads exactly these two names. If they're absent in production
+ * the limiter still works, but per-instance — an attacker gets a fresh bucket
+ * per warm lambda, and the PIN lockout stops being shared. That is a silent
+ * downgrade of the only thing standing between a scraper and the API bill, so
+ * say so loudly rather than degrade in the dark.
+ */
 function kvConfigured(): boolean {
-  return Boolean(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN)
+  const configured = Boolean(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN)
+
+  if (!configured && !warnedNoKv && process.env.VERCEL_ENV === 'production') {
+    warnedNoKv = true
+    console.error(
+      'rateLimit: KV_REST_API_URL/KV_REST_API_TOKEN are not set. ' +
+        'Rate limits and PIN lockout are per-instance only and will not hold under load.',
+    )
+  }
+
+  return configured
+}
+
+/** Surface a KV outage once, for the same reason. */
+function warnKvUnreachable(err: unknown): void {
+  if (warnedKvDown) return
+  warnedKvDown = true
+  console.error('rateLimit: KV unreachable, falling back to per-instance counters.', err)
 }
 
 /**
@@ -66,9 +93,10 @@ async function bump(key: string, windowSec: number): Promise<number> {
     let count: number | null = null
     try {
       count = await kv.incr(key)
-    } catch {
+    } catch (err) {
       // KV unreachable — fall through to the in-memory window below rather than
       // failing the user's request.
+      warnKvUnreachable(err)
     }
 
     if (count !== null) {
@@ -171,8 +199,8 @@ export async function failureCount(name: string, subject: string): Promise<numbe
     try {
       const value = await kv.get<number>(key)
       return value ?? 0
-    } catch {
-      // fall through
+    } catch (err) {
+      warnKvUnreachable(err)
     }
   }
 
@@ -194,8 +222,8 @@ export async function clearFailures(name: string, subject: string): Promise<void
     try {
       await kv.del(key)
       return
-    } catch {
-      // fall through
+    } catch (err) {
+      warnKvUnreachable(err)
     }
   }
 
