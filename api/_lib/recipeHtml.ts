@@ -150,6 +150,11 @@ export function buildRecipeHtml(payload: SharePayload, shareUrl?: string, encode
 
   const stepCount = payload.st.length
 
+  // Most extracted recipes carry no image. Without a fallback these shared
+  // links preview as bare text on Reddit/Slack/iMessage — the branded card is
+  // what makes a dropped link look worth clicking.
+  const ogImage = safeImg ?? 'https://mise.swinch.dev/og-image.png'
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -159,13 +164,17 @@ export function buildRecipeHtml(payload: SharePayload, shareUrl?: string, encode
   <meta property="og:title" content="${esc(payload.t)}">
   <meta property="og:description" content="${desc}">
   <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Mise">
   ${shareUrl ? `<meta property="og:url" content="${esc(shareUrl)}">` : ''}
-  ${safeImg ? `<meta property="og:image" content="${esc(safeImg)}">` : ''}
+  <meta property="og:image" content="${esc(ogImage)}">
   ${shareUrl ? `<link rel="canonical" href="${esc(shareUrl)}">` : ''}
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="${esc(payload.t)}">
   <meta name="twitter:description" content="${desc}">
-  ${safeImg ? `<meta name="twitter:image" content="${esc(safeImg)}">` : ''}
+  <meta name="twitter:image" content="${esc(ogImage)}">
+  <meta name="description" content="${desc}">
+  <meta name="theme-color" content="#2d5016">
+  <link rel="icon" href="https://mise.swinch.dev/icon-192.png">
   <meta name="pinterest-rich-pin" content="true">
   <script type="application/ld+json">
 ${jsonLdStr}

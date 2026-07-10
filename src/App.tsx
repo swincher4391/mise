@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { Analytics } from '@vercel/analytics/react'
 import { initAnalytics, trackEvent } from '@infrastructure/analytics/track.ts'
 import { MealPlanPage } from '@presentation/pages/MealPlanPage.tsx'
@@ -15,6 +15,14 @@ import type { Recipe } from '@domain/models/Recipe.ts'
 
 type View = 'plan' | 'extract' | 'library' | 'grocery'
 
+const VIEWS: View[] = ['plan', 'extract', 'library', 'grocery']
+
+/** 'extract' is the default view, and lives at the bare URL (no hash). */
+function viewFromHash(): View {
+  const hash = window.location.hash.replace(/^#\/?/, '')
+  return (VIEWS as string[]).includes(hash) ? (hash as View) : 'extract'
+}
+
 // One-time cleanup: remove legacy Kroger tokens from localStorage.
 // These were stored client-side before the migration to encrypted HttpOnly cookies.
 const LEGACY_KEYS = ['kroger_access_token', 'kroger_refresh_token', 'kroger_token_expiry', 'kroger_selected_store']
@@ -23,27 +31,46 @@ LEGACY_KEYS.forEach((key) => localStorage.removeItem(key))
 initAnalytics()
 
 function App() {
-  const [view, setView] = useState<View>('extract')
+  const [view, setView] = useState<View>(viewFromHash)
   const [selectedRecipeId, setSelectedRecipeId] = useState<string | null>(null)
   const [importedRecipe, setImportedRecipe] = useState<Recipe | null>(null)
   const [sharedUrl, setSharedUrl] = useState<string | null>(null)
   const purchase = usePurchase()
   const installPrompt = useInstallPrompt()
 
+  /**
+   * Views are history entries. Without this, the app has no history and a
+   * mobile user pressing Back after two taps is thrown out of the site, and no
+   * view can be linked to.
+   */
+  const navigate = useCallback((next: View) => {
+    setView(next)
+    const hash = next === 'extract' ? '' : `#/${next}`
+    if (window.location.hash !== hash) {
+      window.history.pushState(null, '', hash || window.location.pathname + window.location.search)
+    }
+  }, [])
+
+  useEffect(() => {
+    const onPopState = () => setView(viewFromHash())
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [])
+
   const handleExtensionRecipe = useCallback((recipe: Recipe) => {
     setImportedRecipe(recipe)
-    setView('extract')
-  }, [])
+    navigate('extract')
+  }, [navigate])
 
   const handleShareTarget = useCallback((url: string) => {
     setSharedUrl(url)
-    setView('extract')
-  }, [])
+    navigate('extract')
+  }, [navigate])
 
   const handleShareImport = useCallback((recipe: Recipe) => {
     setImportedRecipe(recipe)
-    setView('extract')
-  }, [])
+    navigate('extract')
+  }, [navigate])
 
   useExtensionImport(handleExtensionRecipe)
   useShareTarget(handleShareTarget, handleShareImport)
@@ -53,7 +80,7 @@ function App() {
       case 'plan':
         return (
           <MealPlanPage
-            onNavigateToGrocery={() => setView('grocery')}
+            onNavigateToGrocery={() => navigate('grocery')}
           />
         )
       case 'extract':
@@ -65,7 +92,7 @@ function App() {
             onSharedUrlConsumed={() => setSharedUrl(null)}
             onNavigateToLibrary={() => {
               setSelectedRecipeId(null)
-              setView('library')
+              navigate('library')
             }}
             purchase={purchase}
             onRecipeExtracted={installPrompt.markExtracted}
@@ -75,7 +102,7 @@ function App() {
         return (
           <LibraryPage
             selectedRecipeId={selectedRecipeId}
-            onNavigateToExtract={() => setView('extract')}
+            onNavigateToExtract={() => navigate('extract')}
             onSelectRecipe={setSelectedRecipeId}
             purchase={purchase}
           />
@@ -85,7 +112,7 @@ function App() {
           <GroceryPage
             onNavigateToLibrary={() => {
               setSelectedRecipeId(null)
-              setView('library')
+              navigate('library')
             }}
           />
         )
@@ -94,7 +121,7 @@ function App() {
 
   return (
     <>
-      <TopNav current={view} onChange={(v) => { trackEvent('nav_switched', { view: v }); setView(v) }} />
+      <TopNav current={view} onChange={(v) => { trackEvent('nav_switched', { view: v }); navigate(v) }} />
       {renderPage()}
       {installPrompt.showInstallBanner && (
         <InstallBanner onInstall={installPrompt.install} onDismiss={installPrompt.dismiss} />
@@ -103,7 +130,7 @@ function App() {
       <a href="https://peerpush.net/p/mise" target="_blank" rel="noopener" className="peerpush-badge">
         <img src="https://peerpush.net/p/mise/badge.png" alt="Mise on PeerPush" width={230} />
       </a>
-      <div className="app-version">v2.0 · <a href="https://privacy.swinch.dev" target="_blank" rel="noopener noreferrer">Privacy</a></div>
+      <div className="app-version">v2.1 · <a href="https://privacy.swinch.dev" target="_blank" rel="noopener noreferrer">Privacy</a></div>
     </>
   )
 }

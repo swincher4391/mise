@@ -34,6 +34,7 @@ interface UseRecipeExtractionResult {
   extractFromImage: (imageBase64: string) => Promise<void>
   setRecipe: (recipe: Recipe | null) => void
   clearOcrText: () => void
+  clearError: () => void
 }
 
 /**
@@ -431,6 +432,7 @@ export function useRecipeExtraction(): UseRecipeExtractionResult {
   }, [])
 
   const clearOcrText = useCallback(() => setOcrText(null), [])
+  const clearError = useCallback(() => setError(null), [])
 
-  return { recipe, isLoading, error, ocrText, extractionStatus, extract, extractFromImage, setRecipe, clearOcrText }
+  return { recipe, isLoading, error, ocrText, extractionStatus, extract, extractFromImage, setRecipe, clearOcrText, clearError }
 }

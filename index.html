@@ -3,7 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/icon-192.svg" />
-    <link rel="apple-touch-icon" href="/icon-192.svg" />
+    <!-- iOS ignores SVG touch icons and screenshots the page instead. -->
+    <link rel="apple-touch-icon" href="/icon-192.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#2d5016" />
     <meta name="description" content="Paste any recipe URL and get clean ingredients and steps. Extract recipes from blogs, TikTok, Instagram, and YouTube. Free, no ads, works offline." />
@@ -13,7 +14,16 @@
     <meta property="og:description" content="Paste any recipe URL and get clean ingredients and steps. No stories, no ads, no pop-ups.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://mise.swinch.dev">
-    <meta property="og:image" content="https://mise.swinch.dev/icon-192.svg">
+    <meta property="og:site_name" content="Mise">
+    <!-- Reddit, Slack, iMessage and X do not render SVG og:images. Must be raster. -->
+    <meta property="og:image" content="https://mise.swinch.dev/og-image.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Mise — paste any recipe URL and get clean ingredients and steps.">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Mise — Just the Recipe">
+    <meta name="twitter:description" content="Paste any recipe URL and get clean ingredients and steps. No stories, no ads, no pop-ups.">
+    <meta name="twitter:image" content="https://mise.swinch.dev/og-image.png">
     <link rel="canonical" href="https://mise.swinch.dev">
   </head>
   <body>

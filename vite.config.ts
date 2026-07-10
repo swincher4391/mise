@@ -958,9 +958,13 @@ export default defineConfig({
             text: 'text',
           },
         } as any,
+        // Raster icons are required for installability: Chromium's install
+        // criteria ignore SVG, so with SVG-only icons `beforeinstallprompt`
+        // never fires and the install banner can never show.
         icons: [
-          { src: '/icon-192.svg', sizes: '192x192', type: 'image/svg+xml' },
-          { src: '/icon-192.svg', sizes: '512x512', type: 'image/svg+xml' },
+          { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+          { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+          { src: '/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
       workbox: {

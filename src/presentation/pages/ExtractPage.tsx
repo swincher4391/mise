@@ -12,6 +12,7 @@ import { isTikTokUrl, isYouTubeUrl, isInstagramUrl } from '@application/extracti
 import { useVideoExtractionLimit } from '@presentation/hooks/useVideoExtractionLimit.ts'
 import type { VideoPlatform } from '@infrastructure/usage/videoExtractionStore.ts'
 import { createManualRecipe } from '@application/extraction/createManualRecipe.ts'
+import { createDemoRecipe } from '@application/extraction/demoRecipe.ts'
 import { parseTextRecipe } from '@application/extraction/parseTextRecipe.ts'
 import { compressImage } from '@infrastructure/imageProcessing.ts'
 import type { Recipe } from '@domain/models/Recipe.ts'
@@ -24,7 +25,15 @@ import { db } from '@infrastructure/db/database.ts'
 
 type TabId = 'extract' | 'photo' | 'paste' | 'describe' | 'discover'
 
-const TABS: TabId[] = ['extract', 'photo', 'paste', 'describe', 'discover']
+// Labelled by what the user brings, not by what the code does. "Extract" also
+// named a top-nav section, which made the same word mean two different things.
+const TABS: { id: TabId; label: string }[] = [
+  { id: 'extract', label: 'Link' },
+  { id: 'photo', label: 'Photo' },
+  { id: 'paste', label: 'Paste text' },
+  { id: 'describe', label: 'Create' },
+  { id: 'discover', label: 'Find' },
+]
 
 interface ExtractPageProps {
   onNavigateToLibrary: () => void
@@ -37,9 +46,10 @@ interface ExtractPageProps {
 }
 
 export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRecipeConsumed, sharedUrl, onSharedUrlConsumed, purchase, onRecipeExtracted }: ExtractPageProps) {
-  const { recipe, isLoading, error, ocrText, extractionStatus, extract, extractFromImage, setRecipe, clearOcrText } = useRecipeExtraction()
-  const { canExtract: canExtractVideo, recordExtraction } = useVideoExtractionLimit(purchase.isPaid)
+  const { recipe, isLoading, error, ocrText, extractionStatus, extract, extractFromImage, setRecipe, clearOcrText, clearError } = useRecipeExtraction()
+  const { canExtract: canExtractVideo, remaining: remainingVideo, recordExtraction } = useVideoExtractionLimit(purchase.isPaid)
   const [pendingVideoPlatform, setPendingVideoPlatform] = useState<VideoPlatform | null>(null)
+  const [lastVideoPlatform, setLastVideoPlatform] = useState<VideoPlatform | null>(null)
   const [editableOcrText, setEditableOcrText] = useState('')
   const [showUpgrade, setShowUpgrade] = useState(false)
   const [upgradeFeature, setUpgradeFeature] = useState('')
@@ -79,6 +89,7 @@ export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRec
     if (recipe) {
       if (pendingVideoPlatform) {
         recordExtraction(pendingVideoPlatform)
+        setLastVideoPlatform(pendingVideoPlatform)
         setPendingVideoPlatform(null)
       }
       onRecipeExtracted?.()
@@ -107,6 +118,18 @@ export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRec
       setEditableOcrText(ocrText)
     }
   }, [ocrText])
+
+  /** Render the bundled example instantly — no network, so it can't fail. */
+  const showDemoRecipe = () => {
+    clearError()
+    setRecipe(createDemoRecipe())
+  }
+
+  const openUpgrade = () => {
+    setUpgradeFeature('Unlimited recipes, unlimited video imports, and photo import — one payment, no subscription.')
+    setShowUpgrade(true)
+    trackEvent('pricing_link_clicked')
+  }
 
   const handleBatchGated = () => {
     if (!purchase.isPaid) {
@@ -205,14 +228,35 @@ export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRec
         </button>
       </div>
 
+      {/* A cold visitor lands on an app shell with no idea what it does — the
+          pitch only exists in index.html, which React replaces on mount. */}
+      {!recipe && !isLoading && (
+        <p className="app-value-prop">
+          Paste any recipe link and get clean ingredients and steps — no ads,
+          no life story, no pop-ups.
+          <span className="app-platforms">Blogs · TikTok · Instagram · YouTube</span>
+          <span className="app-free-note">
+            Free, no account needed.
+            {!purchase.isPaid && (
+              <>
+                {' '}
+                <button className="app-pricing-link" onClick={openUpgrade}>
+                  Pro is $4.99, once
+                </button>
+              </>
+            )}
+          </span>
+        </p>
+      )}
+
       <div className="extract-tabs">
         {TABS.map(tab => (
           <button
-            key={tab}
-            className={`extract-tab ${activeTab === tab ? 'active' : ''}`}
-            onClick={() => { setActiveTab(tab); if (tab !== 'describe') setChatInitialPrompt(''); trackEvent('tab_switched', { tab }) }}
+            key={tab.id}
+            className={`extract-tab ${activeTab === tab.id ? 'active' : ''}`}
+            onClick={() => { setActiveTab(tab.id); if (tab.id !== 'describe') setChatInitialPrompt(''); trackEvent('tab_switched', { tab: tab.id }) }}
           >
-            {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            {tab.label}
           </button>
         ))}
       </div>
@@ -247,12 +291,16 @@ export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRec
             </div>
           )}
           {error && <ErrorDisplay error={error} />}
-          {!recipe && !isLoading && !error && (
+          {/* Also offered after an error: a failed first paste is exactly when
+              someone needs to see that the product does work. */}
+          {!recipe && !isLoading && (
             <div className="try-it-section">
-              <p className="try-it-hint">First time? See it in action:</p>
+              <p className="try-it-hint">
+                {error ? 'Want to see what a result looks like?' : 'First time? See it in action:'}
+              </p>
               <button
                 className="try-it-btn"
-                onClick={() => { trackEvent('try_example_clicked'); extract('https://mise.swinch.dev/the-best-chicken-ever/') }}
+                onClick={() => { trackEvent('try_example_clicked'); showDemoRecipe() }}
               >
                 Try with an example recipe
               </button>
@@ -415,6 +463,19 @@ export function ExtractPage({ onNavigateToLibrary, importedRecipe, onImportedRec
             </button>
           </div>
         </div>
+      )}
+
+      {/* Tell people where they stand before they hit the wall, not at it. */}
+      {recipe && lastVideoPlatform && !purchase.isPaid && (
+        <p className="video-quota-note">
+          {remainingVideo(lastVideoPlatform) > 0
+            ? `${remainingVideo(lastVideoPlatform)} of 3 free ${platformLabels[lastVideoPlatform]} imports left.`
+            : `That was your last free ${platformLabels[lastVideoPlatform]} import.`}
+          {' '}
+          <button className="app-pricing-link" onClick={openUpgrade}>
+            Pro is $4.99, once
+          </button>
+        </p>
       )}
 
       {recipe && <RecipeDisplay recipe={recipe} showSaveButton purchase={purchase} onSaved={cameFromImport ? () => setShowTryOwn(true) : onNavigateToLibrary} />}
