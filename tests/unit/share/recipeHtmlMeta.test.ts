@@ -47,6 +47,22 @@ describe('share page social meta', () => {
     expect(html).not.toContain('javascript:alert')
   })
 
+  // Pinterest recipe Rich Pins and Google recipe rich results require a JSON-LD
+  // image; a recipe with none must still get the brand fallback, or validation
+  // fails.
+  it('includes a JSON-LD image, falling back to the brand card', () => {
+    const html = buildRecipeHtml(payload(), 'https://mise.swinch.dev/api/r?d=abc', 'abc')
+    const ld = JSON.parse(html.match(/<script type="application\/ld\+json">(.*?)<\/script>/s)![1])
+    expect(ld.image).toBe(BRAND_OG)
+  })
+
+  it("uses the recipe's own image in JSON-LD when present", () => {
+    const img = 'https://example.com/pie.jpg'
+    const html = buildRecipeHtml(payload({ img }), 'https://mise.swinch.dev/api/r?d=abc', 'abc')
+    const ld = JSON.parse(html.match(/<script type="application\/ld\+json">(.*?)<\/script>/s)![1])
+    expect(ld.image).toBe(img)
+  })
+
   it('always declares a large summary card so links unfurl', () => {
     const html = buildRecipeHtml(payload(), 'https://mise.swinch.dev/api/r?d=abc', 'abc')
 

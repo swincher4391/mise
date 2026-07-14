@@ -76,6 +76,9 @@ function formatTime(minutes: number): string {
  */
 const MIN_DESC = 80
 const MAX_DESC = 125
+
+/** Brand card used whenever a recipe has no image of its own. */
+const BRAND_OG_IMAGE = 'https://mise.swinch.dev/og-image.png'
 const DESC_PADS = [
   ' Just the recipe: clean ingredients and steps, no ads and no life story.',
   ' Just the recipe — no ads, no life story.',
@@ -150,7 +153,10 @@ export function buildRecipeHtml(payload: SharePayload, shareUrl?: string, encode
 
   const generatedDesc = buildGeneratedDesc(payload)
   jsonLd.description = generatedDesc
-  if (safeImg) jsonLd.image = safeImg
+  // Pinterest recipe Rich Pins and Google recipe rich results both require an
+  // image. Fall back to the brand card when the recipe has none, matching the
+  // og:image fallback below, so structured-data validation never fails on it.
+  jsonLd.image = safeImg ?? BRAND_OG_IMAGE
   if (payload.a) jsonLd.author = { '@type': 'Person', name: payload.a }
   if (payload.sv) jsonLd.recipeYield = String(payload.sv)
   if (payload.pt) jsonLd.prepTime = minutesToIso8601(payload.pt)
@@ -209,7 +215,7 @@ export function buildRecipeHtml(payload: SharePayload, shareUrl?: string, encode
   // Most extracted recipes carry no image. Without a fallback these shared
   // links preview as bare text on Reddit/Slack/iMessage — the branded card is
   // what makes a dropped link look worth clicking.
-  const ogImage = safeImg ?? 'https://mise.swinch.dev/og-image.png'
+  const ogImage = safeImg ?? BRAND_OG_IMAGE
 
   return `<!DOCTYPE html>
 <html lang="en">
