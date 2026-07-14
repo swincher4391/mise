@@ -838,6 +838,14 @@ body {
   margin-top: 0.5rem;
 }
 
+.library-empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.6rem;
+  margin-top: 1.25rem;
+}
+
 /* Recipe Card List */
 .recipe-card-list {
   display: flex;

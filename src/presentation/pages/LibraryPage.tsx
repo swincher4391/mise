@@ -10,6 +10,8 @@ import { ImportDialog } from '@presentation/components/ImportDialog.tsx'
 import { PaidFeatureGate } from '@presentation/components/PaidFeatureGate.tsx'
 import type { Recipe } from '@domain/models/Recipe.ts'
 import type { PurchaseState } from '@presentation/hooks/usePurchase.ts'
+import { createExampleRecipes } from '@application/extraction/demoRecipe.ts'
+import { trackEvent } from '@infrastructure/analytics/track.ts'
 import { MEAL_TYPES, SUB_CATEGORIES, ALL_PRESET_TAGS } from '@presentation/components/TagManager.tsx'
 
 interface LibraryPageProps {
@@ -87,6 +89,13 @@ export function LibraryPage({ selectedRecipeId, onNavigateToExtract, onSelectRec
     for (const recipe of importedRecipes) {
       await save(recipe)
     }
+  }
+
+  const handleSeedExamples = async () => {
+    for (const recipe of createExampleRecipes()) {
+      await save(recipe)
+    }
+    trackEvent('library_examples_seeded')
   }
 
   const showNudge = !nudgeDismissed && shouldNudgeBackup() && recipes.length > 0
@@ -221,7 +230,11 @@ export function LibraryPage({ selectedRecipeId, onNavigateToExtract, onSelectRec
       {!isLoading && recipes.length === 0 && (
         <div className="library-empty">
           <p>No saved recipes yet.</p>
-          <p>Extract a recipe and tap Save.</p>
+          <p>Paste a recipe link to add your first — or start with a couple of examples.</p>
+          <div className="library-empty-actions">
+            <button className="save-btn" onClick={onNavigateToExtract}>Add a recipe</button>
+            <button className="nav-btn" onClick={handleSeedExamples}>Add example recipes</button>
+          </div>
         </div>
       )}
       {!isLoading && recipes.length > 0 && filteredRecipes.length === 0 && (

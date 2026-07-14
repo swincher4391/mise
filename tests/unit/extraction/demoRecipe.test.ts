@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createDemoRecipe } from '../../../src/application/extraction/demoRecipe.ts'
+import { createDemoRecipe, createExampleRecipes } from '../../../src/application/extraction/demoRecipe.ts'
 
 describe('createDemoRecipe', () => {
   it('builds a complete recipe without any network call', () => {
@@ -49,5 +49,24 @@ describe('createDemoRecipe', () => {
 
     expect(a).not.toBe(b)
     expect(a.ingredients).not.toBe(b.ingredients)
+  })
+})
+
+describe('createExampleRecipes', () => {
+  it('returns multiple complete, parsed recipes for seeding an empty library', () => {
+    const examples = createExampleRecipes()
+
+    expect(examples.length).toBeGreaterThanOrEqual(2)
+    for (const r of examples) {
+      expect(r.title).toBeTruthy()
+      expect(r.ingredients.length).toBeGreaterThan(0)
+      expect(r.steps.length).toBeGreaterThan(0)
+      expect(r.totalTimeMinutes).toBe((r.prepTimeMinutes ?? 0) + (r.cookTimeMinutes ?? 0))
+    }
+  })
+
+  it('gives each example a distinct id', () => {
+    const ids = createExampleRecipes().map((r) => r.id)
+    expect(new Set(ids).size).toBe(ids.length)
   })
 })

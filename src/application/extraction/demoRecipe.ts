@@ -48,3 +48,85 @@ export function createDemoRecipe(): Recipe {
     totalTimeMinutes: 45,
   }
 }
+
+interface ExampleSpec {
+  title: string
+  description: string
+  ingredients: string[]
+  steps: string[]
+  servings: number
+  prep: number
+  cook: number
+}
+
+const EXAMPLES: ExampleSpec[] = [
+  {
+    title: 'Weeknight Pasta Aglio e Olio',
+    description: 'Garlic, olive oil, and chili flakes — dinner in the time it takes to boil pasta.',
+    ingredients: [
+      '1 lb spaghetti',
+      '1/2 cup olive oil',
+      '6 cloves garlic, thinly sliced',
+      '1 tsp red pepper flakes',
+      '1/2 cup parsley, chopped',
+      '1/2 cup parmesan, grated',
+      'salt',
+    ],
+    steps: [
+      'Boil the spaghetti in well-salted water until al dente; reserve 1 cup of pasta water.',
+      'Meanwhile, warm the olive oil over medium-low heat and cook the garlic until just golden.',
+      'Add the red pepper flakes and a ladle of pasta water; simmer 1 minute.',
+      'Toss the drained pasta in the oil, adding pasta water until glossy.',
+      'Off the heat, fold in the parsley and parmesan and serve.',
+    ],
+    servings: 4,
+    prep: 5,
+    cook: 15,
+  },
+  {
+    title: 'Sheet-Pan Chicken & Broccoli',
+    description: 'One pan, minimal cleanup, dinner in half an hour.',
+    ingredients: [
+      '1.5 lb chicken thighs',
+      '1 lb broccoli florets',
+      '3 tbsp olive oil',
+      '3 cloves garlic, minced',
+      '1 tsp paprika',
+      '1 lemon',
+      'salt and pepper',
+    ],
+    steps: [
+      'Heat the oven to 425°F.',
+      'Toss the chicken with 2 tbsp oil, the garlic, paprika, salt, and pepper on a sheet pan.',
+      'Roast 15 minutes.',
+      'Toss the broccoli with the remaining oil, add to the pan, and roast 12–15 minutes more until the chicken reaches 165°F.',
+      'Squeeze the lemon over everything before serving.',
+    ],
+    servings: 4,
+    prep: 10,
+    cook: 30,
+  },
+]
+
+/**
+ * A small set of ready-made recipes to seed an empty library, so a first-time
+ * user never lands on a dead end. These are added locally, no network required.
+ */
+export function createExampleRecipes(): Recipe[] {
+  return EXAMPLES.map((ex) => {
+    const recipe = createManualRecipe({
+      title: ex.title,
+      ingredientLines: ex.ingredients,
+      stepLines: ex.steps,
+    })
+    return {
+      ...recipe,
+      description: ex.description,
+      servings: ex.servings,
+      servingsText: `${ex.servings} servings`,
+      prepTimeMinutes: ex.prep,
+      cookTimeMinutes: ex.cook,
+      totalTimeMinutes: ex.prep + ex.cook,
+    }
+  })
+}
