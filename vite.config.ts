@@ -974,6 +974,25 @@ export default defineConfig({
           { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },
           { src: '/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
+        // Screenshots upgrade the Chrome/Edge install prompt from a bare button
+        // to a rich app-store-style sheet. form_factor picks which the platform
+        // shows for the device.
+        screenshots: [
+          {
+            src: '/screenshot-narrow.png',
+            sizes: '390x844',
+            type: 'image/png',
+            form_factor: 'narrow',
+            label: 'Extract any recipe into a clean card',
+          },
+          {
+            src: '/screenshot-wide.png',
+            sizes: '1280x800',
+            type: 'image/png',
+            form_factor: 'wide',
+            label: 'A clean recipe with cooking mode, scaling, and sharing',
+          },
+        ] as any,
       },
       workbox: {
         skipWaiting: true,
