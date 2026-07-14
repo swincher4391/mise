@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useModalA11y } from '@presentation/hooks/useModalA11y.ts'
 
 interface UpgradePromptProps {
   feature: string
@@ -48,12 +49,21 @@ export function UpgradePrompt({ feature, onUpgrade, onRestore, onClose }: Upgrad
     }
   }
 
+  const dialogRef = useModalA11y<HTMLDivElement>(onClose)
+
   return (
     <div className="upgrade-overlay" onClick={onClose}>
-      <div className="upgrade-prompt" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="upgrade-prompt"
+        onClick={(e) => e.stopPropagation()}
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="upgrade-title"
+      >
         <button className="upgrade-close" onClick={onClose} aria-label="Close">&times;</button>
 
-        <h2 className="upgrade-title">Unlock Mise</h2>
+        <h2 className="upgrade-title" id="upgrade-title">Unlock Mise</h2>
         <p className="upgrade-feature">{feature}</p>
 
         <div className="upgrade-details">

@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react'
+import { useModalA11y } from '@presentation/hooks/useModalA11y.ts'
 import type { Recipe } from '@domain/models/Recipe.ts'
 import type { SavedRecipe } from '@domain/models/SavedRecipe.ts'
 import { parsePaprikaFile } from '@application/import/parsePaprika.ts'
@@ -11,6 +12,7 @@ interface ImportDialogProps {
 type ImportState = 'idle' | 'parsing' | 'preview' | 'importing' | 'done' | 'error'
 
 export function ImportDialog({ onImport, onClose }: ImportDialogProps) {
+  const dialogRef = useModalA11y<HTMLDivElement>(onClose)
   const [state, setState] = useState<ImportState>('idle')
   const [recipes, setRecipes] = useState<Recipe[]>([])
   const [importedCount, setImportedCount] = useState(0)
@@ -63,10 +65,17 @@ export function ImportDialog({ onImport, onClose }: ImportDialogProps) {
 
   return (
     <div className="import-dialog-overlay" onClick={onClose}>
-      <div className="import-dialog" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="import-dialog"
+        onClick={(e) => e.stopPropagation()}
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="import-dialog-title"
+      >
         <div className="import-dialog-header">
-          <h2>Import Recipes</h2>
-          <button className="nav-btn" onClick={onClose}>&times;</button>
+          <h2 id="import-dialog-title">Import Recipes</h2>
+          <button className="nav-btn" onClick={onClose} aria-label="Close">&times;</button>
         </div>
 
         <div className="import-dialog-body">
